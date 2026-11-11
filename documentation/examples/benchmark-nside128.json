@@ -1,0 +1,27 @@
+{
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "python": "3.12.15",
+  "nside": 128,
+  "cells": 196608,
+  "synthetic_swaths": 384,
+  "subset_cells_with_matches": 72,
+  "subset_product_cell_intersections": 217,
+  "centroid_array_bytes": 3145728,
+  "cell_jsonl_bytes": 1132546,
+  "cell_jsonl_gzip_bytes": 43528,
+  "initial_peak_rss_mib": 87.8,
+  "peak_rss_mib": 131.38,
+  "timings_ms": {
+    "build_index_ms": 28.868,
+    "generate_all_centroids_ms": 13.816,
+    "lookup_100k_ms": 11.999,
+    "boundary_batch_256_ms": 1.066,
+    "build_256_query_charts_ms": 82.905,
+    "intersect_256_cells_ms": 19.081,
+    "union_and_score_256_cells_ms": 47.437,
+    "summarize_256_cells_ms": 183.097,
+    "serialize_256_results_ms": 4.175,
+    "buffer_and_resolve_128_routes_ms": 151.669,
+    "real_jezero_route_ms": 0.75
+  }
+}

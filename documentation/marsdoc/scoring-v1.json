@@ -1,0 +1,21 @@
+{
+  "version": "marsdoc-policy-v1",
+  "boundary_step": 16,
+  "tier_tolerance": 1e-9,
+  "modalities": [
+    {"modality": "baseline_topography", "axis": "terrain", "weight": 1},
+    {"modality": "stereo_topography", "axis": "terrain", "weight": 1},
+    {"modality": "context_imagery", "axis": "terrain", "weight": 1},
+    {"modality": "fine_imagery", "axis": "terrain", "weight": 1},
+    {"modality": "geology", "axis": "science_environment", "weight": 1},
+    {"modality": "mineralogy", "axis": "science_environment", "weight": 1},
+    {"modality": "thermal", "axis": "science_environment", "weight": 1}
+  ],
+  "tiers": [
+    {"minimum": 0, "label": "Very Low"},
+    {"minimum": 20, "label": "Low"},
+    {"minimum": 40, "label": "Moderate"},
+    {"minimum": 60, "label": "High"},
+    {"minimum": 80, "label": "Very High"}
+  ]
+}

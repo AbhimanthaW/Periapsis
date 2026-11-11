@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [[77.43, 18.45], [77.45, 18.46], [77.47, 18.46]]
+  },
+  "corridor_width_m": 60,
+  "requested": {
+    "id": "elevation_2m_posts",
+    "requirements": [{
+      "variable": "elevation",
+      "product_classes": ["stereo_dtm"],
+      "max_native_spacing_m": 2
+    }]
+  },
+  "fallbacks": [{
+    "id": "elevation_20m_posts",
+    "requirements": [{
+      "variable": "elevation",
+      "product_classes": ["stereo_dtm"],
+      "processing_levels": ["derived_stereo_dem"],
+      "max_native_spacing_m": 20
+    }]
+  }]
+}

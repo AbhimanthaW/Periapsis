@@ -1,0 +1,1100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Calculation": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "requirements": {
+          "items": {
+            "$ref": "#/$defs/Requirement"
+          },
+          "minItems": 1,
+          "title": "Requirements",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "requirements"
+      ],
+      "title": "Calculation",
+      "type": "object"
+    },
+    "CalculationResult": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "eligible": {
+          "title": "Eligible",
+          "type": "boolean"
+        },
+        "variables": {
+          "items": {
+            "$ref": "#/$defs/VariableResult"
+          },
+          "title": "Variables",
+          "type": "array"
+        },
+        "supporting_product_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Supporting Product Ids",
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "id",
+        "eligible",
+        "variables",
+        "supporting_product_ids",
+        "reason"
+      ],
+      "title": "CalculationResult",
+      "type": "object"
+    },
+    "Candidate": {
+      "additionalProperties": false,
+      "properties": {
+        "product_id": {
+          "minLength": 1,
+          "title": "Product Id",
+          "type": "string"
+        },
+        "observed_fraction": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Observed Fraction",
+          "type": "number"
+        },
+        "support_fraction": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Support Fraction",
+          "type": "number"
+        },
+        "native_spacing_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Native Spacing M"
+        },
+        "effective_scale_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Effective Scale M"
+        },
+        "readiness": {
+          "enum": [
+            "usable",
+            "needs_preprocessing",
+            "unusable",
+            "unknown"
+          ],
+          "title": "Readiness",
+          "type": "string"
+        },
+        "reasons": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Reasons",
+          "type": "array"
+        }
+      },
+      "required": [
+        "product_id",
+        "observed_fraction",
+        "support_fraction",
+        "native_spacing_m",
+        "effective_scale_m",
+        "readiness",
+        "reasons"
+      ],
+      "title": "Candidate",
+      "type": "object"
+    },
+    "CapabilityQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "geometry": {
+          "discriminator": {
+            "mapping": {
+              "LineString": "#/$defs/Line",
+              "MultiPolygon": "#/$defs/MultiPolygon",
+              "Point": "#/$defs/Point",
+              "Polygon": "#/$defs/Polygon"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Point"
+            },
+            {
+              "$ref": "#/$defs/Line"
+            },
+            {
+              "$ref": "#/$defs/Polygon"
+            },
+            {
+              "$ref": "#/$defs/MultiPolygon"
+            }
+          ],
+          "title": "Geometry"
+        },
+        "corridor_width_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Corridor Width M"
+        },
+        "requested": {
+          "$ref": "#/$defs/Calculation"
+        },
+        "fallbacks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Calculation"
+          },
+          "title": "Fallbacks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema_version",
+        "geometry",
+        "requested"
+      ],
+      "title": "CapabilityQuery",
+      "type": "object"
+    },
+    "Dataset": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "mission": {
+          "minLength": 1,
+          "title": "Mission",
+          "type": "string"
+        },
+        "instrument": {
+          "minLength": 1,
+          "title": "Instrument",
+          "type": "string"
+        },
+        "modality": {
+          "minLength": 1,
+          "title": "Modality",
+          "type": "string"
+        },
+        "product_class": {
+          "minLength": 1,
+          "title": "Product Class",
+          "type": "string"
+        },
+        "archive_url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Archive Url",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "catalogue_status": {
+          "enum": [
+            "complete",
+            "incomplete",
+            "unknown"
+          ],
+          "title": "Catalogue Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "mission",
+        "instrument",
+        "modality",
+        "product_class",
+        "archive_url",
+        "version",
+        "catalogue_status"
+      ],
+      "title": "Dataset",
+      "type": "object"
+    },
+    "Footprint": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "product_id": {
+          "minLength": 1,
+          "title": "Product Id",
+          "type": "string"
+        },
+        "source_url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Source Url",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "native_geographic",
+            "canonical_verified",
+            "unavailable",
+            "invalid",
+            "untransformable"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "coverage_kind": {
+          "enum": [
+            "observation",
+            "usable_support"
+          ],
+          "title": "Coverage Kind",
+          "type": "string"
+        },
+        "geometry": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "Global": "#/$defs/Global",
+                  "MultiPolygon": "#/$defs/MultiPolygon",
+                  "Polygon": "#/$defs/Polygon"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Polygon"
+                },
+                {
+                  "$ref": "#/$defs/MultiPolygon"
+                },
+                {
+                  "$ref": "#/$defs/Global"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Geometry"
+        },
+        "transform": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transform"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "id",
+        "product_id",
+        "source_url",
+        "status",
+        "coverage_kind"
+      ],
+      "title": "Footprint",
+      "type": "object"
+    },
+    "Global": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "Global",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Global",
+      "type": "object"
+    },
+    "Issue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "record_id": {
+          "minLength": 1,
+          "title": "Record Id",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "source_url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Source Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "record_id",
+        "detail",
+        "source_url"
+      ],
+      "title": "Issue",
+      "type": "object"
+    },
+    "Line": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "LineString",
+          "title": "Type",
+          "type": "string"
+        },
+        "coordinates": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Coordinates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "coordinates"
+      ],
+      "title": "Line",
+      "type": "object"
+    },
+    "MarsCRS": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "const": "Mars",
+          "title": "Body",
+          "type": "string"
+        },
+        "frame": {
+          "minLength": 1,
+          "title": "Frame",
+          "type": "string"
+        },
+        "definition": {
+          "minLength": 1,
+          "title": "Definition",
+          "type": "string"
+        },
+        "latitude_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "planetocentric",
+                "planetographic"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latitude Type"
+        },
+        "longitude_direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "east",
+                "west"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Longitude Direction"
+        },
+        "longitude_domain": {
+          "anyOf": [
+            {
+              "enum": [
+                "signed",
+                "unsigned"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Longitude Domain"
+        },
+        "equatorial_radius_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Equatorial Radius M"
+        },
+        "polar_radius_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Polar Radius M"
+        }
+      },
+      "required": [
+        "body",
+        "frame",
+        "definition"
+      ],
+      "title": "MarsCRS",
+      "type": "object"
+    },
+    "MultiPolygon": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "MultiPolygon",
+          "title": "Type",
+          "type": "string"
+        },
+        "coordinates": {
+          "items": {
+            "items": {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "title": "Coordinates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "coordinates"
+      ],
+      "title": "MultiPolygon",
+      "type": "object"
+    },
+    "Point": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "Point",
+          "title": "Type",
+          "type": "string"
+        },
+        "coordinates": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Coordinates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "coordinates"
+      ],
+      "title": "Point",
+      "type": "object"
+    },
+    "Polygon": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "Polygon",
+          "title": "Type",
+          "type": "string"
+        },
+        "coordinates": {
+          "items": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "title": "Coordinates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "coordinates"
+      ],
+      "title": "Polygon",
+      "type": "object"
+    },
+    "Product": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "dataset_id": {
+          "minLength": 1,
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "source_url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Source Url",
+          "type": "string"
+        },
+        "source_crs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MarsCRS"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "processing_level": {
+          "minLength": 1,
+          "title": "Processing Level",
+          "type": "string"
+        },
+        "readiness": {
+          "enum": [
+            "usable",
+            "needs_preprocessing",
+            "unusable",
+            "unknown"
+          ],
+          "title": "Readiness",
+          "type": "string"
+        },
+        "observation_extent_complete": {
+          "default": false,
+          "title": "Observation Extent Complete",
+          "type": "boolean"
+        },
+        "support_extent_complete": {
+          "default": false,
+          "title": "Support Extent Complete",
+          "type": "boolean"
+        },
+        "variables": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Variables",
+          "type": "array"
+        },
+        "native_spacing_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Native Spacing M"
+        },
+        "effective_scale_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effective Scale M"
+        },
+        "acquisition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "compatibility_key": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Compatibility Key"
+        },
+        "provenance": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "limitations": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "dataset_id",
+        "version",
+        "source_url",
+        "source_crs",
+        "processing_level",
+        "readiness",
+        "provenance"
+      ],
+      "title": "Product",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset": {
+          "$ref": "#/$defs/Dataset"
+        },
+        "product": {
+          "$ref": "#/$defs/Product"
+        },
+        "footprints": {
+          "items": {
+            "$ref": "#/$defs/Footprint"
+          },
+          "title": "Footprints",
+          "type": "array"
+        }
+      },
+      "required": [
+        "dataset",
+        "product",
+        "footprints"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Requirement": {
+      "additionalProperties": false,
+      "properties": {
+        "variable": {
+          "minLength": 1,
+          "title": "Variable",
+          "type": "string"
+        },
+        "product_classes": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Product Classes",
+          "type": "array"
+        },
+        "modalities": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Modalities",
+          "type": "array"
+        },
+        "processing_levels": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Processing Levels",
+          "type": "array"
+        },
+        "max_native_spacing_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Native Spacing M"
+        },
+        "max_effective_scale_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Effective Scale M"
+        },
+        "acquisition_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "variable",
+        "product_classes"
+      ],
+      "title": "Requirement",
+      "type": "object"
+    },
+    "TimeWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "format": "date-time",
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "format": "date-time",
+          "title": "End",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "TimeWindow",
+      "type": "object"
+    },
+    "VariableResult": {
+      "additionalProperties": false,
+      "properties": {
+        "variable": {
+          "minLength": 1,
+          "title": "Variable",
+          "type": "string"
+        },
+        "qualified_fraction": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Qualified Fraction",
+          "type": "number"
+        },
+        "covered_by_single_product": {
+          "title": "Covered By Single Product",
+          "type": "boolean"
+        },
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/Candidate"
+          },
+          "title": "Candidates",
+          "type": "array"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/Issue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "variable",
+        "qualified_fraction",
+        "covered_by_single_product",
+        "candidates",
+        "issues",
+        "reason"
+      ],
+      "title": "VariableResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "package_id": {
+      "minLength": 1,
+      "title": "Package Id",
+      "type": "string"
+    },
+    "package_version": {
+      "minLength": 1,
+      "title": "Package Version",
+      "type": "string"
+    },
+    "method_version": {
+      "minLength": 1,
+      "title": "Method Version",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "provenance": {
+      "items": {
+        "$ref": "#/$defs/Provenance"
+      },
+      "title": "Provenance",
+      "type": "array"
+    },
+    "query": {
+      "$ref": "#/$defs/CapabilityQuery"
+    },
+    "requested": {
+      "$ref": "#/$defs/CalculationResult"
+    },
+    "fallbacks": {
+      "items": {
+        "$ref": "#/$defs/CalculationResult"
+      },
+      "title": "Fallbacks",
+      "type": "array"
+    },
+    "supported_fallback_ids": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Supported Fallback Ids",
+      "type": "array"
+    },
+    "measure": {
+      "enum": [
+        "point",
+        "length_m",
+        "area_m2"
+      ],
+      "title": "Measure",
+      "type": "string"
+    },
+    "query_size": {
+      "exclusiveMinimum": 0,
+      "title": "Query Size",
+      "type": "number"
+    }
+  },
+  "required": [
+    "package_id",
+    "package_version",
+    "method_version",
+    "limitations",
+    "provenance",
+    "query",
+    "requested",
+    "fallbacks",
+    "supported_fallback_ids",
+    "measure",
+    "query_size"
+  ],
+  "title": "CapabilityResult",
+  "type": "object"
+}

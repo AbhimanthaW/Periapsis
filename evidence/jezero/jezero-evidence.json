@@ -1,0 +1,334 @@
+{
+  "schema_version": 1,
+  "package_id": "jezero-ctx-usgs-archive-checked-window",
+  "version": "window-v1",
+  "datasets": [
+    {
+      "id": "usgs-jezero-ctx-dem",
+      "mission": "Mars Reconnaissance Orbiter",
+      "instrument": "Context Camera",
+      "modality": "stereo_topography",
+      "product_class": "stereo_dtm",
+      "archive_url": "https://astrogeology.usgs.gov/search/map/mars_2020_science_investigation_ctx_dem_mosaic",
+      "version": "2021-10-14",
+      "catalogue_status": "incomplete"
+    }
+  ],
+  "products": [
+    {
+      "id": "M20_JezeroCrater_CTXDEM_20m:window-r1978-c732",
+      "dataset_id": "usgs-jezero-ctx-dem",
+      "version": "window-v1",
+      "source_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/ScienceInvestigationMaps_JPL/M20_JezeroCrater_CTXDEM_20m.tif",
+      "source_crs": {
+        "body": "Mars",
+        "frame": "Mars 2000",
+        "definition": "PROJCS[\"Jezero_Crater_Projection\",GEOGCS[\"GCS_Mars_2000_Sphere\",DATUM[\"Mars_2000_(Sphere)\",SPHEROID[\"Mars_2000_Sphere\",3396190,0]],PRIMEM[\"Reference_Meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Equirectangular\"],PARAMETER[\"standard_parallel_1\",18.4663],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+        "latitude_type": null,
+        "longitude_direction": null,
+        "longitude_domain": null,
+        "equatorial_radius_m": 3396190.0,
+        "polar_radius_m": 3396190.0
+      },
+      "processing_level": "derived_stereo_dem",
+      "readiness": "usable",
+      "observation_extent_complete": false,
+      "support_extent_complete": true,
+      "variables": [
+        "elevation"
+      ],
+      "native_spacing_m": 20.0,
+      "effective_scale_m": null,
+      "acquisition": null,
+      "compatibility_key": null,
+      "provenance": [
+        "sha256 little-endian float32 source window: 020df24a32a2ab472db7c9ddb2538073130916308edcfb6830fe22d08c3e8903",
+        "sha256 prepared jezero.json: c19aa33379f5b588d9097ba591ccdeabc5ebedf92b740ade5875e7e7e24addc8",
+        "Verified source window [row 1978, col 732], 1024×1024, zero masked pixels."
+      ],
+      "limitations": [
+        "Verified native sampling only. Effective feature scale and tactical slope support are unset.",
+        "Subset of the Jezero DEM. Catalogue coverage beyond the verified window remains unknown."
+      ]
+    }
+  ],
+  "footprints": [
+    {
+      "id": "jezero-ctx-window-support",
+      "product_id": "M20_JezeroCrater_CTXDEM_20m:window-r1978-c732",
+      "source_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/ScienceInvestigationMaps_JPL/M20_JezeroCrater_CTXDEM_20m.tif",
+      "status": "canonical_verified",
+      "coverage_kind": "usable_support",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.25818606292017,
+              18.277613303282074
+            ],
+            [
+              77.28090822181275,
+              18.277613303282074
+            ],
+            [
+              77.30363038070536,
+              18.277613303282074
+            ],
+            [
+              77.32635253959793,
+              18.277613303282074
+            ],
+            [
+              77.34907469849053,
+              18.277613303282074
+            ],
+            [
+              77.3717968573831,
+              18.277613303282074
+            ],
+            [
+              77.3945190162757,
+              18.277613303282074
+            ],
+            [
+              77.41724117516829,
+              18.277613303282074
+            ],
+            [
+              77.43996333406086,
+              18.277613303282074
+            ],
+            [
+              77.46268549295347,
+              18.277613303282074
+            ],
+            [
+              77.48540765184605,
+              18.277613303282074
+            ],
+            [
+              77.50812981073864,
+              18.277613303282074
+            ],
+            [
+              77.53085196963123,
+              18.277613303282074
+            ],
+            [
+              77.55357412852382,
+              18.277613303282074
+            ],
+            [
+              77.5762962874164,
+              18.277613303282074
+            ],
+            [
+              77.599018446309,
+              18.277613303282074
+            ],
+            [
+              77.62174060520158,
+              18.277613303282074
+            ],
+            [
+              77.62174060520158,
+              18.299165500988316
+            ],
+            [
+              77.62174060520158,
+              18.32071769869456
+            ],
+            [
+              77.62174060520158,
+              18.342269896400797
+            ],
+            [
+              77.62174060520158,
+              18.363822094107043
+            ],
+            [
+              77.62174060520158,
+              18.385374291813285
+            ],
+            [
+              77.62174060520158,
+              18.406926489519524
+            ],
+            [
+              77.62174060520158,
+              18.42847868722577
+            ],
+            [
+              77.62174060520158,
+              18.450030884932012
+            ],
+            [
+              77.62174060520158,
+              18.47158308263825
+            ],
+            [
+              77.62174060520158,
+              18.493135280344497
+            ],
+            [
+              77.62174060520158,
+              18.51468747805074
+            ],
+            [
+              77.62174060520158,
+              18.536239675756978
+            ],
+            [
+              77.62174060520158,
+              18.557791873463223
+            ],
+            [
+              77.62174060520158,
+              18.579344071169462
+            ],
+            [
+              77.62174060520158,
+              18.600896268875704
+            ],
+            [
+              77.62174060520158,
+              18.62244846658195
+            ],
+            [
+              77.599018446309,
+              18.62244846658195
+            ],
+            [
+              77.5762962874164,
+              18.62244846658195
+            ],
+            [
+              77.55357412852382,
+              18.62244846658195
+            ],
+            [
+              77.53085196963123,
+              18.62244846658195
+            ],
+            [
+              77.50812981073864,
+              18.62244846658195
+            ],
+            [
+              77.48540765184605,
+              18.62244846658195
+            ],
+            [
+              77.46268549295347,
+              18.62244846658195
+            ],
+            [
+              77.43996333406086,
+              18.62244846658195
+            ],
+            [
+              77.41724117516829,
+              18.62244846658195
+            ],
+            [
+              77.3945190162757,
+              18.62244846658195
+            ],
+            [
+              77.3717968573831,
+              18.62244846658195
+            ],
+            [
+              77.34907469849053,
+              18.62244846658195
+            ],
+            [
+              77.32635253959793,
+              18.62244846658195
+            ],
+            [
+              77.30363038070536,
+              18.62244846658195
+            ],
+            [
+              77.28090822181275,
+              18.62244846658195
+            ],
+            [
+              77.25818606292017,
+              18.62244846658195
+            ],
+            [
+              77.25818606292017,
+              18.600896268875704
+            ],
+            [
+              77.25818606292017,
+              18.579344071169462
+            ],
+            [
+              77.25818606292017,
+              18.557791873463223
+            ],
+            [
+              77.25818606292017,
+              18.536239675756978
+            ],
+            [
+              77.25818606292017,
+              18.51468747805074
+            ],
+            [
+              77.25818606292017,
+              18.493135280344497
+            ],
+            [
+              77.25818606292017,
+              18.47158308263825
+            ],
+            [
+              77.25818606292017,
+              18.450030884932012
+            ],
+            [
+              77.25818606292017,
+              18.42847868722577
+            ],
+            [
+              77.25818606292017,
+              18.406926489519524
+            ],
+            [
+              77.25818606292017,
+              18.385374291813285
+            ],
+            [
+              77.25818606292017,
+              18.363822094107043
+            ],
+            [
+              77.25818606292017,
+              18.342269896400797
+            ],
+            [
+              77.25818606292017,
+              18.32071769869456
+            ],
+            [
+              77.25818606292017,
+              18.299165500988316
+            ],
+            [
+              77.25818606292017,
+              18.277613303282074
+            ]
+          ]
+        ]
+      },
+      "transform": "USGS GeoTIFF WKT inverse to Mars 2000 spherical geographic lon/lat. Native rectangle inset 20 m and densified before inverse transform.",
+      "note": "Whole prepared window compared with the authoritative raster and mask. Polygon represents inset valid elevation support only."
+    }
+  ],
+  "inventories": []
+}

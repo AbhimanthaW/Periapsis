@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ModalityPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "modality": {
+          "minLength": 1,
+          "title": "Modality",
+          "type": "string"
+        },
+        "axis": {
+          "enum": [
+            "terrain",
+            "science_environment"
+          ],
+          "title": "Axis",
+          "type": "string"
+        },
+        "weight": {
+          "exclusiveMinimum": 0,
+          "title": "Weight",
+          "type": "number"
+        },
+        "good_spacing_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Good Spacing M"
+        },
+        "poor_spacing_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Poor Spacing M"
+        }
+      },
+      "required": [
+        "modality",
+        "axis",
+        "weight"
+      ],
+      "title": "ModalityPolicy",
+      "type": "object"
+    },
+    "Tier": {
+      "additionalProperties": false,
+      "properties": {
+        "minimum": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Minimum",
+          "type": "number"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "minimum",
+        "label"
+      ],
+      "title": "Tier",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    },
+    "boundary_step": {
+      "maximum": 256,
+      "minimum": 1,
+      "title": "Boundary Step",
+      "type": "integer"
+    },
+    "tier_tolerance": {
+      "maximum": 1e-06,
+      "minimum": 0,
+      "title": "Tier Tolerance",
+      "type": "number"
+    },
+    "modalities": {
+      "items": {
+        "$ref": "#/$defs/ModalityPolicy"
+      },
+      "title": "Modalities",
+      "type": "array"
+    },
+    "tiers": {
+      "items": {
+        "$ref": "#/$defs/Tier"
+      },
+      "title": "Tiers",
+      "type": "array"
+    }
+  },
+  "required": [
+    "version",
+    "boundary_step",
+    "tier_tolerance",
+    "modalities",
+    "tiers"
+  ],
+  "title": "ScoringPolicy",
+  "type": "object"
+}
