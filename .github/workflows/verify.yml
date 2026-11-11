@@ -1,0 +1,13 @@
+name: Verify
+on: [pull_request, push, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: |
+          git ls-files | python3 -c 'import sys; from pathlib import Path; bad = [p for p in map(str.strip, sys.stdin) if Path(p).stat().st_size > 2_000_000 or any(s in Path(p).parts for s in (".git", ".venv", "node_modules", ".env"))]; sys.exit("Unexpected tracked files: " + ", ".join(bad) if bad else 0)'
