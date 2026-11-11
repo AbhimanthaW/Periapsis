@@ -3,9 +3,11 @@ from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
 import json
+from math import isfinite
 from pathlib import Path
 from types import MappingProxyType
 from zipfile import BadZipFile, ZipFile
+from zlib import error as CompressionError
 
 from jsonschema import Draft202012Validator, FormatChecker, ValidationError
 from marsdoc import DocumentationEngine, Package
@@ -37,9 +39,16 @@ def _invalid_constant(token):
     raise ValueError(f"nonfinite JSON value {token}")
 
 
+def _finite_float(token):
+    result = float(token)
+    if not isfinite(result):
+        raise ValueError(f"nonfinite JSON value {token}")
+    return result
+
+
 def decode(raw):
     try:
-        return json.loads(raw, object_pairs_hook=_object, parse_constant=_invalid_constant)
+        return json.loads(raw, object_pairs_hook=_object, parse_constant=_invalid_constant, parse_float=_finite_float)
     except (ValueError, UnicodeError, RecursionError) as error:
         raise PackError("INVALID_JSON", str(error)) from error
 
@@ -64,7 +73,7 @@ def _read(path, limit, missing="MISSING_ARTIFACT"):
     with path.open("rb") as stream:
         data = stream.read(limit + 1)
     if len(data) > limit:
-        raise PackError("INVALID_ARTIFACT", f"size limit: {path.name}")
+        raise PackError("INVALID_ARTIFACT" if missing == "MISSING_SITE" else "CHECKSUM_MISMATCH", f"size limit: {path.name}")
     return data
 
 
@@ -128,7 +137,7 @@ def _terrain(raw, shape):
                 arrays[key] = np.frombuffer(payload_bytes, dtype=dtype).reshape(shape)
     except PackError:
         raise
-    except (BadZipFile, ValueError, EOFError, OSError, RuntimeError) as error:
+    except (BadZipFile, ValueError, EOFError, OSError, RuntimeError, CompressionError) as error:
         raise PackError("INVALID_TERRAIN", str(error)) from error
     z, valid, excluded = (arrays[key] for key in ARRAYS)
     if not np.isfinite(z[valid]).all() or not np.isnan(z[~valid]).all() or np.any(excluded & ~valid):
@@ -198,7 +207,7 @@ def check_pack(directory, *, capability, site_sha256=None):
     directory = Path(directory)
     if directory.is_symlink():
         raise PackError("INVALID_ARTIFACT", "pack directory is a symlink")
-    raw_site = _read(directory / "site.json", MAX_JSON)
+    raw_site = _read(directory / "site.json", MAX_JSON, "MISSING_SITE")
     if site_sha256 is not None and sha256(raw_site).hexdigest() != site_sha256:
         raise PackError("CHECKSUM_MISMATCH", "site.json")
     site = schema("site-pack", decode(raw_site))
@@ -232,11 +241,21 @@ def check_pack(directory, *, capability, site_sha256=None):
         _check_scenario(stations, scenario, terrain, evidence_ids)
         return CheckedPack(_freeze(site), evidence, terrain["z_m"], _freeze(terrain), _freeze(stations), _freeze(scenario))
     raw = payload["preview_grid"]
-    if (len(raw) != int(np.prod(shape)) * 4
-            or not any(s["window_sha256"] == sha256(raw).hexdigest() and
-                       s["vertical_reference"] == reference["vertical_reference"] and
-                       CRS.from_wkt(s["native_crs_wkt"]).equals(CRS.from_wkt(reference["source_crs_wkt"]))
-                       for s in sources)):
+    reference_crs = CRS.from_wkt(reference["source_crs_wkt"])
+    if not reference_crs.equals(CRS.from_wkt(reference["local_crs_wkt"])):
+        raise PackError("INVALID_GRID", "native preview CRS must equal its local CRS")
+    window_digest = sha256(raw).hexdigest()
+    try:
+        source_match = any(
+            s["window_sha256"] == window_digest
+            and s["vertical_reference"] == reference["vertical_reference"]
+            and s["native_spacing_m"] == reference["native_spacing_m"]
+            and CRS.from_wkt(s["native_crs_wkt"]).equals(reference_crs)
+            for s in sources
+        )
+    except CRSError as error:
+        raise PackError("INVALID_GRID", "invalid source manifest CRS") from error
+    if len(raw) != int(np.prod(shape)) * 4 or not source_match:
         raise PackError("INVALID_TERRAIN", "preview length or source lineage")
     z = np.frombuffer(raw, dtype="<f4").reshape(shape)
     if not np.isfinite(z).all():
