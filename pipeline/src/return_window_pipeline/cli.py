@@ -1,0 +1,55 @@
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+import sys
+
+from .coordinates import normalize_position
+from .errors import PipelineError
+from .ingestion import ingest, verify_workspace
+from .models import SourceSpec
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description="Return Window Stage 1 source ingestion and Mars coordinates")
+    sub = parser.add_subparsers(dest="command", required=True)
+    acquire = sub.add_parser("ingest", help="Acquire, inspect, and register a source bundle")
+    acquire.add_argument("configuration", type=Path)
+    acquire.add_argument("--workspace", type=Path, required=True)
+    acquire.add_argument("--expected-record-sha256", help="Check the exact offline record against a trusted receipt")
+    acquisition_mode = acquire.add_mutually_exclusive_group()
+    acquisition_mode.add_argument("--offline", action="store_true")
+    acquisition_mode.add_argument("--refresh", action="store_true")
+    verify = sub.add_parser("verify-cache", help="Recheck every registered member checksum")
+    verify.add_argument("--workspace", type=Path, required=True)
+    position = sub.add_parser("normalize-position", help="Normalize declared coordinates to planetocentric/east-positive [-180,180)")
+    position.add_argument("configuration", type=Path)
+    position.add_argument("--longitude", type=float, required=True)
+    position.add_argument("--latitude", type=float, required=True)
+    args = parser.parse_args(argv)
+    try:
+        if args.command == "ingest":
+            record, path, reused = ingest(
+                SourceSpec.load(args.configuration), args.workspace, offline=args.offline,
+                refresh=args.refresh, expected_record_sha256=args.expected_record_sha256,
+            )
+            result = {"record": str(path), "asset_id": record["asset_id"], "source_version": record["source_version"],
+                      "bundle_sha256": record["bundle_sha256"], "cache_reused": reused,
+                      "preserved_members": len(record["members"]), "raster": record["raster"],
+                      "observation_support": record["observation_support"], "gate_results": record["gate_results"]}
+        elif args.command == "verify-cache":
+            result = {"verified": verify_workspace(args.workspace.resolve())}
+        else:
+            reference = SourceSpec.load(args.configuration).reference
+            lon, lat = normalize_position(args.longitude, args.latitude, reference)
+            result = {"longitude_deg": lon, "latitude_deg": lat, "latitude_type": "planetocentric", "longitude_direction": "east", "longitude_domain": "[-180,180)", "frame": reference.frame, "radii_m": [reference.semi_major_m, reference.semi_minor_m]}
+        print(json.dumps(result, indent=2, allow_nan=False))
+        return 0
+    except (PipelineError, OSError, json.JSONDecodeError) as error:
+        print(json.dumps({"error": type(error).__name__, "message": str(error)}), file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

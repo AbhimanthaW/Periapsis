@@ -1,0 +1,36 @@
+{
+  "pipeline_version": "0.1.1",
+  "scope": "Pinned PDS4 MEG004 1.1 source pair",
+  "baseline_tests_passed": 38,
+  "corrected_tests_passed": 48,
+  "findings": {
+    "H1": "PASS",
+    "H2": "PASS",
+    "H3": "PASS",
+    "H4": "BLOCKED",
+    "verified_https": "PASS",
+    "native_tool_provenance": "PASS",
+    "valid_zero_elevations": "PASS"
+  },
+  "live_archive_member_pins_verified": 8,
+  "offline_reuse_verified": true,
+  "architecture_checks": {
+    "check:data": "PASS",
+    "check:atlas": "PASS",
+    "documentation_engine_tests_passed": 47
+  },
+  "independent_measurements": "mola-independent-check.json",
+  "exact_record_receipt": "mola-record.sha256",
+  "regional_gates": {
+    "G1": "Not evaluated",
+    "G2": "Not evaluated",
+    "G3": "Not evaluated",
+    "G4": "Not evaluated",
+    "G5": "Not evaluated",
+    "G6": "Not evaluated",
+    "G7": "Not evaluated",
+    "G8": "Not evaluated",
+    "G9": "Not evaluated",
+    "G10": "Not evaluated"
+  }
+}
