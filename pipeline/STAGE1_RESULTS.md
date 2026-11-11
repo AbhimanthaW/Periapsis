@@ -11,12 +11,14 @@
 | Valid zero | Legacy header says to ignore zero. PDS4 already provided the appropriate mask for this source. | Strict XML adapter verified no nodata and all 147 zero elevation cells valid. Independent control compares the full decoded arrays to raw big-endian Int16 samples. | **PASS** |
 | H4 · Pack and loader contract | Blueprint only in the supplied tree. | Requirements and open interfaces documented in [Stage 2 checklist](STAGE2_HANDOFF.md). | **BLOCKED** pending the real consumer and shared fixture |
 
+This report describes the original corrected delivery. See the [monorepo setup](../docs/development.md#mola-ingestion) for the external data layout.
+
 ## Reproduce and inspect
 
 - Baseline tests ran against the untouched delivery with `python -m unittest discover -s tests -q`. **38/38** passed even though the reproduced H1–H3 inputs were accepted. The negative controls used copies of the real labels and a two-cell GeoTIFF.
 - Corrected tests ran the same suite plus **10** regression tests, **48/48** passed. The original checksum test now checks the correctly named pin-verification field. Label-policy tests repin deliberately contradictory copies so a checksum failure alone cannot pass the test.
-- Clean installed CLI verified fresh HTTPS acquisition, eight archive pins, bundled offline reuse, exact-record receipt, and coordinate normalization. The independent script checked both 720 × 1440 arrays, four coordinate controls per array, **1,036,800** valid elevation samples, **1,027,663** positive count bins, **9,137** zero bins, and **0** missing count bins. See [independent measurements](reports/mola-independent-check.json) and the [exact record receipt](reports/mola-record.sha256).
-- Tested environment was macOS ARM64, Python 3.11.17, Rasterio 1.4.4 with GDAL 3.10.3 and PROJ 9.7.1, pyproj 3.7.2 with PROJ 9.5.1, and truststore 0.10.5. See [reproduction commands](README.md#install-and-verify).
+- Clean installed CLI verified fresh HTTPS acquisition, eight archive pins, bundled offline reuse, exact-record receipt, and coordinate normalization. The independent script checked both 720 × 1440 arrays, four coordinate controls per array, **1,036,800** valid elevation samples, **1,027,663** positive count bins, **9,137** zero bins, and **0** missing count bins. See [independent measurements](../evidence/mola/mola-independent-check.json) and the [exact record receipt](../evidence/mola/mola-record.sha256).
+- Tested environment was macOS ARM64, Python 3.11.17, Rasterio 1.4.4 with GDAL 3.10.3 and PROJ 9.7.1, pyproj 3.7.2 with PROJ 9.5.1, and truststore 0.10.5. See [reproduction commands](../docs/development.md#mola-ingestion).
 - Architecture `check:data` and `check:atlas` passed against the supplied baseline. The documentation engine's locked suite passed **47/47** on a fresh copy. Its Jezero query rejected the 2 m elevation posting requirement and accepted the 20 m elevation fallback. This establishes an evidence contract check. No Stage 1 runtime pack or terrain processing was added.
 
 ## Remaining limits
