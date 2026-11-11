@@ -11,3 +11,5 @@ Imports use the snapshot from the 10 November 2026 repository audit. The owner r
 | Jezero preview | Telegram Desktop/Martian-Map-browser.zip, SHA-256 `37630f8e2a98480baa7f11406e3bd936a01fd2f0221f5993f229e0dc91ecea7f` |
 
 Preserve dataset attribution and review redistribution terms before publication. The archive and original source Git objects live in the owner's preserved snapshot. Large source data and generated packs are external.
+
+The original corrected ingestion history is also recoverable from the local `.migration/corrected-stage1.bundle`. It includes unmodified commits `945ce4ec8e04ef6316c04e19c242de027a09e7b1` and `adb39451ab62bc838bd351def59a94bcdc95c3ae`. Inspect with `git bundle list-heads` or clone the bundle to a separate temporary directory. The monorepo imports the reviewed source tree at the latter commit. The original branch contains PDS data, so its objects stay outside monorepo ancestry.

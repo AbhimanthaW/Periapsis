@@ -1,6 +1,7 @@
 from copy import deepcopy
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import shutil
 import ssl
@@ -31,7 +32,7 @@ class AuditRegressions(unittest.TestCase):
         self.inputs = self.base / "inputs"
         configuration = json.loads(CONFIG.read_text())
         self.configuration = configuration
-        for bundle in (ROOT / "data/cache/bundles").iterdir():
+        for bundle in (Path(os.environ.get("RW_MOLA_WORKSPACE", ROOT / "data")) / "cache/bundles").iterdir():
             if (bundle / configuration["entrypoint"]).is_file():
                 shutil.copytree(bundle, self.inputs)
                 break
