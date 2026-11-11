@@ -11,7 +11,7 @@ from marsdoc import CapabilityQuery, DocumentationEngine, Package
 from marsdoc.schemas import SCHEMAS, schema_for
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLES = ROOT / "examples"
+EVIDENCE = ROOT.parent / "evidence/jezero"
 
 
 def wire(name, document):
@@ -27,12 +27,12 @@ def test_schemas_are_current_and_valid(name):
 
 
 def test_real_jezero_package_and_route_end_to_end():
-    evidence = json.loads((EXAMPLES / "jezero-evidence.json").read_text())
-    query = json.loads((EXAMPLES / "jezero-route.json").read_text())
+    evidence = json.loads((EVIDENCE / "jezero-evidence.json").read_text())
+    query = json.loads((EVIDENCE / "jezero-route.json").read_text())
     wire("evidence-package", evidence)
     wire("capability-query", query)
     engine = DocumentationEngine(Package.model_validate(evidence))
-    atlas = json.loads((ROOT.parent / "src/atlas/regions.json").read_text())
+    atlas = json.loads((ROOT.parent / "web/src/atlas/regions.json").read_text())
     jezero = next(item for item in atlas["regions"] if item["id"] == "43")
     center = jezero["geography"]["center"]
     assert engine.grid.cell_at(center).id == engine.grid.cell_at((center[0] + 360, center[1])).id
@@ -52,13 +52,13 @@ def test_real_jezero_package_and_route_end_to_end():
 
 
 def test_normal_cli_entry_point():
-    output = subprocess.check_output([sys.executable, "-m", "marsdoc", "examples/jezero-evidence.json",
-                                      "--query", "examples/jezero-route.json"], cwd=ROOT, text=True)
+    output = subprocess.check_output([sys.executable, "-m", "marsdoc", str(EVIDENCE / "jezero-evidence.json"),
+                                      "--query", str(EVIDENCE / "jezero-route.json")], cwd=ROOT, text=True)
     assert json.loads(output)["supported_fallback_ids"] == ["elevation_20m_posts"]
 
 
 def test_truthy_strings_and_noninteger_version_are_rejected():
-    data = json.loads((EXAMPLES / "jezero-evidence.json").read_text())
+    data = json.loads((EVIDENCE / "jezero-evidence.json").read_text())
     with pytest.raises(ValueError, match="schema_version"):
         Package.model_validate(data | {"schema_version": True})
     data["products"][0]["support_extent_complete"] = "true"

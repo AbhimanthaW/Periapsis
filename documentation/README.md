@@ -9,8 +9,8 @@ From this directory with Python 3.12 and uv:
 ```sh
 uv sync --locked --python 3.12
 uv run --locked pytest -q
-uv run --locked marsdoc examples/jezero-evidence.json --point 77.44 18.45
-uv run --locked marsdoc examples/jezero-evidence.json --query examples/jezero-route.json
+uv run --locked marsdoc ../evidence/jezero/jezero-evidence.json --point 77.44 18.45
+uv run --locked marsdoc ../evidence/jezero/jezero-evidence.json --query ../evidence/jezero/jezero-route.json
 ```
 
 The point selects cell `HPX128:96848`. The verified 20 m-posted stereo terrain occupies about **48.12%** of that cell. The terrain axis spans **12.03–100**, and the science/environment axis spans **0–100**. Both are unclassified because the sample leaves the broader catalogues open. The 60 m-wide sample route corridor is fully inside the verified support. Its 2 m-posted elevation requirement is unsupported, and the explicitly requested 20 m-posted elevation fallback is eligible. Effective feature scale and tactical slope support are unset. The route is a demonstration geometry. [USGS source catalogue](https://astrogeology.usgs.gov/search/map/mars_2020_science_investigation_ctx_dem_mosaic)
@@ -22,11 +22,11 @@ from pathlib import Path
 from marsdoc import CapabilityQuery, DocumentationEngine, Package
 
 engine = DocumentationEngine(
-    Package.model_validate_json(Path("examples/jezero-evidence.json").read_bytes())
+    Package.model_validate_json(Path("../evidence/jezero/jezero-evidence.json").read_bytes())
 )
 cell = engine.grid.cell_at((77.44, 18.45))
 summary = engine.summarize(cell.id)
-request = CapabilityQuery.model_validate_json(Path("examples/jezero-route.json").read_bytes())
+request = CapabilityQuery.model_validate_json(Path("../evidence/jezero/jezero-route.json").read_bytes())
 decision = engine.resolve(request)
 ```
 

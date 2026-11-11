@@ -10,13 +10,7 @@ Integration tests validate all five generated JSON schemas, run the public CLI, 
 
 The packaged fixture comes from the USGS Mars 2020 Science Investigation CTX DEM mosaic. The verifier read source rows 1978–3001 and columns 732–1755, checked the 20 m posting, affine origin, Mars 2000 sphere, prime meridian and nodata mask, and compared every little-endian Float32 value to the prepared Jezero terrain file. **All 1,048,576 source samples matched, with zero masked cells.** The fixture represents the checked support inset one source posting from the window boundary, with densified edges transformed through the source WKT. Its provenance stores both the elevation-window and prepared-manifest SHA-256 digests. [USGS product catalogue](https://astrogeology.usgs.gov/search/map/mars_2020_science_investigation_ctx_dem_mosaic) · [USGS source raster](https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/ScienceInvestigationMaps_JPL/M20_JezeroCrater_CTXDEM_20m.tif)
 
-Recreate the fixture from the original neighboring team bundle and the live source:
-
-```sh
-uv run --locked --group archive-check python -m examples.verify_jezero \
-  "../../Yumeth Martian Map/data" > /tmp/jezero-evidence-check.json
-cmp /tmp/jezero-evidence-check.json examples/jezero-evidence.json
-```
+The original audit verified the entire window against USGS and reproduced the sidecar byte-for-byte. The original verifier remains in the audit snapshot.
 
 The example is a proof of one regional elevation contract. Global evidence coverage, other source product classes, feature-scale validity and route model release gates remain unverified.
 
