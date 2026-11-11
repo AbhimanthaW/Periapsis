@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "stations": [
+    {
+      "evidence_id": "fixture-support",
+      "objective": "simulated observation",
+      "expected_artifact": "simulation log entry",
+      "id": "science-a",
+      "target_id": "a",
+      "approach_cell": [
+        2,
+        4
+      ],
+      "dwell_s": 15,
+      "priority": 1
+    },
+    {
+      "evidence_id": "fixture-support",
+      "objective": "simulated observation",
+      "expected_artifact": "simulation log entry",
+      "id": "survey-done",
+      "target_id": "done",
+      "approach_cell": [
+        1,
+        4
+      ],
+      "dwell_s": 1,
+      "priority": 2
+    }
+  ]
+}

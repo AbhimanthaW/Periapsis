@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "pack_id": "rw-synthetic",
+  "pack_version": "1.0.0",
+  "region_id": "synthetic-grid",
+  "classification": "synthetic",
+  "build_id": "synthetic-fixture-v1",
+  "processed_at": "2026-11-10T00:00:00Z",
+  "capabilities": [
+    "routing_simulation"
+  ],
+  "gates": {
+    "G1": {
+      "state": "pass_fixture",
+      "reason": "Synthetic fixture control"
+    },
+    "G2": {
+      "state": "pass_fixture",
+      "reason": "Synthetic fixture control"
+    },
+    "G3": {
+      "state": "pass_fixture",
+      "reason": "Synthetic fixture control"
+    },
+    "G4": {
+      "state": "not_applicable",
+      "reason": "Synthetic terrain"
+    },
+    "G5": {
+      "state": "pass_fixture",
+      "reason": "Synthetic fixture control"
+    },
+    "G6": {
+      "state": "not_applicable",
+      "reason": "Synthetic science task"
+    },
+    "G7": {
+      "state": "pass_fixture",
+      "reason": "Synthetic fixture control"
+    },
+    "G8": {
+      "state": "pass_fixture",
+      "reason": "Synthetic fixture control"
+    },
+    "G9": {
+      "state": "pass_fixture",
+      "reason": "Synthetic fixture control"
+    },
+    "G10": {
+      "state": "not_evaluated",
+      "reason": "Loader acceptance is recorded externally"
+    }
+  },
+  "omissions": [
+    "Tactical routing and real science are disabled"
+  ],
+  "grid": {
+    "shape": [
+      3,
+      5
+    ],
+    "affine": [
+      10,
+      0,
+      100,
+      0,
+      -10,
+      200
+    ],
+    "bounds_m": [
+      100,
+      170,
+      150,
+      200
+    ],
+    "pixel_reference": "area",
+    "row_order": "north_to_south",
+    "index_order": "row_col",
+    "position_order": "easting_northing"
+  },
+  "reference": {
+    "source_crs_wkt": "PROJCRS[\"unknown\",BASEGEOGCRS[\"unknown\",DATUM[\"unknown\",ELLIPSOID[\"unknown\",3396190,0,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Reference meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433,ID[\"EPSG\",9122]]]],CONVERSION[\"unknown\",METHOD[\"Equidistant Cylindrical (Spherical)\",ID[\"EPSG\",1029]],PARAMETER[\"Latitude of 1st standard parallel\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8823]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]",
+    "local_crs_wkt": "PROJCRS[\"unknown\",BASEGEOGCRS[\"unknown\",DATUM[\"unknown\",ELLIPSOID[\"unknown\",3396190,0,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Reference meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433,ID[\"EPSG\",9122]]]],CONVERSION[\"unknown\",METHOD[\"Equidistant Cylindrical (Spherical)\",ID[\"EPSG\",1029]],PARAMETER[\"Latitude of 1st standard parallel\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8823]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]",
+    "horizontal_unit": "m",
+    "vertical_unit": "m",
+    "vertical_reference": "synthetic-zero-plane-v1",
+    "native_spacing_m": 10
+  },
+  "artifacts": {
+    "terrain": {
+      "path": "terrain.npz",
+      "size_bytes": 814,
+      "sha256": "3e7acf8c1e2a1c815a9f3b5f85db55e5f3e9b46e50ef807b2a5b95a0d5c3a1c5"
+    },
+    "sources": {
+      "path": "source-manifest.json",
+      "size_bytes": 364,
+      "sha256": "f8eeb30940dd41fba851142fd3863984ad4ebba5846de948d325ba33049a39b3"
+    },
+    "evidence": {
+      "path": "evidence.json",
+      "size_bytes": 3365,
+      "sha256": "21ee81f1f71aa47914c5387c58f475c176395403b684db9d2d85c986629b5449"
+    },
+    "stations": {
+      "path": "stations.json",
+      "size_bytes": 636,
+      "sha256": "061a934d2161d8c96317d9f45196b8d89ef6ed30350a89eb114a4adb6cb4e323"
+    },
+    "scenario": {
+      "path": "scenario.json",
+      "size_bytes": 536,
+      "sha256": "af0116c5b0eace0031f1819dc636efd6fca639d071397d04bf53068730e64418"
+    }
+  }
+}

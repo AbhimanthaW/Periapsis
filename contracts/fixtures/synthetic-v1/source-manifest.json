@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "id": "synthetic-grid-source",
+      "version": "1",
+      "kind": "synthetic",
+      "recipe_id": "synthetic-fixture-v1",
+      "attribution": "Team Periapsis synthetic fixture",
+      "native_spacing_m": 10,
+      "effective_scale_m": null,
+      "limitations": [
+        "Simulation only"
+      ]
+    }
+  ]
+}

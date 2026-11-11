@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "package_id": "rw-synthetic-evidence",
+  "version": "1",
+  "datasets": [
+    {
+      "id": "fixture-dataset",
+      "mission": "Simulation",
+      "instrument": "Simulation",
+      "modality": "stereo_topography",
+      "product_class": "stereo_dtm",
+      "archive_url": "https://example.invalid/return-window/synthetic-v1",
+      "version": "1",
+      "catalogue_status": "incomplete"
+    }
+  ],
+  "products": [
+    {
+      "id": "synthetic-grid-source",
+      "dataset_id": "fixture-dataset",
+      "version": "1",
+      "source_url": "https://example.invalid/return-window/synthetic-v1",
+      "source_crs": {
+        "body": "Mars",
+        "frame": "Synthetic Mars 2000 sphere",
+        "definition": "PROJCRS[\"unknown\",BASEGEOGCRS[\"unknown\",DATUM[\"unknown\",ELLIPSOID[\"unknown\",3396190,0,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Reference meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433,ID[\"EPSG\",9122]]]],CONVERSION[\"unknown\",METHOD[\"Equidistant Cylindrical (Spherical)\",ID[\"EPSG\",1029]],PARAMETER[\"Latitude of 1st standard parallel\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8823]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]",
+        "equatorial_radius_m": 3396190,
+        "polar_radius_m": 3396190
+      },
+      "processing_level": "simulated",
+      "readiness": "usable",
+      "variables": [
+        "elevation"
+      ],
+      "native_spacing_m": 10,
+      "support_extent_complete": true,
+      "observation_extent_complete": false,
+      "provenance": [
+        "synthetic-fixture-v1: software-only test"
+      ]
+    }
+  ],
+  "footprints": [
+    {
+      "id": "fixture-support",
+      "product_id": "synthetic-grid-source",
+      "source_url": "https://example.invalid/return-window/synthetic-v1",
+      "status": "canonical_verified",
+      "coverage_kind": "usable_support",
+      "transform": "Inverse projection of synthetic valid-cell perimeter",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              0.0016870604858115216,
+              0.0033741209716230433
+            ],
+            [
+              0.002530590728717283,
+              0.0033741209716230433
+            ],
+            [
+              0.002530590728717283,
+              0.002868002825879587
+            ],
+            [
+              0.0023618846801361304,
+              0.002868002825879587
+            ],
+            [
+              0.0023618846801361304,
+              0.003036708874460739
+            ],
+            [
+              0.002193178631554978,
+              0.003036708874460739
+            ],
+            [
+              0.002193178631554978,
+              0.002868002825879587
+            ],
+            [
+              0.0016870604858115216,
+              0.002868002825879587
+            ],
+            [
+              0.0016870604858115216,
+              0.0033741209716230433
+            ]
+          ]
+        ]
+      }
+    }
+  ],
+  "inventories": []
+}
