@@ -153,3 +153,39 @@ def test_integral_artifact_size(copy_pack):
 def test_g10_requires_external_acceptance(copy_pack, state):
     edit_site(copy_pack, lambda site: site["gates"]["G10"].update(state=state))
     fails(copy_pack, "INVALID_SCHEMA")
+
+
+def test_grid_rejects_collapsed_centers(copy_pack):
+    def collapse(site):
+        grid = site["grid"]
+        grid["affine"][2] = 10**17
+        grid["bounds_m"][0] = 10**17
+        grid["bounds_m"][2] = 10**17 + 48
+
+    edit_site(copy_pack, collapse)
+    fails(copy_pack, "INVALID_GRID")
+
+
+@pytest.mark.parametrize(("role", "field", "value"), [
+    ("scenario", "remaining_s", 86401),
+    ("scenario", "reserve_s", 10**400),
+    ("stations", "dwell_s", 10**400),
+])
+def test_duration_limits(copy_pack, role, field, value):
+    path = copy_pack / f"{role}.json"
+    payload = json.loads(path.read_bytes())
+    record = payload["stations"][0] if role == "stations" else payload
+    record[field] = value
+    path.write_text(json.dumps(payload))
+    repin(copy_pack, role, path)
+    fails(copy_pack, "INVALID_SCHEMA")
+
+
+def test_integral_default_duration(copy_pack):
+    path = copy_pack / "scenario.json"
+    scenario = json.loads(path.read_bytes())
+    scenario["remaining_s"] = float(scenario["remaining_s"])
+    path.write_text(json.dumps(scenario))
+    repin(copy_pack, "scenario", path)
+    pack = check_pack(copy_pack, capability=CAP)
+    assert type(pack.scenario["remaining_s"]) is int

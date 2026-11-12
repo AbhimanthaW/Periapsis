@@ -80,6 +80,20 @@ def test_real_jezero_handoff(tmp_path):
 
     sources_path.write_bytes(original_sources)
     site.write_bytes(original_site)
+    evidence_path = output / "evidence.json"
+    original_evidence = evidence_path.read_bytes()
+    evidence = json.loads(original_evidence)
+    for point in evidence["footprints"][0]["geometry"]["coordinates"][0]:
+        point[0] -= 1
+    evidence_path.write_text(json.dumps(evidence))
+    descriptor = json.loads(original_site)
+    descriptor["artifacts"]["evidence"] = pin(evidence_path.name, evidence_path.read_bytes())
+    site.write_text(json.dumps(descriptor))
+    with pytest.raises(PackError, match="EVIDENCE_UNSUPPORTED"):
+        load_pack(output)
+
+    evidence_path.write_bytes(original_evidence)
+    site.write_bytes(original_site)
     with (output / "elevation.f32").open("r+b") as stream:
         stream.write(bytes(16))
     with pytest.raises(PackError, match="CHECKSUM_MISMATCH"):

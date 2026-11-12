@@ -67,11 +67,13 @@
     },
     "remaining_s": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 86400
     },
     "reserve_s": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 86400
     },
     "closures": {
       "type": "array",

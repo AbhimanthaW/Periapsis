@@ -24,6 +24,7 @@ JEZERO_ARCHIVE_URL = (
 )
 JEZERO_ARCHIVE_SHA256 = "ba7f706ea1b5d63a562f28a7dcf7a7f3c79bce7f048e6974b57e8a33c30d1ba2"
 JEZERO_WINDOW_SHA256 = "020df24a32a2ab472db7c9ddb2538073130916308edcfb6830fe22d08c3e8903"
+JEZERO_EVIDENCE_SHA256 = "c88c602d7011c8afdf03e3f4e41f3343b6919e342f4c4c18a4783d0a68b1fc7f"
 JEZERO_WINDOW_PROJECTION = "+proj=eqc +lat_ts=18.4663 +lat_0=0 +lon_0=0 +R=3396190 +units=m +no_defs"
 JEZERO_WINDOW_GEOMETRY = {
     "shape": [1024, 1024],
@@ -113,6 +114,16 @@ def _grid(grid, reference):
     if (not all(map(isfinite, [a, b, c, d, e, f, *declared_bounds, *bounds, spacing]))
             or a <= 0 or e >= 0 or b or d or not np.allclose(declared_bounds, bounds, atol=1e-6, rtol=0)):
         raise PackError("INVALID_GRID", "expected finite north-up affine and matching bounds")
+    west, south, east, north = bounds
+    if not declared_bounds[0] < declared_bounds[2] or not declared_bounds[1] < declared_bounds[3]:
+        raise PackError("INVALID_GRID", "bounds must be strictly ordered")
+    x_centers = c + a * (np.arange(cols) + 0.5)
+    y_centers = f + e * (np.arange(rows) + 0.5)
+    if (not west < x_centers[0] <= x_centers[-1] < east
+            or not south < y_centers[-1] <= y_centers[0] < north
+            or not np.all(x_centers[1:] > x_centers[:-1])
+            or not np.all(y_centers[1:] < y_centers[:-1])):
+        raise PackError("INVALID_GRID", "cell centers must be distinct and inside the bounds")
     for field in ("source_crs_wkt", "local_crs_wkt"):
         try:
             crs = CRS.from_wkt(reference[field])
@@ -251,12 +262,18 @@ def check_pack(directory, *, capability, site_sha256=None):
     sources = schema("source-manifest", decode(payload["sources"]))["sources"]
     if len({s["id"] for s in sources}) != len(sources) or any(s["kind"] != site["classification"] for s in sources):
         raise PackError("EVIDENCE_UNSUPPORTED", "source identity or classification")
+    if not synthetic and sha256(payload["evidence"]).hexdigest() != JEZERO_EVIDENCE_SHA256:
+        raise PackError("EVIDENCE_UNSUPPORTED", "preview evidence differs from the verified Jezero sidecar")
     evidence, support = _evidence(payload["evidence"], sources, reference, synthetic)
     shape = tuple(grid["shape"])
     if synthetic:
         terrain = _terrain(payload["terrain"], shape)
         stations = schema("stations", decode(payload["stations"]))["stations"]
         scenario = schema("scenario", decode(payload["scenario"]))
+        for field in ("remaining_s", "reserve_s"):
+            scenario[field] = int(scenario[field])
+        for task in stations:
+            task["dwell_s"] = int(task["dwell_s"])
         _check_scenario(stations, scenario, terrain, support.keys())
         return CheckedPack(_freeze(site), evidence, terrain["z_m"], _freeze(terrain), _freeze(stations), _freeze(scenario))
     raw = payload["preview_grid"]
