@@ -99,6 +99,12 @@ def test_bad_grid(copy_pack, index, value):
     fails(copy_pack, "INVALID_GRID")
 
 
+@pytest.mark.parametrize("value", [10**30, 10**400])
+def test_oversized_grid_coordinate(copy_pack, value):
+    edit_site(copy_pack, lambda site: site["grid"]["affine"].__setitem__(2, value))
+    fails(copy_pack, "INVALID_GRID")
+
+
 @pytest.mark.parametrize("key,mutate,code", [
     ("z_m", lambda a: a.T, "INVALID_TERRAIN"),
     ("z_m", lambda a: a.astype(object), "INVALID_TERRAIN"),

@@ -18,6 +18,11 @@ from pyproj.exceptions import CRSError
 ROOT = Path(__file__).resolve().parent
 MAX_JSON = 2_000_000
 # Verified native window from evidence/jezero/jezero.json and its archive check.
+JEZERO_ARCHIVE_URL = (
+    "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/"
+    "ScienceInvestigationMaps_JPL/M20_JezeroCrater_CTXDEM_20m.tif"
+)
+JEZERO_ARCHIVE_SHA256 = "ba7f706ea1b5d63a562f28a7dcf7a7f3c79bce7f048e6974b57e8a33c30d1ba2"
 JEZERO_WINDOW_SHA256 = "020df24a32a2ab472db7c9ddb2538073130916308edcfb6830fe22d08c3e8903"
 JEZERO_WINDOW_PROJECTION = "+proj=eqc +lat_ts=18.4663 +lat_0=0 +lon_0=0 +R=3396190 +units=m +no_defs"
 JEZERO_WINDOW_GEOMETRY = {
@@ -98,10 +103,15 @@ def _grid(grid, reference):
     rows, cols = grid["shape"]
     if any(type(value) is not int for value in grid["shape"]):
         raise PackError("INVALID_GRID", "shape requires integer dimensions")
-    a, b, c, d, e, f = grid["affine"]
+    try:
+        a, b, c, d, e, f = map(float, grid["affine"])
+        declared_bounds = list(map(float, grid["bounds_m"]))
+        spacing = float(reference["native_spacing_m"])
+    except OverflowError as error:
+        raise PackError("INVALID_GRID", "grid values exceed finite float range") from error
     bounds = [c, f + e * rows, c + a * cols, f]
-    if (not np.isfinite([*grid["affine"], *grid["bounds_m"], *bounds, reference["native_spacing_m"]]).all()
-            or a <= 0 or e >= 0 or b or d or not np.allclose(grid["bounds_m"], bounds, atol=1e-6, rtol=0)):
+    if (not all(map(isfinite, [a, b, c, d, e, f, *declared_bounds, *bounds, spacing]))
+            or a <= 0 or e >= 0 or b or d or not np.allclose(declared_bounds, bounds, atol=1e-6, rtol=0)):
         raise PackError("INVALID_GRID", "expected finite north-up affine and matching bounds")
     for field in ("source_crs_wkt", "local_crs_wkt"):
         try:
@@ -260,9 +270,12 @@ def check_pack(directory, *, capability, site_sha256=None):
             or any(grid[field] != expected for field, expected in JEZERO_WINDOW_GEOMETRY.items())):
         raise PackError("INVALID_GRID", "preview geometry differs from verified source window")
     supported_sources = set(support.values())
+    evidence_urls = {product.id: str(product.source_url) for product in evidence.catalogue.package.products}
     try:
         source_match = any(
             s["id"] in supported_sources
+            and s["url"] == evidence_urls[s["id"]] == JEZERO_ARCHIVE_URL
+            and s["source_sha256"] == JEZERO_ARCHIVE_SHA256
             and s["window_sha256"] == window_digest
             and s["vertical_reference"] == reference["vertical_reference"]
             and s["native_spacing_m"] == reference["native_spacing_m"]

@@ -69,6 +69,15 @@ def test_real_jezero_handoff(tmp_path):
     with pytest.raises(PackError, match="INVALID_TERRAIN"):
         load_pack(output)
 
+    for field, value in (("url", "https://example.org/other.tif"), ("source_sha256", "0" * 64)):
+        sources = json.loads(original_sources)
+        sources["sources"][0][field] = value
+        sources_path.write_text(json.dumps(sources))
+        descriptor["artifacts"]["sources"] = pin(sources_path.name, sources_path.read_bytes())
+        site.write_text(json.dumps(descriptor))
+        with pytest.raises(PackError, match="INVALID_TERRAIN"):
+            load_pack(output)
+
     sources_path.write_bytes(original_sources)
     site.write_bytes(original_site)
     with (output / "elevation.f32").open("r+b") as stream:
