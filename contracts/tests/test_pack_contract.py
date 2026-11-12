@@ -136,3 +136,14 @@ def test_untrusted_path(copy_pack):
 def test_artifact_traversal_rejected(copy_pack):
     edit_site(copy_pack, lambda site: site["artifacts"]["terrain"].update(path="../terrain.npz"))
     fails(copy_pack, "INVALID_SCHEMA")
+
+
+def test_integral_artifact_size(copy_pack):
+    edit_site(copy_pack, lambda site: site["artifacts"]["terrain"].update(size_bytes=814.0))
+    assert check_pack(copy_pack, capability=CAP).elevations.shape == (3, 5)
+
+
+@pytest.mark.parametrize("state", ["pass_fixture", "not_applicable", "unsupported"])
+def test_g10_requires_external_acceptance(copy_pack, state):
+    edit_site(copy_pack, lambda site: site["gates"]["G10"].update(state=state))
+    fails(copy_pack, "INVALID_SCHEMA")

@@ -650,12 +650,7 @@
               "type": "object",
               "properties": {
                 "state": {
-                  "enum": [
-                    "pass_fixture",
-                    "not_applicable",
-                    "not_evaluated",
-                    "unsupported"
-                  ]
+                  "const": "not_evaluated"
                 },
                 "reason": {
                   "type": "string",

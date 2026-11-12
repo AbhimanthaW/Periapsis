@@ -17,6 +17,14 @@ from pyproj.exceptions import CRSError
 
 ROOT = Path(__file__).resolve().parent
 MAX_JSON = 2_000_000
+# Verified native window from evidence/jezero/jezero.json and its archive check.
+JEZERO_WINDOW_SHA256 = "020df24a32a2ab472db7c9ddb2538073130916308edcfb6830fe22d08c3e8903"
+JEZERO_WINDOW_PROJECTION = "+proj=eqc +lat_ts=18.4663 +lat_0=0 +lon_0=0 +R=3396190 +units=m +no_defs"
+JEZERO_WINDOW_GEOMETRY = {
+    "shape": [1024, 1024],
+    "affine": [20, 0, 4343640, 0, -20, 1103860],
+    "bounds_m": [4343640, 1083380, 4364120, 1103860],
+}
 ARRAYS = {"z_m": np.dtype("<f4"), "valid_mask": np.dtype(bool), "screen_excluded_mask": np.dtype(bool)}
 
 
@@ -156,7 +164,7 @@ def _evidence(raw, sources, reference, synthetic):
                      and product.source_crs and CRS.from_wkt(product.source_crs.definition).equals(CRS.from_wkt(reference["source_crs_wkt"]))
                      and product.native_spacing_m == reference["native_spacing_m"]
                      and (product.processing_level == "simulated") == synthetic}
-        usable = {f.id for f in package.footprints if f.product_id in supported and f.coverage_kind == "usable_support"
+        usable = {f.id: f.product_id for f in package.footprints if f.product_id in supported and f.coverage_kind == "usable_support"
                   and f.status == "canonical_verified" and f.geometry and f.geometry.type != "Global"
                   and engine.catalogue.entries[f.product_id].support_closed}
         if not usable:
@@ -224,7 +232,8 @@ def check_pack(directory, *, capability, site_sha256=None):
         if name in names:
             raise PackError("INVALID_ARTIFACT", f"repeated path: {name}")
         names.add(name)
-        limit = item["size_bytes"] if role in {"terrain", "preview_grid"} else min(MAX_JSON, item["size_bytes"])
+        size = int(item["size_bytes"])
+        limit = size if role in {"terrain", "preview_grid"} else min(MAX_JSON, size)
         raw = _read(directory / name, limit, "MISSING_EVIDENCE" if role == "evidence" else "MISSING_ARTIFACT")
         if pin(name, raw) != item:
             raise PackError("CHECKSUM_MISMATCH", name)
@@ -232,22 +241,29 @@ def check_pack(directory, *, capability, site_sha256=None):
     sources = schema("source-manifest", decode(payload["sources"]))["sources"]
     if len({s["id"] for s in sources}) != len(sources) or any(s["kind"] != site["classification"] for s in sources):
         raise PackError("EVIDENCE_UNSUPPORTED", "source identity or classification")
-    evidence, evidence_ids = _evidence(payload["evidence"], sources, reference, synthetic)
+    evidence, support = _evidence(payload["evidence"], sources, reference, synthetic)
     shape = tuple(grid["shape"])
     if synthetic:
         terrain = _terrain(payload["terrain"], shape)
         stations = schema("stations", decode(payload["stations"]))["stations"]
         scenario = schema("scenario", decode(payload["scenario"]))
-        _check_scenario(stations, scenario, terrain, evidence_ids)
+        _check_scenario(stations, scenario, terrain, support.keys())
         return CheckedPack(_freeze(site), evidence, terrain["z_m"], _freeze(terrain), _freeze(stations), _freeze(scenario))
     raw = payload["preview_grid"]
     reference_crs = CRS.from_wkt(reference["source_crs_wkt"])
     if not reference_crs.equals(CRS.from_wkt(reference["local_crs_wkt"])):
         raise PackError("INVALID_GRID", "native preview CRS must equal its local CRS")
     window_digest = sha256(raw).hexdigest()
+    if window_digest != JEZERO_WINDOW_SHA256:
+        raise PackError("INVALID_TERRAIN", "preview window has no verified geometry")
+    if (not reference_crs.equals(CRS.from_proj4(JEZERO_WINDOW_PROJECTION))
+            or any(grid[field] != expected for field, expected in JEZERO_WINDOW_GEOMETRY.items())):
+        raise PackError("INVALID_GRID", "preview geometry differs from verified source window")
+    supported_sources = set(support.values())
     try:
         source_match = any(
-            s["window_sha256"] == window_digest
+            s["id"] in supported_sources
+            and s["window_sha256"] == window_digest
             and s["vertical_reference"] == reference["vertical_reference"]
             and s["native_spacing_m"] == reference["native_spacing_m"]
             and CRS.from_wkt(s["native_crs_wkt"]).equals(reference_crs)

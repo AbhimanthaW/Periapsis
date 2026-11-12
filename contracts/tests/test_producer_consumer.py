@@ -1,11 +1,12 @@
 """The production preview writer hands its emitted directory to the actual consumer."""
 from hashlib import sha256
 from pathlib import Path
+import json
 import os
 
 import pytest
 
-from contracts.pack import PackError, center, check_pack
+from contracts.pack import PackError, center, check_pack, pin
 from pipeline.scripts.build_jezero_preview import build
 from runtime.mission import load_pack
 
@@ -45,6 +46,31 @@ def test_real_jezero_handoff(tmp_path):
         load_pack(output, simulation=True)
     with pytest.raises(PackError, match="CAPABILITY_UNAVAILABLE"):
         check_pack(output, capability="tactical_routing")
+    original_site = site.read_bytes()
+    descriptor = json.loads(original_site)
+    grid = descriptor["preview"]
+    grid["affine"][2] += 20
+    grid["bounds_m"][0] += 20
+    grid["bounds_m"][2] += 20
+    site.write_text(json.dumps(descriptor))
+    with pytest.raises(PackError, match="INVALID_GRID"):
+        load_pack(output)
+
+    sources_path = output / "source-manifest.json"
+    original_sources = sources_path.read_bytes()
+    sources = json.loads(original_sources)
+    source, = sources["sources"]
+    sources["sources"].append(dict(source, id="unlinked-raster"))
+    source["window_sha256"] = "0" * 64
+    sources_path.write_text(json.dumps(sources))
+    descriptor = json.loads(original_site)
+    descriptor["artifacts"]["sources"] = pin(sources_path.name, sources_path.read_bytes())
+    site.write_text(json.dumps(descriptor))
+    with pytest.raises(PackError, match="INVALID_TERRAIN"):
+        load_pack(output)
+
+    sources_path.write_bytes(original_sources)
+    site.write_bytes(original_site)
     with (output / "elevation.f32").open("r+b") as stream:
         stream.write(bytes(16))
     with pytest.raises(PackError, match="CHECKSUM_MISMATCH"):
