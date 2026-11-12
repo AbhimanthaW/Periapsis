@@ -91,7 +91,7 @@ export function RegionInspector({region,profile,components,compare,compared,loca
           <p>{region.geography.note}</p>{!region.sections.terrain.length&&region.overview.slice(0,2).map(paragraph=><p key={paragraph}>{paragraph}</p>)}</>}
         {section==='science'&&region.opportunity&&<><h3>Primary opportunity</h3><p>{region.opportunity}</p></>}
         {section==='data'&&<>
-          <h3>Available documentation</h3><p>{region.documentationNote || region.assessments.documentation.original || 'See survey references and the full research section.'}</p>
+          <h3>Survey references</h3><p>{region.documentationNote || 'See survey references and the full research section.'}</p>
           {region.id==='43'&&<button className="button" onClick={detail}><Layers3 size={14}/> Show Jezero CTX imagery</button>}
         </>}
         {section==='operations'&&<><h3>Survey conditions</h3><p>Rover notes are provisional and location dependent. The active profile is {profileLabels[profile]}.</p><p>{region.concern || 'No primary operational concern was extracted.'}</p><p>{region.uncertainty}</p></>}

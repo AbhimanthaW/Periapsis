@@ -2,23 +2,21 @@ import { z } from 'zod'
 import registry from './regions.json'
 import rasterManifest from './imagery.json'
 
-export const modes = ['documentation','traversal','science'] as const
+export const modes = ['traversal','science'] as const
 export const mapModes = [...modes,'feature'] as const
 export const profiles = ['rover','human','terrain'] as const
 export type Mode = typeof modes[number]
 export type MapMode = typeof mapModes[number]
 export type Profile = typeof profiles[number]
 export type Rating = 1|2|3|4|5|null
-export const labels: Record<Mode,string> = { documentation:'Documentation', traversal:'Traversal difficulty', science:'Scientific interest' }
+export const labels: Record<Mode,string> = { traversal:'Traversal difficulty', science:'Scientific interest' }
 export const profileLabels: Record<Profile,string> = { rover:'Rover · qualitative survey', human:'Human EVA', terrain:'Generic terrain context' }
 export const levels = ['Very low','Low','Moderate','High','Very high']
 const colors: Record<Mode,string[]> = {
-  documentation:['#e9605d','#f29860','#e8cd6c','#a1ca78','#62bf96'],
   traversal:['#62bf96','#a1ca78','#e8cd6c','#f29860','#e9605d'],
   science:['#6997ec','#978aef','#bb82e2','#e581d7','#f878ab'],
 }
 export const modeDescriptions: Record<Mode,string> = {
-  documentation:'Strength of regional documentation and observations.',
   traversal:'Qualitative research on wheeled-rover difficulty, where the survey supplies a single level.',
   science:'General research significance in the survey, with objective qualifiers preserved.',
 }

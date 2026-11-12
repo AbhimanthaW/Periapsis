@@ -21,13 +21,13 @@ export function Comparison({profile,ids,toggle,openMap,openResearch}:{profile:Pr
   function changeSort(value:Sort) {if(value===sort)setDesc(!desc);else {setSort(value);setDesc(value!=='id'&&value!=='name')}}
   const cells:[string,(r:Region)=>string][]=[
     ['Coordinates',r=>coordinatesLabel(r.geography.center,3)],['Scientific opportunity',r=>r.opportunity],
-    ['Terrain and operations',r=>r.concern],['Data and observations',r=>r.documentationNote||r.assessments.documentation.original],
+    ['Terrain and operations',r=>r.concern],['Data and observations',r=>r.documentationNote],
     ['Research uncertainty',r=>r.uncertainty],['Routing readiness',()=>readiness],
   ]
   return <main className="atlas-comparison">
     <div className="atlas-kicker">RESEARCH WORKBENCH / REGIONAL COMPARISON</div>
     <h1>Compare Mars regions</h1>
-    <p className="atlas-note">Compare the survey’s three independent dimensions. Equal levels are ties. Mixed assessments keep their original wording.</p>
+    <p className="atlas-note">Compare the survey’s traversal and science assessments. Equal levels are ties. Mixed assessments keep their original wording.</p>
     {selected.length>0&&<section className="atlas-selected-compare">
       <div className="atlas-panel-heading"><h2>Side by side</h2><span>{selected.length} selected</span></div>
       <div className="atlas-table-wrap"><table className="atlas-table side-table"><thead><tr><th scope="col">Evidence dimension</th>
@@ -50,7 +50,7 @@ export function Comparison({profile,ids,toggle,openMap,openResearch}:{profile:Pr
           <th scope="col">Terrain challenge</th><th scope="col">Science opportunity</th><th scope="col">Available evidence</th><th scope="col">Limitations</th><th scope="col">Open</th></tr></thead>
         <tbody>{results.map(r=><tr key={r.id}><td><input type="checkbox" aria-label={`Compare ${r.name}`} checked={ids.includes(r.id)} onChange={()=>toggle(r.id)}/></td>
           <td>{r.id}</td><th scope="row">{r.name}</th><td>{r.featureType}</td>{modes.map(mode=><td key={mode}><RatingBadge region={r} mode={mode} profile={profile}/><p>{assessmentFor(r,mode,profile).original||assessmentFor(r,mode,profile).note||'Unknown'}</p></td>)}
-          <td>{r.concern||'Not specified'}</td><td>{r.opportunity||'Not specified'}</td><td>{r.documentationNote||r.assessments.documentation.original||'Not specified'}</td><td>{r.uncertainty||'See full survey'}</td>
+          <td>{r.concern||'Not specified'}</td><td>{r.opportunity||'Not specified'}</td><td>{r.documentationNote||'Not specified'}</td><td>{r.uncertainty||'See full survey'}</td>
           <td><button className="icon-button" aria-label={`Map ${r.name}`} onClick={()=>openMap(r.id)}><Crosshair size={14}/></button><button className="icon-button" aria-label={`Research ${r.name}`} onClick={()=>openResearch(r.id)}><BookOpen size={14}/></button></td>
         </tr>)}</tbody></table></div>
     </section>

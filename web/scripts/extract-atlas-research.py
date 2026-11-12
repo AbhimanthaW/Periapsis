@@ -136,7 +136,6 @@ def main():
         def first_factor(pattern):
             return next((' — '.join(c[:3]) for c in rows if re.search(pattern,c[0],re.I) and len(c)>=3),'')
         assessments={
-            'documentation':assess(rows,{'data documentation','documentation confidence','documentation','data confidence','regional documentation'},body),
             'traversal':assess(rows,{'traversal cost','traversal difficulty','preliminary traversal cost','regional traversal cost','overall traversal cost'},body),
             'science':assess(rows,{'scientific interest','scientific value','science interest','scientific / mission interest'},body),
         }
@@ -181,7 +180,7 @@ def main():
               'gazetteerArchive':'https://asc-planetarynames-data.s3.us-west-2.amazonaws.com/MARS_nomenclature_center_pts.kmz',
               'gazetteerSha256':hashlib.sha256(args.gazetteer.read_bytes()).hexdigest(),'regions':registry}
     (ROOT/'src/atlas/regions.json').write_text(json.dumps(manifest,ensure_ascii=False,separators=(',',':'))+'\n')
-    for key in ('documentation','traversal','science'):
+    for key in ('traversal','science'):
         print(key,Counter(str(r['assessments'][key]['rating']) for r in registry))
     print('Regions',len(registry),'links',sum(len(r['sources']) for r in registry))
 

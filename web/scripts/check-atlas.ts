@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
+import registry from '../src/atlas/regions.json'
 import { initialArchitecture } from '../src/initial'
 import { assets, assetIds, assessmentFor, atlasModelIds, byRegion, globalExtent, modes, normalizeLongitude, planningContext, ratingColor, regions, researchProvenance } from '../src/atlas/data'
 
@@ -34,8 +35,8 @@ assert.equal(byRegion.get('06')!.assessments.traversal.rating,null)
 assert.equal(byRegion.get('33')!.assessments.traversal.rating,null)
 assert.equal(normalizeLongitude(226.1975),-133.8025)
 assert.equal(normalizeLongitude(540),-180)
-assert.equal(ratingColor('documentation',1),ratingColor('traversal',5))
-assert.notEqual(ratingColor('science',5),ratingColor('documentation',5))
+for (const region of registry.regions) assert.deepEqual(Object.keys(region.assessments).sort(), [...modes].sort())
+assert.notEqual(ratingColor('science',5),ratingColor('traversal',5))
 assert.notEqual(ratingColor('traversal',null),ratingColor('traversal',3))
 
 const components=new Set(initialArchitecture.components.map(item=>item.id))

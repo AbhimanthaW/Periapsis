@@ -15,7 +15,7 @@ const storageKey='return-window-atlas/v1'
 const panels=['map','research','compare'] as const
 const stateSchema=z.object({
   region:z.string().nullable().catch('06'),panel:z.enum(panels).catch('map'),
-  compare:z.array(z.string()).catch([]),mode:z.enum(mapModes).catch('documentation'),profile:z.enum(profiles).catch('rover'),
+  compare:z.array(z.string()).catch([]),mode:z.enum(mapModes).catch('feature'),profile:z.enum(profiles).catch('rover'),
   basemap:z.enum(['viking','mola']).catch('viking'),showMarkers:z.boolean().catch(true),showLabels:z.boolean().catch(true),
   showGrid:z.boolean().catch(false),showDetail:z.boolean().catch(false),
 })
@@ -164,6 +164,7 @@ export default function Atlas() {
           <div className="atlas-side-top">
             <div className="atlas-kicker">MARS / RESEARCH INDEX</div>
             <h2>Explore regions</h2>
+            <p className="atlas-note">Planetary documentation comes from HEALPix evidence summaries. A global evidence layer is pending.</p>
             <label className="atlas-search"><Search size={16}/><input aria-label="Find region" placeholder="Find a region…" value={query} onChange={e=>setQuery(e.target.value)}
               onKeyDown={e=>{if(e.key==='Enter'&&visible[0])select(visible[0].id,true)}}/></label>
             <label className="atlas-field">Map classification<select value={state.mode} onChange={e=>{setLevel('');change({mode:e.target.value as MapMode},true)}}>
