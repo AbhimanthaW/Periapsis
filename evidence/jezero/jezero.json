@@ -1,0 +1,35 @@
+{
+  "name": "Jezero Crater",
+  "width": 1024,
+  "height": 1024,
+  "pixelSize": [
+    20,
+    20
+  ],
+  "origin": [
+    4343639.999999998,
+    1103860.0000000028
+  ],
+  "extent": [
+    77.25783033440523,
+    18.277275891184914,
+    77.62209633371654,
+    18.62278587867911
+  ],
+  "projection": "+proj=eqc +lat_ts=18.4663 +lat_0=0 +lon_0=0 +R=3396190 +units=m +no_defs",
+  "geographic": "+proj=longlat +R=3396190 +no_defs",
+  "radius": 3396190,
+  "stats": {
+    "min": -2686.144775390625,
+    "max": -1650.4349365234375,
+    "valid": 1048576
+  },
+  "source": {
+    "title": "USGS Mars 2020 Science Investigation CTX DEM Mosaic",
+    "url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/ScienceInvestigationMaps_JPL/M20_JezeroCrater_CTXDEM_20m.tif",
+    "catalog": "https://astrogeology.usgs.gov/search/map/mars_2020_science_investigation_ctx_dem_mosaic",
+    "nativeResolution": 20,
+    "prepared": "2026-10-18T08:47:43.308Z",
+    "method": "Unresampled 1024 × 1024 pixel window. Float32 elevations in meters. NoData masked. Central differences with one-sided edge differences for slope."
+  }
+}

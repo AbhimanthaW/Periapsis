@@ -22,9 +22,11 @@
 | API and session behavior | Blueprint names `GET /api/v1/site`, `GET /healthz`, and `POST /api/v1/plan`. The proposed plan request carries `pack_id`, `request_id`, `checkpoint_id`, `shelter_id`, `completed_task_ids`, `remaining_s`, `reserve_s`, `scenario_id`, `closure_ids`. Confirm the actual wire format, response/failure behavior, profile parameters and authorized reserves in the implementation. |
 | Science | Science and geospatial owners agree evidence, verified approach node and dwell for the one selected task, or leave tasks disabled. |
 
-References relative to the project workspace:
+This checklist describes the handoff at the time of delivery. See the [offline readiness report](../docs/offline-readiness.md) for the current preview and simulation status.
 
-- [Pipeline and gate definitions](../architecture-documentation/src/pipeline-data.ts)
-- [Mission pack and API blueprint](../architecture-documentation/src/initial.ts)
-- [Evidence sidecar contract](../architecture-documentation/documentation_engine/CONTRACT.md)
-- [Jezero evidence fixture validation and limits](../architecture-documentation/documentation_engine/VALIDATION.md)
+Monorepo references:
+
+- [Pipeline and gate definitions](../web/src/pipeline-data.ts)
+- [Mission pack and API blueprint](../web/src/initial.ts)
+- [Evidence sidecar contract](../documentation/CONTRACT.md)
+- [Jezero evidence fixture validation and limits](../documentation/VALIDATION.md)

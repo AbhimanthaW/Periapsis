@@ -1,0 +1,708 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "classification": {
+          "const": "synthetic"
+        },
+        "capabilities": {
+          "const": [
+            "routing_simulation"
+          ]
+        },
+        "grid": {
+          "$ref": "#/$defs/grid"
+        },
+        "reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "artifacts": {
+          "type": "object",
+          "properties": {
+            "terrain": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "size_bytes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 67108864
+                }
+              },
+              "required": [
+                "path",
+                "sha256",
+                "size_bytes"
+              ],
+              "additionalProperties": false
+            },
+            "sources": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "size_bytes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 67108864
+                }
+              },
+              "required": [
+                "path",
+                "sha256",
+                "size_bytes"
+              ],
+              "additionalProperties": false
+            },
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "size_bytes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 67108864
+                }
+              },
+              "required": [
+                "path",
+                "sha256",
+                "size_bytes"
+              ],
+              "additionalProperties": false
+            },
+            "stations": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "size_bytes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 67108864
+                }
+              },
+              "required": [
+                "path",
+                "sha256",
+                "size_bytes"
+              ],
+              "additionalProperties": false
+            },
+            "scenario": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "size_bytes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 67108864
+                }
+              },
+              "required": [
+                "path",
+                "sha256",
+                "size_bytes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "terrain",
+            "sources",
+            "evidence",
+            "stations",
+            "scenario"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "classification",
+        "capabilities",
+        "grid",
+        "reference",
+        "artifacts"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "classification": {
+          "const": "source_backed"
+        },
+        "capabilities": {
+          "const": [
+            "elevation_preview"
+          ]
+        },
+        "preview": {
+          "type": "object",
+          "properties": {
+            "shape": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4096
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "affine": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 6,
+              "maxItems": 6
+            },
+            "bounds_m": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "pixel_reference": {
+              "const": "area"
+            },
+            "row_order": {
+              "const": "north_to_south"
+            },
+            "index_order": {
+              "const": "row_col"
+            },
+            "position_order": {
+              "const": "easting_northing"
+            },
+            "dtype": {
+              "const": "<f4"
+            },
+            "order": {
+              "const": "C"
+            },
+            "reference": {
+              "$ref": "#/$defs/reference"
+            }
+          },
+          "required": [
+            "shape",
+            "affine",
+            "bounds_m",
+            "pixel_reference",
+            "row_order",
+            "index_order",
+            "position_order",
+            "dtype",
+            "order",
+            "reference"
+          ],
+          "additionalProperties": false
+        },
+        "artifacts": {
+          "type": "object",
+          "properties": {
+            "sources": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "size_bytes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 67108864
+                }
+              },
+              "required": [
+                "path",
+                "sha256",
+                "size_bytes"
+              ],
+              "additionalProperties": false
+            },
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "size_bytes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 67108864
+                }
+              },
+              "required": [
+                "path",
+                "sha256",
+                "size_bytes"
+              ],
+              "additionalProperties": false
+            },
+            "preview_grid": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "size_bytes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 67108864
+                }
+              },
+              "required": [
+                "path",
+                "sha256",
+                "size_bytes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "sources",
+            "evidence",
+            "preview_grid"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "classification",
+        "capabilities",
+        "preview",
+        "artifacts"
+      ]
+    }
+  ],
+  "$defs": {
+    "grid": {
+      "type": "object",
+      "properties": {
+        "shape": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "affine": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "bounds_m": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "pixel_reference": {
+          "const": "area"
+        },
+        "row_order": {
+          "const": "north_to_south"
+        },
+        "index_order": {
+          "const": "row_col"
+        },
+        "position_order": {
+          "const": "easting_northing"
+        }
+      },
+      "required": [
+        "shape",
+        "affine",
+        "bounds_m",
+        "pixel_reference",
+        "row_order",
+        "index_order",
+        "position_order"
+      ],
+      "additionalProperties": false
+    },
+    "reference": {
+      "type": "object",
+      "properties": {
+        "source_crs_wkt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "local_crs_wkt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "horizontal_unit": {
+          "const": "m"
+        },
+        "vertical_unit": {
+          "const": "m"
+        },
+        "vertical_reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "native_spacing_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "source_crs_wkt",
+        "local_crs_wkt",
+        "horizontal_unit",
+        "vertical_unit",
+        "vertical_reference",
+        "native_spacing_m"
+      ],
+      "additionalProperties": false
+    },
+    "common": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "pack_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pack_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "region_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "build_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "processed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "gates": {
+          "type": "object",
+          "properties": {
+            "G1": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "enum": [
+                    "pass_fixture",
+                    "not_applicable",
+                    "not_evaluated",
+                    "unsupported"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "G2": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "enum": [
+                    "pass_fixture",
+                    "not_applicable",
+                    "not_evaluated",
+                    "unsupported"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "G3": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "enum": [
+                    "pass_fixture",
+                    "not_applicable",
+                    "not_evaluated",
+                    "unsupported"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "G4": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "enum": [
+                    "pass_fixture",
+                    "not_applicable",
+                    "not_evaluated",
+                    "unsupported"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "G5": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "enum": [
+                    "pass_fixture",
+                    "not_applicable",
+                    "not_evaluated",
+                    "unsupported"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "G6": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "enum": [
+                    "pass_fixture",
+                    "not_applicable",
+                    "not_evaluated",
+                    "unsupported"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "G7": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "enum": [
+                    "pass_fixture",
+                    "not_applicable",
+                    "not_evaluated",
+                    "unsupported"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "G8": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "enum": [
+                    "pass_fixture",
+                    "not_applicable",
+                    "not_evaluated",
+                    "unsupported"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "G9": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "enum": [
+                    "pass_fixture",
+                    "not_applicable",
+                    "not_evaluated",
+                    "unsupported"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "G10": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "const": "not_evaluated"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "state",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "G1",
+            "G2",
+            "G3",
+            "G4",
+            "G5",
+            "G6",
+            "G7",
+            "G8",
+            "G9",
+            "G10"
+          ],
+          "additionalProperties": false
+        },
+        "omissions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "schema_version",
+        "pack_id",
+        "pack_version",
+        "region_id",
+        "build_id",
+        "processed_at",
+        "gates",
+        "omissions"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "#/$defs/common"
+    }
+  ],
+  "unevaluatedProperties": false
+}

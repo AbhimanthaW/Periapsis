@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "scenario_id": "synthetic-closure-v1",
+  "checkpoint": {
+    "id": "crew",
+    "cell": [
+      1,
+      4
+    ]
+  },
+  "shelter": {
+    "id": "home",
+    "cell": [
+      1,
+      0
+    ]
+  },
+  "completed_task_ids": [
+    "survey-done"
+  ],
+  "remaining_s": 100,
+  "reserve_s": 15,
+  "closures": [
+    {
+      "id": "mid",
+      "cells": [
+        [
+          1,
+          2
+        ]
+      ]
+    },
+    {
+      "id": "north",
+      "cells": [
+        [
+          0,
+          2
+        ]
+      ]
+    }
+  ]
+}
