@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "region_id": "jezero-west",
+  "pack_id": "jezero-west-ctx-preview",
+  "pack_version": "0.1.0",
+  "capability": "elevation_preview",
+  "source_config": "jezero-ctx-trn-dtm-20m.json",
+  "aoi": {
+    "version": "draft-1",
+    "crs": "source_native",
+    "bounds_m": [
+      4584483.250853,
+      1094413.140188,
+      4586483.250853,
+      1096413.140188
+    ]
+  },
+  "coarsening_factor": 1
+}
