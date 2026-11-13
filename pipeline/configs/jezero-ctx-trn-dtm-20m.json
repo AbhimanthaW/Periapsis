@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "asset_id": "jezero-ctx-trn-dtm-20m",
+  "source_version": "2020-08-06",
+  "role": "elevation",
+  "provider": "USGS Astrogeology Science Center",
+  "attribution": "Fergason, Galuszka, Hare, Mayer and Redding (2020), USGS Astrogeology, DOI 10.5066/P906QQT8.",
+  "access_rights": "CC0 1.0 Universal, per USGS data release.",
+  "entrypoint": "JEZ_ctx_B_soc_008_DTM_MOLAtopography_DeltaGeoid_20m_Eqc_latTs0_lon0.tif",
+  "reference": {
+    "body": "Mars",
+    "semi_major_m": 3396190,
+    "semi_minor_m": 3396190,
+    "latitude_type": "planetocentric",
+    "longitude_direction": "east",
+    "longitude_domain": "-180_180",
+    "frame": "Mars 2000 sphere, per GeoTIFF WKT and USGS product catalog",
+    "vertical_unit": "m",
+    "vertical_reference": "MOLA topography / DeltaGeoid as identified in the USGS product name; source vertical reference retained."
+  },
+  "members": [
+    {
+      "name": "JEZ_ctx_B_soc_008_DTM_MOLAtopography_DeltaGeoid_20m_Eqc_latTs0_lon0.tif",
+      "uri": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/JEZ_ctx_B_soc_008_DTM_MOLAtopography_DeltaGeoid_20m_Eqc_latTs0_lon0.tif",
+      "expected_sha256": "16a1aa66c3f48c1bca252795827db7b417876217aff0f5e1aff18027fab2327b"
+    }
+  ],
+  "limitations": "20 m native posting for elevation preview. The posting does not establish effective terrain resolution, feature accuracy or tactical support. USGS data release: https://www.usgs.gov/data/mars-2020-terrain-relative-navigation-ctx-dtm-mosaic"
+}

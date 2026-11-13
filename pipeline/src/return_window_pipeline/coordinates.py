@@ -62,8 +62,9 @@ def validate_crs(value: object, reference: MarsReference, *, require_metric: boo
             or any(not math.isclose(axis.unit_conversion_factor, math.pi / 180) for axis in axes)):
         raise CoordinateError("The CRS must use east-positive longitude and north-positive latitude in degrees")
     if require_metric:
-        if not crs.is_projected or len(crs.axis_info) < 2 or any(not math.isclose(a.unit_conversion_factor, 1.0) for a in crs.axis_info[:2]):
-            raise CoordinateError("A regional analysis grid requires projected metre axes")
+        if (not crs.is_projected or [a.direction for a in crs.axis_info] != ["east", "north"]
+                or any(not math.isclose(a.unit_conversion_factor, 1.0) for a in crs.axis_info)):
+            raise CoordinateError("A regional analysis grid requires projected easting and northing axes in metres")
     return crs
 
 

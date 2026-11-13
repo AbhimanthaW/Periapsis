@@ -9,10 +9,11 @@ from .coordinates import normalize_position
 from .errors import PipelineError
 from .ingestion import ingest, verify_workspace
 from .models import SourceSpec
+from .regional import build_preview, load_job, verify_preview
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Return Window Stage 1 source ingestion and Mars coordinates")
+    parser = argparse.ArgumentParser(description="Return Window source ingestion, Mars coordinates and regional previews")
     sub = parser.add_subparsers(dest="command", required=True)
     acquire = sub.add_parser("ingest", help="Acquire, inspect, and register a source bundle")
     acquire.add_argument("configuration", type=Path)
@@ -27,6 +28,12 @@ def main(argv=None) -> int:
     position.add_argument("configuration", type=Path)
     position.add_argument("--longitude", type=float, required=True)
     position.add_argument("--latitude", type=float, required=True)
+    preview = sub.add_parser("build-preview", help="Build an offline regional elevation-preview pack")
+    preview.add_argument("job", type=Path)
+    preview.add_argument("--workspace", type=Path, required=True)
+    preview.add_argument("--output", type=Path, required=True)
+    check = sub.add_parser("verify-preview", help="Check an offline elevation-preview pack")
+    check.add_argument("directory", type=Path)
     args = parser.parse_args(argv)
     try:
         if args.command == "ingest":
@@ -40,6 +47,12 @@ def main(argv=None) -> int:
                       "observation_support": record["observation_support"], "gate_results": record["gate_results"]}
         elif args.command == "verify-cache":
             result = {"verified": verify_workspace(args.workspace.resolve())}
+        elif args.command == "build-preview":
+            manifest = build_preview(load_job(args.job), args.workspace, args.output)
+            result = {"pack_id": manifest["pack_id"], "directory": str(args.output.resolve()),
+                      "coverage": manifest["coverage"], "capabilities": manifest["capabilities"]}
+        elif args.command == "verify-preview":
+            result = verify_preview(args.directory)
         else:
             reference = SourceSpec.load(args.configuration).reference
             lon, lat = normalize_position(args.longitude, args.latitude, reference)

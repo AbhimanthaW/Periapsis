@@ -1,0 +1,52 @@
+{
+  "fixture": "previews/jezero-west",
+  "platform": "Windows, Python 3.11, Rasterio 1.4.4, pyproj 3.7.2",
+  "source_cache_verified": true,
+  "team_mola_record_exact_receipt_verified": true,
+  "preview_verified_offline": true,
+  "preview_elevation_matches_native_window_cell_for_cell": true,
+  "preview_rebuilt_with_same_geotiff_sha256": true,
+  "40_m_elevation_uses_native_cell_means": true,
+  "40_m_slope_uses_native_maxima": true,
+  "preview_shape": [
+    100,
+    100
+  ],
+  "preview_posting_m": [
+    20,
+    20
+  ],
+  "center_east_longitude_north_latitude_deg": [
+    77.35987600864658,
+    18.480282244498916
+  ],
+  "preview_elevation_range_m": [
+    -2480.3037109375,
+    -2396.29931640625
+  ],
+  "coverage": {
+    "full_gradient_support_cells": 10000,
+    "total_cells": 10000,
+    "valid_elevation_cells": 10000
+  },
+  "preview_geotiff_sha256": "c283720953415ad59cca1cb47dc3e8c8c67a574ff73a602f5c461b1fb62315b8",
+  "mission_loader": "Producer-only GeoTIFF draft. Periapsis mission pack v1 recognizes a separately pinned Float32 Jezero preview.",
+  "formal_regional_gates": {
+    "G1": "Not evaluated",
+    "G10": "Not evaluated",
+    "G2": "Not evaluated",
+    "G3": "Not evaluated",
+    "G4": "Not evaluated",
+    "G5": "Not evaluated",
+    "G6": "Not evaluated",
+    "G7": "Not evaluated",
+    "G8": "Not evaluated",
+    "G9": "Not evaluated"
+  },
+  "pipeline_version": "0.2.0.dev0",
+  "tests_passed": {
+    "stage_1": 48,
+    "stage_2": 11,
+    "total": 59
+  }
+}
