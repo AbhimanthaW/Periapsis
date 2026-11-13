@@ -5,12 +5,14 @@ from threading import Thread
 
 import pytest
 
-from runtime.planning_api import create_server
+from runtime.planning_api import FIXTURE, create_server
 
 
 @pytest.fixture
 def call(request):
     options = getattr(request, "param", {})
+    if isinstance(options, str):
+        options = request.getfixturevalue(options)
     with create_server(0, **options) as server:
         worker = Thread(target=server.serve_forever, daemon=True)
         worker.start()
@@ -100,7 +102,30 @@ def test_explicit_evidence_configuration(call):
     status, evidence = call("/api/v1/evidence")
     assert status == 200
     assert evidence["context"] == "operator_configured_evidence"
-    assert evidence["classification"] == "source_backed"
+    assert evidence["classification"] == "provenance_unverified"
     assert evidence["result"]["requested"]["eligible"] is False
     assert evidence["result"]["fallbacks"][0]["eligible"] is True
     assert "direct_return" not in evidence
+
+
+@pytest.fixture
+def synthetic_evidence_options(tmp_path):
+    query = {
+        "schema_version": 1,
+        "geometry": {"type": "Point", "coordinates": [0.002, 0.0032]},
+        "requested": {
+            "id": "elevation",
+            "requirements": [{"variable": "elevation", "product_classes": ["stereo_dtm"]}],
+        },
+    }
+    query_path = tmp_path / "query.json"
+    query_path.write_text(json.dumps(query), encoding="utf-8")
+    return {"evidence_package": FIXTURE / "evidence.json", "evidence_query": query_path}
+
+
+@pytest.mark.parametrize("call", ["synthetic_evidence_options"], indirect=True)
+def test_eligible_synthetic_evidence_has_unverified_provenance(call):
+    status, evidence = call("/api/v1/evidence")
+    assert status == 200
+    assert evidence["classification"] == "provenance_unverified"
+    assert evidence["result"]["requested"]["eligible"] is True

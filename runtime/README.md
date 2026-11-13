@@ -34,7 +34,7 @@ richer mission option fields describe future solver and UI integration.
 | `GET /healthz` | HTTP 200 with `{"status":"ready"}` after startup validation. |
 | `GET /api/v1/site` | Synthetic pack and scenario IDs, fixed inputs, initial remaining time, predefined closure cells, checkpoint and shelter cells, and grid shape and affine. |
 | `POST /api/v1/plan` | Accepts a strict v1 JSON request. Returns the existing simulation output plus request ID, schema version and route index order. |
-| `GET /api/v1/evidence` | Separate source-backed result from the documentation resolver, with provenance and supported fallbacks. Returns HTTP 503 with `EVIDENCE_NOT_CONFIGURED` until a package and query are configured. |
+| `GET /api/v1/evidence` | Separate result from the documentation resolver, with reported provenance and supported fallbacks. The API returns `classification: provenance_unverified` because it does not independently verify the package's provenance. Returns HTTP 503 with `EVIDENCE_NOT_CONFIGURED` until a package and query are configured. |
 
 ```sh
 curl -sS http://127.0.0.1:8000/api/v1/site

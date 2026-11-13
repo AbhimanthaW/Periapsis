@@ -78,7 +78,7 @@ class PlanningService:
             raise PackError("EVIDENCE_NOT_CONFIGURED", "Configure a qualified demo site evidence package and query")
         return {
             "schema_version": 1,
-            "classification": "source_backed",
+            "classification": "provenance_unverified",
             "context": "operator_configured_evidence",
             "result": self.evidence_result,
         }
