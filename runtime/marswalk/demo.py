@@ -111,5 +111,6 @@ def plot(result_before, result_after, path):
                     mfc="gold", mec="black")
         ax.set_title(f"{title}: status {res.status}, recommend {res.recommendation}")
         ax.legend(loc="lower right", fontsize=7)
-    fig.suptitle("Human Marswalk pipeline on SYNTHETIC terrain (red = excluded, grey-blue = no data)")
+    who = "Rover" if result_after.snapshot.profile.platform == "rover" else "Human"
+    fig.suptitle(f"{who} Marswalk pipeline on SYNTHETIC terrain (red = excluded, grey-blue = no data)")
     fig.savefig(path, dpi=100)

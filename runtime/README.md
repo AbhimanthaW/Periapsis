@@ -196,3 +196,10 @@ The demo rover is a hypothetical record (`hypothetical_crew_rover`). It is
 not a NASA vehicle specification. The demo solar array, dust transmittance
 and the simulated solar-particle-event drill are declared assumptions, and
 no radiation dose is inferred.
+
+Demo output (synthetic terrain, before and after the simulated north-ramp
+closure). Regenerate with `python -m runtime.marswalk demo [--platform rover] --png PATH`
+from an environment that has Matplotlib:
+
+![Human Marswalk demo](docs/marswalk-demo-human.png)
+![Rover Marswalk demo](docs/marswalk-demo-rover.png)
