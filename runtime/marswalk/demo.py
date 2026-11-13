@@ -4,6 +4,7 @@ mounds, a coverage gap, and a simulated closure of the north ramp."""
 import numpy as np
 
 from .config import HumanProfile, MissionSnapshot, Task
+from .environment import EnvironmentalVariable, PowerScenario
 from .traversability import ScreenPolicy, TerrainSupport, build_baseline
 
 CELL_M = 5.0
@@ -27,7 +28,27 @@ def demo_terrain(seed=0):
     return np.where(valid, z, np.nan), valid, tuple(map(tuple, np.argwhere(closure).tolist()))
 
 
-def demo_inputs(*, closed=False, remaining_s=3600, pace_scenario="nominal", crew_status="ok"):
+DEMO_TIME_UTC = "2021-02-18T20:43:49Z"          # Perseverance landing (spacecraft time), for context only
+DEMO_SITE = (18.44, 77.45)                        # declared site coordinates used ONLY for sun geometry
+
+
+def sep_scenario(scenario_id, time_utc=DEMO_TIME_UTC):
+    """Explicit, SIMULATED solar particle event scenario (modelled on the
+    kind of event MSL-RAD recorded in September 2017). Not a forecast."""
+    return EnvironmentalVariable(
+        id="sep-drill", variable="solar_particle_event", mode="explicit_scenario", effect="return_now",
+        purpose="rehearse a shelter return", authorized_by="demo operator", provenance="simulated",
+        valid_from_utc=time_utc, scenario_id=scenario_id, note="simulated alert; no dose is inferred")
+
+
+def demo_power():
+    """HYPOTHETICAL horizontal solar array; transmittance is a declared dust assumption."""
+    return PowerScenario(kind="solar_derived", provenance="assumed", panel_area_m2=6.0,
+                         panel_efficiency=0.25, atmospheric_transmittance=0.6)
+
+
+def demo_inputs(*, closed=False, remaining_s=3600, pace_scenario="nominal", crew_status="ok",
+                platform="human", sep_alert=False, with_time=True):
     z, valid, closure_cells = demo_terrain()
     support = TerrainSupport.from_affine((N, N), (CELL_M, 0, 0, 0, -CELL_M, N * CELL_M),
                                          native_spacing_m=CELL_M, vertical_reference="synthetic-demo",
@@ -41,9 +62,20 @@ def demo_inputs(*, closed=False, remaining_s=3600, pace_scenario="nominal", crew
         scenario_id="demo-north-ramp", current_cell=(50, 80), return_cell=(80, 40), tasks=tasks,
         completed_task_ids=(), remaining_s=remaining_s, reserve_s=15 * 60,
         closures=((NORTH_RAMP_CLOSURE, closure_cells),) if closed else (),
-        profile=HumanProfile(pace_scenario=pace_scenario), crew_status=crew_status,
-        provenance=(("terrain", "simulated"), ("closures", "simulated"), ("remaining_s", "crew_input")))
+        profile=_profile(platform, pace_scenario), crew_status=crew_status,
+        provenance=(("terrain", "simulated"), ("closures", "simulated"), ("remaining_s", "crew_input")),
+        time_utc=DEMO_TIME_UTC if with_time else None,
+        site_lat_deg=DEMO_SITE[0] if with_time else None, site_lon_east_deg=DEMO_SITE[1] if with_time else None,
+        environment=(sep_scenario("demo-north-ramp"),) if sep_alert else (),
+        power=demo_power() if platform == "rover" else None)
     return baseline, snapshot
+
+
+def _profile(platform, pace_scenario):
+    if platform == "rover":
+        from .rover import hypothetical_crew_rover
+        return hypothetical_crew_rover()
+    return HumanProfile(pace_scenario=pace_scenario)
 
 
 def plot(result_before, result_after, path):
@@ -79,5 +111,6 @@ def plot(result_before, result_after, path):
                     mfc="gold", mec="black")
         ax.set_title(f"{title}: status {res.status}, recommend {res.recommendation}")
         ax.legend(loc="lower right", fontsize=7)
-    fig.suptitle("Human Marswalk pipeline on SYNTHETIC terrain (red = excluded, grey-blue = no data)")
+    who = "Rover" if result_after.snapshot.profile.platform == "rover" else "Human"
+    fig.suptitle(f"{who} Marswalk pipeline on SYNTHETIC terrain (red = excluded, grey-blue = no data)")
     fig.savefig(path, dpi=100)

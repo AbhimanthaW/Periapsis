@@ -159,3 +159,70 @@ return check assumes no rescue. Closures are simulated field reports. The
 following are deliberately excluded: AI/ML decisions, live telemetry, suit
 forecasts, safety scores, medical suitability or crew ranking, and assumed
 vehicle rescue.
+
+### Rover mobility (05) and environmental models (06)
+
+| Module | Architecture boxes |
+| --- | --- |
+| `config.py` | Rover operating profile (`RoverProfile`): hypothetical or cited vehicle record. Refuses a sourced record without a citation, efficiency outside (0, 1], reserve > charge > capacity and non-finite values |
+| `rover.py` | Rover traversal time (incline, local tilt and clearance checked first; unsupported terrain fails closed), Rover drive energy (uphill work + rolling resistance + drivetrain losses + auxiliary load, no regeneration credit, stationary science load), Traction/slip/sinkage reported `not_calibrated` |
+| `environment.py` | Historical weather & RAD (`Observation`, context only), Solar geometry & shadow (Mars24 sun position and terrain ray-march: `lit`/`shadow`/`unresolved`/`night`), Power availability scenario (`declared_curve`, `solar_derived`, `non_solar`, `none`), Environmental activation, Comms and forecast research reported `not_modelled` |
+| `resources.py` | Battery energy ledger: checks discharge power and reserve on each drive edge and each dwell. Applies consumption before charging and caps charge at capacity. |
+
+An explicit operating scenario needs a declared purpose, authorization,
+matching scenario ID and, if time-limited, coverage for the full planning
+window. An active `return_now` prevents science and allows the shelter
+return. An active `block_cells` behaves like a closure. Historical records
+are context only, and predictions stay unverified until a qualified
+prediction product is integrated. A required operating input that is
+unverified leaves science `unknown` (`unverified_environment`). A required
+unverified closure also prevents a return recommendation
+(`RETURN_ENVIRONMENT_UNVERIFIED`).
+
+Rover plans require a declared `PowerScenario` and battery charge and
+discharge ratings. A power curve must identify its source and cover the
+evaluated timeline. Battery-only operation uses `PowerScenario("none")`.
+If the fastest feasible-by-time legs fail energy, the planner checks a
+bounded set of alternatives built from minimum-energy, power-admissible
+and mixed time/energy routes. `RETURN_ENERGY_SEARCH_EXHAUSTED` preserves the
+evaluated geometric return and identifies the bounded search result.
+`RETURN_ENERGY_UNVERIFIED` indicates missing energy inputs.
+
+The sun position uses Mars24 (Allison & McEwen 2000) with TT − UTC pinned at
+69.184 s, which is valid from 2017. It reproduces the start of Mars Year 36
+(Ls 0 on 7 Feb 2021), Perseverance's touchdown at about 15:53 LMST, the
+±25.4° declination range and the 1.381–1.666 AU distance range. It stands in
+for pinned SPICE kernels. Packs carry no site coordinates, so a plan must
+declare `time_utc`, `site_lat_deg` and `site_lon_east_deg` for solar geometry.
+Solar generation is credited only during stationary dwell with resolved
+illumination, based on samples no more than 60 seconds apart. It needs a
+separately declared upper bound on intervening terrain, including terrain
+outside the grid, in the same vertical datum. Unresolved visibility,
+shadow, night and driving receive zero solar credit. These are synthetic
+planning assumptions.
+
+```sh
+# Choose a new output directory for the rover fixture.
+uv run --project documentation --locked --offline python -m contracts.fixtures.generate /tmp/marswalk-rover-pack --rover
+uv run --project documentation --locked --offline python -m runtime.marswalk plan /tmp/marswalk-rover-pack --platform rover --power battery-only --closure mid
+
+uv run --project documentation --locked --offline python -m runtime.marswalk demo --platform rover
+uv run --project documentation --locked --offline python -m runtime.marswalk demo --sep-alert
+uv run --project documentation --locked --offline python -m pytest runtime/tests/test_marswalk_rover_env.py -q
+```
+
+The pack CLI also accepts `--power demo-solar` with `--time-utc`,
+`--site-lat-deg` and `--site-lon-east-deg`. Provide
+`--horizon-upper-bound-m` only when that bound is declared for the scenario.
+
+The demo rover is a hypothetical record (`hypothetical_crew_rover`). It is
+not a NASA vehicle specification. The demo solar array, dust transmittance
+and the simulated solar-particle-event drill are declared assumptions, and
+no radiation dose is inferred.
+
+Demo output (synthetic terrain, before and after the simulated north-ramp
+closure). Regenerate with `python -m runtime.marswalk demo [--platform rover] --png PATH`
+from an environment that has Matplotlib:
+
+![Human Marswalk demo](docs/marswalk-demo-human.png)
+![Rover Marswalk demo](docs/marswalk-demo-rover.png)

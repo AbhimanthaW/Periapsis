@@ -1,6 +1,7 @@
 """Human Marswalk CLI.
 
   python -m runtime.marswalk plan contracts/fixtures/synthetic-v1 --closure mid
+  python -m runtime.marswalk plan /path/to/rover-pack --platform rover --power battery-only
   python -m runtime.marswalk demo --png marswalk-demo.png
 
 `plan` reads a checked pack v1 with routing simulation enabled and prints the
@@ -8,30 +9,45 @@ JSON plan. `demo` needs no pack: it runs a built-in synthetic scenario before
 and after a simulated closure and prints a decision table.
 """
 import argparse
+from dataclasses import replace
 import json
 from pathlib import Path
 import sys
 
 from .config import HumanProfile, snapshot_from_pack
+from .environment import PowerScenario
 from .errors import MarswalkError
 from .plan import plan_marswalk
 from .traversability import ScreenPolicy, baseline_from_pack
 
 
 def _profile(args):
+    if args.platform == "rover":
+        from .rover import hypothetical_crew_rover
+        return replace(hypothetical_crew_rover(), neighbours=args.neighbours)
     return HumanProfile(pace_model=args.pace_model, pace_scenario=args.pace_scenario, neighbours=args.neighbours)
 
 
 def _table(result):
     lines = [f"status {result.status} | recommendation {result.recommendation} | "
              f"backend {result.router.backend} | Dijkstra runs {result.router.dijkstra_runs}",
-             f"  {'option':<26}{'total':>9}{'margin':>9}  outcome"]
+             f"  {'option':<26}{'total':>9}{'margin':>9}{'energy':>10}  outcome"]
     for plan in result.plans:
         total = plan.ledger.total_use
         margin = plan.ledger.margin
         fmt = lambda v: "      -" if v is None else f"{v / 60:6.1f}m"
+        e = plan.energy_ledger
+        energy = "-" if e is None or e.total_use is None else f"{e.total_use / 3.6e6:.2f}kWh"
         why = "pass" if plan.passed else "; ".join(plan.failure_reasons[:2])
-        lines.append(f"  {plan.id:<26}{fmt(total):>9}{fmt(margin):>9}  {why}")
+        lines.append(f"  {plan.id:<26}{fmt(total):>9}{fmt(margin):>9}{energy:>10}  {why}")
+    env = result.to_dict()["environment"]
+    for a in env["activation"]:
+        lines.append(f"  environment {a['id']}: {a['status']} ({a['reason']})")
+    if env["solar"]["status"] == "computed":
+        sun = env["solar"]["sun"]
+        lines.append(f"  sun: elevation {sun['elevation_deg']:.1f} deg, azimuth {sun['azimuth_deg']:.0f} deg, "
+                     f"Ls {sun['solar_longitude_deg']:.1f}, LTST {sun['local_true_solar_time_h']:.2f} h; "
+                     + ", ".join(f"{k} {v}" for k, v in env["solar"]["illumination"].items()))
     return "\n".join(lines)
 
 
@@ -47,6 +63,11 @@ def main(argv=None):
             p.add_argument("--closure", action="append", default=[])
             p.add_argument("--remaining-s", type=int)
             p.add_argument("--slope-limit-deg", type=float)
+            p.add_argument("--power", choices=("battery-only", "demo-solar"))
+            p.add_argument("--time-utc")
+            p.add_argument("--site-lat-deg", type=float)
+            p.add_argument("--site-lon-east-deg", type=float)
+            p.add_argument("--horizon-upper-bound-m", type=float)
         else:
             p.add_argument("--png", type=Path)
             p.add_argument("--remaining-s", type=int, default=3600)
@@ -57,6 +78,10 @@ def main(argv=None):
         p.add_argument("--multistop", action="store_true")
         p.add_argument("--alternatives", type=int, default=0)
         p.add_argument("--backend", choices=("auto", "scipy", "python"), default="auto")
+        p.add_argument("--platform", choices=("human", "rover"), default="human",
+                       help="rover uses a hypothetical crew-rover record")
+        p.add_argument("--sep-alert", action="store_true",
+                       help="add an explicit SIMULATED solar particle event scenario (return now)")
     args = parser.parse_args(argv)
     try:
         if args.mode == "plan":
@@ -72,6 +97,22 @@ def main(argv=None):
             baseline = baseline_from_pack(pack, policy=policy)
             snapshot = snapshot_from_pack(pack, closure_ids=tuple(args.closure), remaining_s=args.remaining_s,
                                           profile=_profile(args), crew_status=args.crew_status)
+            from .demo import DEMO_TIME_UTC, demo_power, sep_scenario
+            power = None
+            if args.platform == "rover" and args.power is None:
+                raise MarswalkError("INVALID_POWER", "rover pack planning requires --power")
+            if args.power and args.platform != "rover":
+                raise MarswalkError("INVALID_POWER", "--power requires --platform rover")
+            if args.power == "battery-only":
+                power = PowerScenario("none")
+            elif args.power == "demo-solar":
+                if any(value is None for value in (args.time_utc, args.site_lat_deg, args.site_lon_east_deg)):
+                    raise MarswalkError("INVALID_POWER", "demo solar needs explicit time and site coordinates")
+                power = replace(demo_power(), horizon_upper_bound_m=args.horizon_upper_bound_m)
+            time_utc = args.time_utc or (DEMO_TIME_UTC if args.sep_alert else None)
+            snapshot = replace(snapshot, power=power, time_utc=time_utc,
+                               site_lat_deg=args.site_lat_deg, site_lon_east_deg=args.site_lon_east_deg,
+                               environment=(sep_scenario(snapshot.scenario_id, time_utc),) if args.sep_alert else ())
             result = plan_marswalk(baseline, snapshot, backend=args.backend, multistop=args.multistop,
                                    alternatives_k=args.alternatives)
             print(json.dumps(result.to_dict(), allow_nan=False))
@@ -80,8 +121,9 @@ def main(argv=None):
         results = []
         for closed in (False, True):
             baseline, snapshot = demo_inputs(closed=closed, remaining_s=args.remaining_s,
-                                             pace_scenario=args.pace_scenario, crew_status=args.crew_status)
-            snapshot = snapshot.__class__(**{**snapshot.__dict__, "profile": _profile(args)})
+                                             pace_scenario=args.pace_scenario, crew_status=args.crew_status,
+                                             platform=args.platform, sep_alert=args.sep_alert)
+            snapshot = replace(snapshot, profile=_profile(args))
             results.append(plan_marswalk(baseline, snapshot, backend=args.backend, multistop=args.multistop,
                                          alternatives_k=args.alternatives))
         print("SYNTHETIC DEMO - not Mars data\n\nBEFORE closure\n" + _table(results[0]))
