@@ -17,6 +17,19 @@ Open the local address printed by Vite. For a compiled build, run `npm run build
 
 Open **Mars Atlas** from the Architecture Workspace, or visit `/atlas` on the same local server. The Atlas packages the Viking and MOLA global views, a bounded Jezero CTX optical subset, the 56-region index, and the original survey. It runs from local files while the server is running. See the [Atlas data and methodology](docs/mars-research-atlas.md) for source credits, limits and regeneration. Run `npm run check:atlas` to validate the packaged registry and assets.
 
+## Mission (in progress)
+
+`/mission` is the astronaut workflow entry point. It currently shows the selected site and the planning service health. See the [mission frontend plan](docs/mission-frontend.md) for screens, API bindings and unavailable capabilities.
+
+Start the loopback planning service from the repository root, then the dev server from `web/`:
+
+```sh
+uv run --project documentation --locked --offline python -m runtime.planning_api
+npm run dev
+```
+
+Vite proxies `/api` and `/healthz` to `http://127.0.0.1:8000` in both `dev` and `preview`, so the browser uses same-origin requests. Set `RW_PLANNING_API_ORIGIN` to point the proxy elsewhere. `VITE_RW_SITE` selects the mission site. Leave it empty (the default) until the primary site is approved. `VITE_RW_SITE=jezero-control` selects the Jezero engineering control.
+
 ## Explore and edit
 
 - **Complete system** follows external archives through the offline build, local pack, routing, decision and crew interface. Expand any subsystem or select it and choose **Focus subsystem**.

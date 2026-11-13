@@ -1,0 +1,25 @@
+.mission-app {
+  --mission-ink: #ebe5dc;
+  --mission-muted: #a8a49c;
+  --mission-line: #34302b;
+  --mission-panel: #1d1a17;
+  --mission-dark: #141210;
+  --mission-accent: #e08a5a;
+  --mission-warn: #e3b34f;
+  height: 100dvh; overflow: auto; background: var(--mission-dark); color: var(--mission-ink);
+}
+.mission-masthead {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 16px; border-bottom: 1px solid var(--mission-line);
+}
+.mission-brand { font: 600 12px var(--mono); letter-spacing: .28em; text-transform: uppercase; }
+.mission-nav { display: flex; gap: 14px; font-size: 13px; }
+.mission-nav a { color: var(--mission-muted); text-decoration: none; }
+.mission-nav a:hover { color: var(--mission-ink); }
+.mission-body { display: grid; gap: 12px; max-width: 560px; padding: 24px 16px; }
+.mission-body h1 { font-size: 28px; }
+.mission-card { display: grid; gap: 6px; padding: 16px; background: var(--mission-panel); border: 1px solid var(--mission-line); border-radius: 8px; }
+.mission-card h2 { font-size: 18px; }
+.mission-card.mission-warn { border-color: var(--mission-warn); }
+.mission-kicker { color: var(--mission-accent); font: 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.mission-muted { color: var(--mission-muted); }
