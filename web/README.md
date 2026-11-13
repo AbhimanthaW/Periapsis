@@ -21,14 +21,15 @@ Open **Mars Atlas** from the Architecture Workspace, or visit `/atlas` on the sa
 
 `/mission` is the astronaut workflow entry point. It currently shows the selected site and the planning service health. See the [mission frontend plan](docs/mission-frontend.md) for screens, API bindings and unavailable capabilities.
 
-Start the loopback planning service from the repository root, then the dev server from `web/`:
+From the repository root, follow the [one-time Python setup](../runtime/README.md#local-planning-http-foundation), then start the loopback planning service.
 
 ```sh
 uv run --project documentation --locked --offline python -m runtime.planning_api
-npm run dev
 ```
 
-Vite proxies `/api` and `/healthz` to `http://127.0.0.1:8000` in both `dev` and `preview`, so the browser uses same-origin requests. Set `RW_PLANNING_API_ORIGIN` to point the proxy elsewhere. `VITE_RW_SITE` selects the mission site. Leave it empty (the default) until the primary site is approved. `VITE_RW_SITE=jezero-control` selects the Jezero engineering control.
+In a second terminal, run `npm run dev` from `web/` and open `/mission`. Vite proxies `/api` and `/healthz` to `http://127.0.0.1:8000` in both dev and preview. Set `RW_PLANNING_API_ORIGIN` when starting Vite to point the proxy elsewhere.
+
+Leave `VITE_RW_SITE` unset until the primary site is approved. To select the Jezero engineering control, run `VITE_RW_SITE=jezero-control npm run dev`. For preview, run `VITE_RW_SITE=jezero-control npm run build` followed by `npm run preview`. Vite embeds the site selection at build time.
 
 ## Explore and edit
 
