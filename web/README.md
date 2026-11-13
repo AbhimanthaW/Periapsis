@@ -19,7 +19,7 @@ Open **Mars Atlas** from the Architecture Workspace, or visit `/atlas` on the sa
 
 ## Mission (in progress)
 
-`/mission` is the astronaut workflow entry point. It currently shows the selected site and the planning service health. See the [mission frontend plan](docs/mission-frontend.md) for screens, API bindings and unavailable capabilities.
+`/mission` is the astronaut workflow. **Site investigation** shows the configured site, its local map context and the evidence decision from `/api/v1/evidence`. **Enter simulated Marswalk** switches to the labeled fixture replay (`/mission?view=simulation`), where closures and remaining time drive `/api/v1/plan`. See the [mission frontend plan](docs/mission-frontend.md) for screens, API bindings and unavailable capabilities.
 
 From the repository root, follow the [one-time Python setup](../runtime/README.md#local-planning-http-foundation), then start the loopback planning service.
 
