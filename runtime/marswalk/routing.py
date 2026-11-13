@@ -145,6 +145,7 @@ class TerrainGraph:
             raise MarswalkError("INVALID_PROFILE", "neighbours must be 4 or 8")
         self.baseline = baseline
         self.neighbours = neighbours
+        self.mobility = pace
         sup = baseline.support
         moves = grid_moves(np.asarray(baseline.routable), sup.cell_dx_m, sup.cell_dy_m,
                            NEIGHBOURS_8 if neighbours == 8 else NEIGHBOURS_4)
@@ -155,8 +156,13 @@ class TerrainGraph:
         self.length_m = moves["length"].astype(float)
         z = np.asarray(baseline.z_m, float).ravel()
         self.dz_m = z[self.dst] - z[self.src] if self.src.size else np.zeros(0)
-        self.times: EdgeTimes = (human_traversal_time(self.length_m, self.dz_m, model=pace, scenario=scenario)
-                                 if self.src.size else EdgeTimes(np.zeros(0), np.zeros(0, np.uint8), pace.name, ()))
+        if not self.src.size:
+            self.times = EdgeTimes(np.zeros(0), np.zeros(0, np.uint8), pace.name, (),
+                                   np.zeros(0) if hasattr(pace, "edge_times") else None)
+        elif hasattr(pace, "edge_times"):        # vehicle model (Subsystem 05)
+            self.times = pace.edge_times(self.length_m, self.dz_m, self.src, self.dst, baseline)
+        else:                                    # human pace model (Subsystem 04)
+            self.times = human_traversal_time(self.length_m, self.dz_m, model=pace, scenario=scenario)
         self.n = int(np.prod(sup.shape))
 
     def __len__(self):
@@ -179,6 +185,7 @@ class Leg:
     max_abs_grade: float | None = None
     max_slope_deg: float | None = None
     edge_ids: tuple = ()
+    energy_j: float | None = None
 
     @property
     def ok(self):
@@ -186,7 +193,7 @@ class Leg:
 
     def to_dict(self):
         out = {k: getattr(self, k) for k in ("status", "reason", "seconds", "length_m", "surface_m",
-                                             "ascent_m", "descent_m", "max_abs_grade", "max_slope_deg")}
+                                             "ascent_m", "descent_m", "max_abs_grade", "max_slope_deg", "energy_j")}
         out.update(start=list(self.start), goal=list(self.goal), cells=[list(c) for c in self.cells])
         return out
 
@@ -333,7 +340,8 @@ class Router:
         slope = np.asarray(self.baseline.slope_deg)[rows, cols]
         max_slope = float(np.nanmax(slope)) if np.isfinite(slope).any() else None
         if nodes.size == 1:
-            return Leg(LEG_OK, tuple(a), tuple(b), "start equals goal", cells, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, max_slope, ())
+            return Leg(LEG_OK, tuple(a), tuple(b), "start equals goal", cells, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, max_slope, (),
+                       None if self.graph.times.energy_j is None else 0.0)
         eids = self.edge_lookup(nodes[:-1], nodes[1:])
         g = self.graph
         length, dz = g.length_m[eids], g.dz_m[eids]
@@ -341,7 +349,8 @@ class Router:
                    seconds=float(g.times.seconds[eids].sum()), length_m=float(length.sum()),
                    surface_m=float(np.hypot(length, dz).sum()), ascent_m=float(dz[dz > 0].sum()),
                    descent_m=float(-dz[dz < 0].sum()), max_abs_grade=float(np.abs(dz / length).max()),
-                   max_slope_deg=max_slope, edge_ids=tuple(eids.tolist()))
+                   max_slope_deg=max_slope, edge_ids=tuple(eids.tolist()),
+                   energy_j=None if g.times.energy_j is None else float(g.times.energy_j[eids].sum()))
 
 
 # ------------------------------------------------------------------ diverse candidates

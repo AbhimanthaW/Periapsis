@@ -1,4 +1,4 @@
-"""Human Marswalk pipeline: 01 -> 04 + 03 -> 09 -> 07 -> 10.
+"""Marswalk pipeline: 01 -> 04 (human) or 05 (rover) + 03 + 06 -> 09 -> 07 -> 10.
 
     snapshot (01) ──crew profile──► traversal time (04) ──directional time──┐
     pack terrain ──► traversability (03) ──allowed terrain──────────────────┤
@@ -7,11 +7,18 @@
                                                        resource budgets (07)
                                                               │
                                                     mission optimization (10)
+
+Rover profiles replace 04 with Subsystem 05 and add a battery ledger. Subsystem
+06 enters only through Environmental activation: active block_cells become
+closures, an active return_now blocks science, a required input that is not
+active leaves science unknown.
 """
 from dataclasses import dataclass, field, replace
 
 from .errors import (INSUFFICIENT_TERRAIN_EVIDENCE, LEG_NO_EVIDENCE, MarswalkError, NO_RETURN_ROUTE, OK,
                      RETURN_OVER_RESERVE)
+from .environment import (ACTIVE, activate_environment, comms_and_forecast_assessment, mars_sun,
+                          terrain_illumination)
 from .mobility import pace_for
 from .optimization import (EXCLUDED_FROM_CORE, compare_pareto, compose_candidate_plans,
                            enforce_hard_constraints, reevaluate_science_tasks, select_next_action)
@@ -22,7 +29,10 @@ SCHEMA = "marswalk-plan-v1"
 ASSUMPTIONS = (
     "Pace parameters are illustrative scenario assumptions, not calibrated Mars-suit walking data.",
     "Slope and roughness thresholds are prototype policy assumptions and do not establish human safety.",
-    "Only time is budgeted; consumables enter as the authorized remaining time supplied by the crew.",
+    "Only crew time is budgeted for people; consumables enter as the authorized remaining time supplied by the crew.",
+    "Rover numbers come from a hypothetical or cited vehicle record; no equivalence to NASA rover specifications.",
+    "Rover energy credits no regeneration; traction, slip and sinkage are not modelled.",
+    "Historical weather and radiation are context only; no forecast or human dose is inferred.",
     "The return check assumes no rescue or vehicle support.",
     "Closures and scenario events are simulated field reports unless tagged as evidence.",
 )
@@ -40,6 +50,7 @@ class MarswalkPlan:
     objectives_used: list
     recommendation: str | None
     alternatives: dict = field(default_factory=dict)
+    activations: tuple = ()
 
     @property
     def pareto_front(self):
@@ -60,9 +71,8 @@ class MarswalkPlan:
             "mission_id": snap.mission_id, "revision": snap.revision,
             "pack_id": snap.pack_id, "pack_version": snap.pack_version, "scenario_id": snap.scenario_id,
             "classification": self.baseline.support.classification,
-            "profile": {"profile_id": prof.profile_id, "pace_model": prof.pace_model,
-                        "pace_scenario": prof.pace_scenario, "neighbours": prof.neighbours,
-                        "crew_size": prof.crew_size, "provenance": prof.provenance},
+            "platform": prof.platform,
+            "profile": _profile_dict(prof),
             "terrain": {"policy_id": self.baseline.policy.policy_id, "cells": self.baseline.reason_counts(),
                         "flagged_features": [list(f) for f in self.baseline.flagged],
                         "notes": list(self.baseline.notes)},
@@ -81,8 +91,39 @@ class MarswalkPlan:
             "solver": {"backend": self.router.backend, "dijkstra_runs": self.router.dijkstra_runs,
                        "edges": len(self.router.graph), "cells": int(self.router.graph.n)},
             "provenance": [list(p) for p in snap.provenance],
+            "environment": self._environment_dict(),
             "assumptions": list(ASSUMPTIONS), "excluded_from_core": list(EXCLUDED_FROM_CORE),
         }
+
+
+def _profile_dict(prof):
+    if prof.platform == "rover":
+        from .rover import summary, traction_assessment
+        return {**summary(prof), "neighbours": prof.neighbours, "traction": traction_assessment(prof)}
+    return {"profile_id": prof.profile_id, "pace_model": prof.pace_model, "pace_scenario": prof.pace_scenario,
+            "neighbours": prof.neighbours, "crew_size": prof.crew_size, "provenance": prof.provenance}
+
+
+def _environment_dict(self):
+    snap = self.snapshot
+    out = {"activation": [a.to_dict() for a in self.activations],
+           "historical_context": [o.__dict__ for v in snap.environment if v.mode == "historical_context"
+                                  for o in v.observations],
+           "power": None if snap.power is None else {k: v for k, v in snap.power.__dict__.items()},
+           "comms_and_forecast": comms_and_forecast_assessment()}
+    if snap.time_utc is None or snap.site_lat_deg is None:
+        out["solar"] = {"status": "not_declared", "reason": "plan time and site coordinates are both required"}
+        return out
+    sun = mars_sun(snap.time_utc, snap.site_lat_deg, snap.site_lon_east_deg)
+    cells = {"current": snap.current_cell, "return": snap.return_cell,
+             **{f"task:{t.id}": t.approach_cell for t in snap.tasks}}
+    lit = terrain_illumination(self.baseline, list(cells.values()), sun)
+    out["solar"] = {"status": "computed", "method": "Mars24 (Allison & McEwen 2000)", "sun": sun.to_dict(),
+                    "illumination": {name: lit[tuple(c)] for name, c in cells.items()}}
+    return out
+
+
+MarswalkPlan._environment_dict = _environment_dict
 
 
 def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposure_slope_deg=10.0,
@@ -94,18 +135,21 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
     snapshot.validate(support.shape, pack_id=support.pack_id, pack_version=support.pack_version,
                       expected_revision=expected_revision)
     profile = snapshot.profile
-    graph = TerrainGraph(baseline, pace_for(profile), scenario=profile.pace_scenario,
+    activations = tuple(activate_environment(snapshot.environment, time_utc=snapshot.time_utc))
+    blocked = tuple(cell for v, a in zip(snapshot.environment, activations)
+                    if a.status == ACTIVE and a.effect == "block_cells" for cell in v.cells)
+    graph = TerrainGraph(baseline, pace_for(profile), scenario=getattr(profile, "pace_scenario", "nominal"),
                          neighbours=profile.neighbours)
-    router = Router(graph, snapshot.closure_cells, backend=backend)
+    router = Router(graph, snapshot.closure_cells + blocked, backend=backend)
 
     plans = compose_candidate_plans(snapshot, router, multistop=multistop)
-    reevaluate_science_tasks(plans, snapshot)
+    reevaluate_science_tasks(plans, snapshot, router)
     direct_plan = plans[0]
     direct = direct_plan.legs[0][1]
     gate = return_time_margin(snapshot.remaining_s, snapshot.reserve_s, direct)
-    enforce_hard_constraints(direct_plan, snapshot, router)
+    enforce_hard_constraints(direct_plan, snapshot, router, activations=activations)
     for plan in plans[1:]:
-        enforce_hard_constraints(plan, snapshot, router, direct_plan=direct_plan)
+        enforce_hard_constraints(plan, snapshot, router, direct_plan=direct_plan, activations=activations)
     front, used = compare_pareto(plans, router, exposure_slope_deg=exposure_slope_deg)
     recommendation = select_next_action(plans, front, snapshot)
 
@@ -124,11 +168,12 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
         for alternative in diverse_routes(router, outbound.start, outbound.goal, k=alternatives_k):
             candidate = replace(rec, legs=[("outbound", alternative.leg), *rec.legs[1:]],
                                 failure_reasons=[], deferred_artifacts=[])
-            reevaluate_science_tasks([candidate], snapshot)
-            enforce_hard_constraints(candidate, snapshot, router, direct_plan=direct_plan)
+            reevaluate_science_tasks([candidate], snapshot, router)
+            enforce_hard_constraints(candidate, snapshot, router, direct_plan=direct_plan, activations=activations)
             if candidate.passed:
                 rank = len(feasible)
                 label = "baseline" if rank == 0 else f"alternate_{rank}"
                 feasible.append(replace(alternative, rank=rank, label=label))
         alternatives[f"{rec.id}:outbound"] = feasible
-    return MarswalkPlan(snapshot, baseline, router, status, gate, plans, front, used, recommendation, alternatives)
+    return MarswalkPlan(snapshot, baseline, router, status, gate, plans, front, used, recommendation, alternatives,
+                        activations)

@@ -93,3 +93,36 @@ def route_resource_ledger(phases, *, initial_s, reserve_s):
     margin = None if remaining is None else remaining - reserve_s
     return ResourceLedger("time", "s", float(initial_s), float(reserve_s), tuple(rows),
                           total, remaining, margin, check, reason)
+
+
+# ------------------------------------------------------------------ energy (rover plans)
+@dataclass(frozen=True)
+class EnergyPhase:
+    name: str
+    kind: str
+    consumption_j: float | None
+    supply_j: float | None
+    duration_s: float | None
+
+
+def energy_ledger(phases, *, initial_j, reserve_j, capacity_j):
+    """Battery ledger. In each phase consumption is applied BEFORE that
+    phase's supply (conservative), the prefix check runs, then supply is
+    added and clipped at capacity. Missing consumption or supply -> unknown."""
+    rows, charge, used = [], float(initial_j), 0.0
+    check, reason = PASS, "battery stays above reserve"
+    for phase in phases:
+        if phase.consumption_j is None or phase.supply_j is None:
+            missing = "consumption" if phase.consumption_j is None else "supply"
+            rows.append(LedgerRow(phase.name, phase.kind, phase.consumption_j, None, None))
+            return ResourceLedger("energy", "J", float(initial_j), float(reserve_j), tuple(rows), None, None,
+                                  None, UNKNOWN, f"unsupported {missing} in phase {phase.name}")
+        charge -= phase.consumption_j
+        used += phase.consumption_j
+        prefix_ok = charge >= reserve_j
+        if not prefix_ok and check == PASS:
+            check, reason = FAIL, f"battery reserve breached during {phase.name}"
+        charge = min(float(capacity_j), charge + phase.supply_j)
+        rows.append(LedgerRow(phase.name, phase.kind, float(phase.consumption_j), charge, prefix_ok))
+    return ResourceLedger("energy", "J", float(initial_j), float(reserve_j), tuple(rows), used, charge,
+                          charge - reserve_j, check, reason)

@@ -234,3 +234,19 @@ def baseline_from_pack(pack, *, policy=ScreenPolicy(), features=()):
         pack_id=site["pack_id"], classification=site["classification"], pack_version=site["pack_version"])
     return build_baseline(support, pack.terrain["z_m"], pack.terrain["valid_mask"],
                           pack.terrain["screen_excluded_mask"], policy=policy, features=features)
+
+
+def local_relief_m(z, valid, dx, dy):
+    """Largest absolute residual about a locally fitted plane in each 3x3
+    window: a geometric proxy for obstacle height used by vehicle clearance
+    checks. NaN unless the full window is valid. It cannot see objects smaller
+    than the grid and says nothing about traction."""
+    zf = np.pad(np.where(valid, z, np.nan).astype(float), 1, constant_values=np.nan)
+    win = np.lib.stride_tricks.sliding_window_view(zf, (3, 3))
+    yy, xx = np.mgrid[-1:2, -1:2].astype(float)
+    x, y = xx * dx, -yy * dy
+    mean = win.mean(axis=(-2, -1))
+    sx = (win * x).sum(axis=(-2, -1)) / (x * x).sum()
+    sy = (win * y).sum(axis=(-2, -1)) / (y * y).sum()
+    fitted = mean[..., None, None] + sx[..., None, None] * x + sy[..., None, None] * y
+    return np.abs(win - fitted).max(axis=(-2, -1))

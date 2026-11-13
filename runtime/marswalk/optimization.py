@@ -21,7 +21,8 @@ from itertools import permutations
 import numpy as np
 
 from .errors import FAIL, LEG_NO_EVIDENCE, LEG_OK, PASS, UNKNOWN
-from .resources import Phase, route_resource_ledger
+from .environment import ACTIVE, UNVERIFIED, supply_energy_j
+from .resources import EnergyPhase, Phase, energy_ledger, route_resource_ledger
 
 EXCLUDED_FROM_CORE = (
     "AI/ML decision making", "live telemetry", "suit or life-support forecasts",
@@ -43,6 +44,7 @@ class CandidatePlan:
     objectives: dict = field(default_factory=dict)
     failure_reasons: list = field(default_factory=list)
     deferred_artifacts: list = field(default_factory=list)
+    energy_ledger: object = None      # rover plans only
 
     @property
     def passed(self):
@@ -63,6 +65,7 @@ class CandidatePlan:
             "constraints": [{"rule": r, "outcome": o, "reason": why} for r, o, why in self.constraints],
             "objectives": self.objectives, "failure_reasons": self.failure_reasons,
             "deferred_artifacts": self.deferred_artifacts,
+            "energy_ledger": None if self.energy_ledger is None else self.energy_ledger.to_dict(),
         }
 
 
@@ -102,9 +105,36 @@ def bounded_multistop(snapshot, router, unfinished, max_tasks=2):
 
 
 # ------------------------------------------------------------------ reevaluate
-def reevaluate_science_tasks(plans, snapshot):
-    """Ledger, signed margin and failure reasons for every plan (same scenario)."""
+def _energy_ledger(plan, snapshot, mobility):
+    """Battery ledger along the plan timeline (rover profiles only)."""
+    profile, dwell = mobility.profile, dict(plan.dwell)
+    phases, t = [], 0.0
+    ctx = dict(time_utc=snapshot.time_utc, lat_deg=snapshot.site_lat_deg, lon_east_deg=snapshot.site_lon_east_deg)
+
+    def add(name, kind, consumption, duration):
+        nonlocal t
+        if duration is None:
+            phases.append(EnergyPhase(name, kind, None, None, None))
+            return
+        supply = supply_energy_j(snapshot.power, t, t + duration, **ctx)
+        phases.append(EnergyPhase(name, kind, consumption, supply, duration))
+        t += duration
+
+    for name, leg in plan.legs:
+        add(name, name, leg.energy_j if leg.ok else None, leg.seconds if leg.ok else None)
+        if name in ("outbound", "transfer") and plan.task_ids:
+            target = plan.task_ids[0] if name == "outbound" else plan.task_ids[1]
+            add(f"dwell:{target}", "dwell", mobility.dwell_energy_j(dwell[target]), dwell[target])
+    return energy_ledger(phases, initial_j=profile.initial_charge_j, reserve_j=profile.battery_reserve_j,
+                         capacity_j=profile.battery_capacity_j)
+
+
+def reevaluate_science_tasks(plans, snapshot, router=None):
+    """Ledger, signed margin and failure reasons for every plan (same scenario).
+    Rover plans also get a battery ledger."""
     by_id = {t.id: t for t in snapshot.tasks}
+    mobility = None if router is None else getattr(router.graph, "mobility", None)
+    vehicle = mobility is not None and hasattr(mobility, "dwell_energy_j")
     for plan in plans:
         phases, dwell = [], dict(plan.dwell)
         for name, leg in plan.legs:
@@ -117,6 +147,8 @@ def reevaluate_science_tasks(plans, snapshot):
         plan.ledger = route_resource_ledger(phases, initial_s=snapshot.remaining_s, reserve_s=snapshot.reserve_s)
         if plan.ledger.check == FAIL:
             plan.failure_reasons.append(plan.ledger.reason)
+        if vehicle:
+            plan.energy_ledger = _energy_ledger(plan, snapshot, mobility)
         if plan.task_ids and (plan.ledger.check != PASS or any(not leg.ok for _, leg in plan.legs)):
             plan.deferred_artifacts = [by_id[t].expected_artifact or t for t in plan.task_ids]
     return plans
@@ -137,12 +169,25 @@ def _positions_rule(snapshot, router):
     return PASS, "current and return cells supported"
 
 
-def enforce_hard_constraints(plan, snapshot, router, *, direct_plan=None):
+def _environment_rule(activations):
+    """Only ACTIVE variables constrain; a required variable that is not active
+    leaves the plan unknown. Returning to shelter is never blocked here."""
+    stop = [a for a in activations if a.status == ACTIVE and a.effect == "return_now"]
+    if stop:
+        return FAIL, "return now required by " + ", ".join(a.id for a in stop)
+    unverified = [a for a in activations if a.status == UNVERIFIED and a.required]
+    if unverified:
+        return UNKNOWN, "unverified_environment: " + ", ".join(a.id for a in unverified)
+    return PASS, "no active environmental restriction"
+
+
+def enforce_hard_constraints(plan, snapshot, router, *, direct_plan=None, activations=()):
     rules = []
     rules.append(("positions_supported", *_positions_rule(snapshot, router)))
     if plan.kind != "direct_return":
         rules.append(("crew_status", *((PASS, "crew status ok") if snapshot.crew_status == "ok"
                                         else (FAIL, "crew reported an issue: return now"))))
+        rules.append(("environment", *_environment_rule(activations)))
         if direct_plan.passed:
             rules.append(("direct_return_gate", PASS, "direct return passes all required constraints"))
         else:
@@ -165,6 +210,11 @@ def enforce_hard_constraints(plan, snapshot, router, *, direct_plan=None):
         rules.append(("prerequisites", FAIL if missing else PASS,
                       f"missing prerequisites {missing}" if missing else "prerequisites met"))
     rules.append(("time_budget", plan.ledger.check, plan.ledger.reason))
+    if plan.energy_ledger is not None:
+        reason = plan.energy_ledger.reason
+        if plan.energy_ledger.check == UNKNOWN and snapshot.power is None:
+            reason = "no power scenario declared for the vehicle"
+        rules.append(("energy_budget", plan.energy_ledger.check, reason))
     max_leg = snapshot.limit("max_leg_s")
     if max_leg is not None:
         worst = max((leg.seconds for _, leg in plan.legs if leg.ok), default=None)
@@ -182,7 +232,8 @@ def enforce_hard_constraints(plan, snapshot, router, *, direct_plan=None):
 
 
 # ------------------------------------------------------------------ Pareto
-OBJECTIVES = (("total_s", "min"), ("margin_s", "max"), ("science_value", "max"), ("steep_exposure_s", "min"))
+OBJECTIVES = (("total_s", "min"), ("margin_s", "max"), ("science_value", "max"), ("steep_exposure_s", "min"),
+              ("energy_j", "min"))
 
 
 def _exposure(plan, router, threshold_deg):
@@ -208,6 +259,7 @@ def compare_pareto(plans, router, *, exposure_slope_deg=10.0):
             "total_s": plan.ledger.total_use, "margin_s": plan.ledger.margin,
             "science_value": plan.science_value,
             "steep_exposure_s": _exposure(plan, router, exposure_slope_deg),
+            "energy_j": None if plan.energy_ledger is None else plan.energy_ledger.total_use,
         }
     used = [(name, sense) for name, sense in OBJECTIVES
             if passing and all(p.objectives[name] is not None for p in passing)]

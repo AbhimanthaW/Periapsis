@@ -91,6 +91,70 @@ class HumanProfile:
         _tag("profile", self.provenance)
 
 
+def _positive(name, value, *, allow_zero=False):
+    ok = (not isinstance(value, bool) and isinstance(value, Real) and value < inf
+          and (value >= 0 if allow_zero else value > 0))
+    if not ok:
+        raise MarswalkError("INVALID_PROFILE", f"{name} must be finite and {'>= 0' if allow_zero else '> 0'}")
+    return value
+
+
+@dataclass(frozen=True)
+class RoverProfile:
+    """Tagged vehicle record (Subsystem 01, Rover operating profile).
+
+    Either hypothetical or explicitly sourced. No equivalence to any NASA
+    rover is assumed. Generic, solar and non-solar vehicles share this shape;
+    generation itself comes from a declared PowerScenario (Subsystem 06)."""
+
+    profile_id: str
+    source_type: str                 # "hypothetical" | "sourced"
+    mass_kg: float
+    payload_kg: float
+    wheel_radius_m: float
+    clearance_m: float
+    max_incline_deg: float           # applies to along-edge grade and local tilt
+    nominal_speed_mps: float
+    rolling_resistance: float        # dimensionless coefficient, declared
+    drivetrain_efficiency: float     # 0 < eta <= 1
+    auxiliary_power_w: float         # computers, heaters, radios while driving
+    science_power_w: float           # stationary load while the crew works
+    battery_capacity_j: float
+    battery_reserve_j: float
+    initial_charge_j: float
+    power_source: str                # "solar" | "non_solar" | "none"
+    source: str = ""
+    neighbours: int = 8
+    platform: str = "rover"
+    provenance: str = "assumed"
+
+    def __post_init__(self):
+        if self.platform != "rover":
+            raise MarswalkError("INVALID_PROFILE", "RoverProfile must have platform 'rover'")
+        if self.source_type not in {"hypothetical", "sourced"}:
+            raise MarswalkError("INVALID_PROFILE", "source_type must be 'hypothetical' or 'sourced'")
+        if self.source_type == "sourced" and not self.source:
+            raise MarswalkError("INVALID_PROFILE", "a sourced vehicle record must cite its source")
+        if self.power_source not in {"solar", "non_solar", "none"}:
+            raise MarswalkError("INVALID_PROFILE", "power_source must be solar, non_solar or none")
+        if self.neighbours not in {4, 8}:
+            raise MarswalkError("INVALID_PROFILE", "neighbours must be 4 or 8")
+        for name in ("mass_kg", "wheel_radius_m", "clearance_m", "nominal_speed_mps", "battery_capacity_j"):
+            _positive(name, getattr(self, name))
+        for name in ("payload_kg", "rolling_resistance", "auxiliary_power_w", "science_power_w",
+                     "battery_reserve_j", "initial_charge_j"):
+            _positive(name, getattr(self, name), allow_zero=True)
+        _positive("max_incline_deg", self.max_incline_deg)
+        if self.max_incline_deg >= 90:
+            raise MarswalkError("INVALID_PROFILE", "max_incline_deg must be below 90")
+        _positive("drivetrain_efficiency", self.drivetrain_efficiency)
+        if self.drivetrain_efficiency > 1:
+            raise MarswalkError("INVALID_PROFILE", "drivetrain_efficiency must be at most 1")
+        if not self.battery_reserve_j <= self.initial_charge_j <= self.battery_capacity_j:
+            raise MarswalkError("INVALID_PROFILE", "need reserve <= initial charge <= capacity")
+        _tag("rover profile", self.provenance)
+
+
 @dataclass(frozen=True)
 class Task:
     id: str
@@ -125,6 +189,12 @@ class MissionSnapshot:
     objective: str = ""
     config_version: str = "marswalk-config-v1"
     provenance: tuple = ()               # (("remaining_s", "crew_input"), ...)
+    # Subsystem 06 inputs (all optional; absent means "not declared", never guessed)
+    time_utc: str | None = None          # plan start, ISO 8601 UTC, e.g. "2021-02-18T20:55:00Z"
+    site_lat_deg: float | None = None    # planetocentric latitude of the grid
+    site_lon_east_deg: float | None = None
+    environment: tuple = ()              # EnvironmentalVariable, ...
+    power: object = None                 # PowerScenario (rover plans need one)
 
     def limit(self, limit_id):
         for item in self.limits:
@@ -160,6 +230,22 @@ class MissionSnapshot:
         _cell("return_cell", self.return_cell, shape)
         if self.crew_status not in CREW_STATUS:
             raise MarswalkError("INVALID_SNAPSHOT", f"crew_status must be one of {sorted(CREW_STATUS)}")
+        if not isinstance(self.profile, (HumanProfile, RoverProfile)):
+            raise MarswalkError("INVALID_PROFILE", "profile must be a HumanProfile or RoverProfile")
+        if self.time_utc is not None:
+            from .environment import parse_utc
+            parse_utc(self.time_utc)
+        if (self.site_lat_deg is None) != (self.site_lon_east_deg is None):
+            raise MarswalkError("INVALID_SNAPSHOT", "declare both site latitude and longitude, or neither")
+        if self.site_lat_deg is not None:
+            if not -90 <= self.site_lat_deg <= 90 or not -360 <= self.site_lon_east_deg <= 360:
+                raise MarswalkError("INVALID_SNAPSHOT", "site coordinates out of range")
+        env_ids = [v.id for v in self.environment]
+        if len(set(env_ids)) != len(env_ids):
+            raise MarswalkError("INVALID_SNAPSHOT", "duplicate environmental variable id")
+        for variable in self.environment:
+            for cell in variable.cells:
+                _cell(f"environment {variable.id}", cell, shape)
         ids = [task.id for task in self.tasks]
         if len(set(ids)) != len(ids):
             raise MarswalkError("INVALID_SNAPSHOT", "duplicate task id")

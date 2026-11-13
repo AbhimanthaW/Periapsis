@@ -19,19 +19,32 @@ from .traversability import ScreenPolicy, baseline_from_pack
 
 
 def _profile(args):
+    if args.platform == "rover":
+        from .rover import hypothetical_crew_rover
+        return hypothetical_crew_rover()
     return HumanProfile(pace_model=args.pace_model, pace_scenario=args.pace_scenario, neighbours=args.neighbours)
 
 
 def _table(result):
     lines = [f"status {result.status} | recommendation {result.recommendation} | "
              f"backend {result.router.backend} | Dijkstra runs {result.router.dijkstra_runs}",
-             f"  {'option':<26}{'total':>9}{'margin':>9}  outcome"]
+             f"  {'option':<26}{'total':>9}{'margin':>9}{'energy':>10}  outcome"]
     for plan in result.plans:
         total = plan.ledger.total_use
         margin = plan.ledger.margin
         fmt = lambda v: "      -" if v is None else f"{v / 60:6.1f}m"
+        e = plan.energy_ledger
+        energy = "-" if e is None or e.total_use is None else f"{e.total_use / 3.6e6:.2f}kWh"
         why = "pass" if plan.passed else "; ".join(plan.failure_reasons[:2])
-        lines.append(f"  {plan.id:<26}{fmt(total):>9}{fmt(margin):>9}  {why}")
+        lines.append(f"  {plan.id:<26}{fmt(total):>9}{fmt(margin):>9}{energy:>10}  {why}")
+    env = result.to_dict()["environment"]
+    for a in env["activation"]:
+        lines.append(f"  environment {a['id']}: {a['status']} ({a['reason']})")
+    if env["solar"]["status"] == "computed":
+        sun = env["solar"]["sun"]
+        lines.append(f"  sun: elevation {sun['elevation_deg']:.1f} deg, azimuth {sun['azimuth_deg']:.0f} deg, "
+                     f"Ls {sun['solar_longitude_deg']:.1f}, LTST {sun['local_true_solar_time_h']:.2f} h; "
+                     + ", ".join(f"{k} {v}" for k, v in env["solar"]["illumination"].items()))
     return "\n".join(lines)
 
 
@@ -57,6 +70,10 @@ def main(argv=None):
         p.add_argument("--multistop", action="store_true")
         p.add_argument("--alternatives", type=int, default=0)
         p.add_argument("--backend", choices=("auto", "scipy", "python"), default="auto")
+        p.add_argument("--platform", choices=("human", "rover"), default="human",
+                       help="rover uses a HYPOTHETICAL crew-rover record and a declared solar power scenario")
+        p.add_argument("--sep-alert", action="store_true",
+                       help="add an explicit SIMULATED solar particle event scenario (return now)")
     args = parser.parse_args(argv)
     try:
         if args.mode == "plan":
@@ -72,6 +89,12 @@ def main(argv=None):
             baseline = baseline_from_pack(pack, policy=policy)
             snapshot = snapshot_from_pack(pack, closure_ids=tuple(args.closure), remaining_s=args.remaining_s,
                                           profile=_profile(args), crew_status=args.crew_status)
+            if args.platform == "rover" or args.sep_alert:
+                from dataclasses import replace
+                from .demo import DEMO_TIME_UTC, demo_power, sep_scenario
+                snapshot = replace(snapshot, power=demo_power() if args.platform == "rover" else None,
+                                   environment=(sep_scenario(),) if args.sep_alert else (),
+                                   time_utc=DEMO_TIME_UTC if args.sep_alert else None)
             result = plan_marswalk(baseline, snapshot, backend=args.backend, multistop=args.multistop,
                                    alternatives_k=args.alternatives)
             print(json.dumps(result.to_dict(), allow_nan=False))
@@ -80,7 +103,8 @@ def main(argv=None):
         results = []
         for closed in (False, True):
             baseline, snapshot = demo_inputs(closed=closed, remaining_s=args.remaining_s,
-                                             pace_scenario=args.pace_scenario, crew_status=args.crew_status)
+                                             pace_scenario=args.pace_scenario, crew_status=args.crew_status,
+                                             platform=args.platform, sep_alert=args.sep_alert)
             snapshot = snapshot.__class__(**{**snapshot.__dict__, "profile": _profile(args)})
             results.append(plan_marswalk(baseline, snapshot, backend=args.backend, multistop=args.multistop,
                                          alternatives_k=args.alternatives))

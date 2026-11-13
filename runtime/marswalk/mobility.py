@@ -29,7 +29,9 @@ SCENARIO_SPEED_FACTOR = {"nominal": 1.0, "slow": 0.7}
 
 # Per-edge tags of the shared mobility contract
 TAG_OK = 0
-TAG_REFUSED_GRADE = 1
+TAG_REFUSED_GRADE = 1          # along-edge grade or local tilt above the profile limit
+TAG_UNSUPPORTED = 2            # a required terrain property has no support at this edge
+TAG_CLEARANCE = 3              # local relief above the vehicle's ground clearance
 
 
 @dataclass(frozen=True)
@@ -40,6 +42,7 @@ class EdgeTimes:
     tag: np.ndarray          # uint8 TAG_* per edge
     model: str
     params: tuple
+    energy_j: np.ndarray | None = None   # rover profiles only: electrical J per edge
 
 
 @dataclass(frozen=True)
@@ -74,7 +77,11 @@ class ControlLinear:
 
 
 def pace_for(profile):
-    """Pace model authorized by the human operating profile (Subsystem 01)."""
+    """Mobility model authorized by the operating profile (Subsystem 01).
+    Human profiles get a pace model; rover profiles get Subsystem 05."""
+    if getattr(profile, "platform", None) == "rover":
+        from .rover import RoverMobility
+        return RoverMobility(profile)
     if profile.pace_model == "tobler_scaled":
         return ToblerScaled()
     if profile.pace_model == "control_linear":
