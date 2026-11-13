@@ -8,9 +8,9 @@
                                                               │
                                                     mission optimization (10)
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
-from .errors import (INSUFFICIENT_TERRAIN_EVIDENCE, LEG_NO_EVIDENCE, NO_RETURN_ROUTE, OK,
+from .errors import (INSUFFICIENT_TERRAIN_EVIDENCE, LEG_NO_EVIDENCE, MarswalkError, NO_RETURN_ROUTE, OK,
                      RETURN_OVER_RESERVE)
 from .mobility import pace_for
 from .optimization import (EXCLUDED_FROM_CORE, compare_pareto, compose_candidate_plans,
@@ -88,7 +88,10 @@ class MarswalkPlan:
 def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposure_slope_deg=10.0,
                   alternatives_k=0, expected_revision=None):
     """Run the whole Human Marswalk path for one immutable snapshot."""
-    snapshot.validate(baseline.support.shape, pack_id=baseline.support.pack_id,
+    support = baseline.support
+    if not support.pack_version:
+        raise MarswalkError("MIXED_PACK", "loaded terrain must declare its pack version")
+    snapshot.validate(support.shape, pack_id=support.pack_id, pack_version=support.pack_version,
                       expected_revision=expected_revision)
     profile = snapshot.profile
     graph = TerrainGraph(baseline, pace_for(profile), scenario=profile.pace_scenario,
@@ -97,25 +100,35 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
 
     plans = compose_candidate_plans(snapshot, router, multistop=multistop)
     reevaluate_science_tasks(plans, snapshot)
-    direct = plans[0].legs[0][1]
+    direct_plan = plans[0]
+    direct = direct_plan.legs[0][1]
     gate = return_time_margin(snapshot.remaining_s, snapshot.reserve_s, direct)
-    for plan in plans:
-        enforce_hard_constraints(plan, snapshot, router, gate)
+    enforce_hard_constraints(direct_plan, snapshot, router)
+    for plan in plans[1:]:
+        enforce_hard_constraints(plan, snapshot, router, direct_plan=direct_plan)
     front, used = compare_pareto(plans, router, exposure_slope_deg=exposure_slope_deg)
-    recommendation = select_next_action(plans, front, snapshot, gate)
+    recommendation = select_next_action(plans, front, snapshot)
 
     if gate.status == MARGIN_NO_ROUTE:
         status = INSUFFICIENT_TERRAIN_EVIDENCE if direct.status == LEG_NO_EVIDENCE else NO_RETURN_ROUTE
     elif gate.status == MARGIN_OVER_RESERVE:
         status = RETURN_OVER_RESERVE
     else:
-        status = OK
+        status = OK if direct_plan.passed else NO_RETURN_ROUTE
 
     alternatives = {}
-    if alternatives_k > 1 and status == OK and recommendation not in (None, "direct_return"):
+    if alternatives_k > 1 and recommendation not in (None, "direct_return"):
         rec = next(p for p in plans if p.id == recommendation)
-        start = snapshot.current_cell
-        for name, leg in rec.legs:
-            if name == "outbound":
-                alternatives[f"{rec.id}:outbound"] = diverse_routes(router, start, leg.goal, k=alternatives_k)
+        outbound = rec.legs[0][1]
+        feasible = []
+        for alternative in diverse_routes(router, outbound.start, outbound.goal, k=alternatives_k):
+            candidate = replace(rec, legs=[("outbound", alternative.leg), *rec.legs[1:]],
+                                failure_reasons=[], deferred_artifacts=[])
+            reevaluate_science_tasks([candidate], snapshot)
+            enforce_hard_constraints(candidate, snapshot, router, direct_plan=direct_plan)
+            if candidate.passed:
+                rank = len(feasible)
+                label = "baseline" if rank == 0 else f"alternate_{rank}"
+                feasible.append(replace(alternative, rank=rank, label=label))
+        alternatives[f"{rec.id}:outbound"] = feasible
     return MarswalkPlan(snapshot, baseline, router, status, gate, plans, front, used, recommendation, alternatives)

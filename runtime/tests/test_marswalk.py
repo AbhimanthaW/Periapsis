@@ -1,4 +1,5 @@
 """Human Marswalk pipeline (runtime/marswalk). Subsystems 01, 04, 03, 09, 07, 10."""
+from dataclasses import replace
 from hashlib import sha256
 from heapq import heappop, heappush
 import json
@@ -32,14 +33,14 @@ CONTROL = HumanProfile(pace_model="control_linear", neighbours=4)
 def grid(z, *, cell=5.0, valid=None, screen=None, policy=ScreenPolicy(), features=(), pack_id="test"):
     z = np.asarray(z, float)
     support = TerrainSupport.from_affine(z.shape, (cell, 0, 0, 0, -cell, z.shape[0] * cell),
-                                         native_spacing_m=cell, pack_id=pack_id)
+                                         native_spacing_m=cell, pack_id=pack_id, pack_version="1")
     valid = np.isfinite(z) if valid is None else valid
     return build_baseline(support, z, valid, screen, policy=policy, features=features)
 
 
 def snapshot(baseline, current, home, *, tasks=(), remaining_s=3600, reserve_s=0, closures=(),
              profile=HumanProfile(), **extra):
-    return MissionSnapshot("m", 1, baseline.support.pack_id, "1", "s", tuple(current), tuple(home), tuple(tasks),
+    return MissionSnapshot("m", 1, baseline.support.pack_id, baseline.support.pack_version, "s", current, home, tuple(tasks),
                            extra.pop("completed", ()), remaining_s, reserve_s, tuple(closures), profile, **extra)
 
 
@@ -384,3 +385,93 @@ def test_demo_closure_flips_the_recommendation():
     assert after.recommendation == "science:photo-set"
     assert after.plan("science:transect").margin_s < 0 < before.plan("science:transect").margin_s
     assert before.router.dijkstra_runs == after.router.dijkstra_runs == 2
+
+
+def test_direct_return_hard_limit_blocks_both_return_and_science_recommendations():
+    b = grid(np.zeros((5, 5)))
+    snap = snapshot(b, (2, 2), (2, 0), tasks=(Task("midpoint", (2, 1), 0, 1),),
+                    profile=CONTROL, limits=(AuthorizedLimit("max_leg_s", 5, "s", "ops"),))
+    result = plan_marswalk(b, snap)
+    assert result.direct_leg.seconds == 10
+    assert result.direct_gate.margin_s > 0
+    assert result.status == NO_RETURN_ROUTE
+    assert result.recommendation is None and result.pareto_front == []
+    direct = {rule: outcome for rule, outcome, _ in result.plans[0].constraints}
+    science = {rule: outcome for rule, outcome, _ in result.plan("science:midpoint").constraints}
+    assert direct["max_leg_s"] == FAIL
+    assert science["max_leg_s"] == PASS and science["direct_return_gate"] == FAIL
+
+
+def test_snapshot_must_match_loaded_pack_version():
+    pack = _fixture_pack()
+    b = baseline_from_pack(pack)
+    snap = snapshot_from_pack(pack, profile=CONTROL)
+    assert b.support.pack_version == snap.pack_version
+    with pytest.raises(MarswalkError, match="MIXED_PACK"):
+        plan_marswalk(b, replace(snap, pack_version="other-version"))
+    with pytest.raises(MarswalkError, match="MIXED_PACK"):
+        plan_marswalk(replace(b, support=replace(b.support, pack_version=None)), snap)
+
+
+@pytest.mark.parametrize("args, kwargs", [
+    (("unknown", 60, "s", "ops"), {}),
+    (("max_leg_s", 60, "ms", "ops"), {}),
+    (("max_leg_s", 60, "s", "ops"), {"scope": "outbound"}),
+    (("max_leg_s", float("nan"), "s", "ops"), {}),
+    (("max_leg_s", float("inf"), "s", "ops"), {}),
+    (("max_leg_s", -1, "s", "ops"), {}),
+])
+def test_unsupported_authorized_limits_are_refused(args, kwargs):
+    with pytest.raises(MarswalkError, match="INVALID_LIMIT"):
+        AuthorizedLimit(*args, **kwargs)
+
+
+def test_roughness_requires_support_for_the_full_window():
+    b = grid(np.zeros((7, 7)), policy=ScreenPolicy(roughness_limit_m=1, roughness_window=5))
+    assert np.isfinite(b.slope_deg[1, 1])
+    assert np.isnan(b.roughness_m[1, 1])
+    assert b.reason[1, 1] == CELL_NO_KERNEL and not b.routable[1, 1]
+    assert b.routable[2, 2]
+
+
+def test_closed_endpoint_takes_precedence_over_unknown_terrain():
+    b = grid(np.zeros((5, 5)), policy=ScreenPolicy(slope_limit_deg=15))
+    snap = snapshot(b, (2, 2), (0, 2), closures=(("report", ((2, 2),)),))
+    result = plan_marswalk(b, snap)
+    assert result.direct_leg.status == LEG_ENDPOINT_EXCLUDED
+    assert result.status == NO_RETURN_ROUTE
+
+
+def test_list_endpoint_coordinates_are_normalized():
+    b = grid(np.zeros((5, 5)))
+    current, home = [2, 2], [2, 0]
+    snap = snapshot(b, current, home, profile=CONTROL)
+    current[0] = 99
+    home[0] = 99
+    assert snap.current_cell == (2, 2) and snap.return_cell == (2, 0)
+    assert plan_marswalk(b, snap).recommendation == "direct_return"
+
+
+def test_published_alternates_respect_full_mission_budget():
+    rng = np.random.default_rng(5)
+    screen = np.zeros((30, 30), bool)
+    screen[8:22, 12:18] = True
+    b = grid(rng.normal(0, 0.4, (30, 30)), screen=screen)
+    snap = snapshot(b, (15, 0), (15, 0), tasks=(Task("survey", (15, 29), 45, 1),), reserve_s=60)
+    key = "science:survey:outbound"
+
+    ample = plan_marswalk(b, snap, alternatives_k=3)
+    assert ample.recommendation == "science:survey"
+    assert len(ample.alternatives[key]) >= 2
+    baseline_use = ample.plan("science:survey").ledger.total_use
+    tight = plan_marswalk(b, replace(snap, remaining_s=math.ceil(baseline_use) + snap.reserve_s),
+                          alternatives_k=3)
+    assert tight.recommendation == ample.recommendation
+    assert [alt.label for alt in tight.alternatives[key]] == ["baseline"]
+
+    longest_baseline_leg = max(leg.seconds for _, leg in ample.plan("science:survey").legs)
+    limited = plan_marswalk(b, replace(snap, limits=(AuthorizedLimit("max_leg_s", longest_baseline_leg, "s", "ops"),)),
+                            alternatives_k=3)
+    assert limited.recommendation == ample.recommendation
+    assert len(limited.alternatives[key]) < len(ample.alternatives[key])
+    assert all(alt.leg.seconds <= longest_baseline_leg for alt in limited.alternatives[key])

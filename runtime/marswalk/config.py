@@ -11,6 +11,8 @@ be mistaken for evidence. Medical suitability, crew ranking and rescue
 assumptions are deliberately absent (see "Excluded from core" in the README).
 """
 from dataclasses import dataclass, field
+from math import inf
+from numbers import Real
 
 from .errors import MarswalkError
 
@@ -54,8 +56,12 @@ class AuthorizedLimit:
 
     def __post_init__(self):
         _tag(f"limit {self.id}", self.provenance)
-        if not self.id or not self.unit or not self.authorized_by:
-            raise MarswalkError("INVALID_LIMIT", "limits need id, unit and authorized_by")
+        if self.id != "max_leg_s" or self.scope != "mission":
+            raise MarswalkError("INVALID_LIMIT", "only the mission-wide max_leg_s limit is supported")
+        if self.unit != "s" or not self.authorized_by:
+            raise MarswalkError("INVALID_LIMIT", "max_leg_s requires seconds (s) and authorized_by")
+        if isinstance(self.value, bool) or not isinstance(self.value, Real) or not 0 <= self.value < inf:
+            raise MarswalkError("INVALID_LIMIT", "max_leg_s must be finite and non-negative")
 
 
 @dataclass(frozen=True)
@@ -130,11 +136,20 @@ class MissionSnapshot:
     def closure_cells(self):
         return tuple(cell for _, cells in self.closures for cell in cells)
 
-    def validate(self, shape, *, pack_id=None, expected_revision=None):
+    def __post_init__(self):
+        for name in ("current_cell", "return_cell"):
+            cell = getattr(self, name)
+            if isinstance(cell, list):
+                object.__setattr__(self, name, tuple(cell))
+
+    def validate(self, shape, *, pack_id=None, pack_version=None, expected_revision=None):
         """Refuse mixed packs, bad positions, invalid units, negative reserves,
         invalid profiles and stale revisions. Returns self for chaining."""
         if pack_id is not None and pack_id != self.pack_id:
             raise MarswalkError("MIXED_PACK", f"snapshot pack {self.pack_id!r} != loaded pack {pack_id!r}")
+        if pack_version is not None and pack_version != self.pack_version:
+            raise MarswalkError("MIXED_PACK",
+                                f"snapshot pack version {self.pack_version!r} != loaded version {pack_version!r}")
         if type(self.revision) is not int or self.revision < 1:
             raise MarswalkError("STALE_REVISION", "revision must be a positive integer")
         if expected_revision is not None and self.revision != expected_revision:

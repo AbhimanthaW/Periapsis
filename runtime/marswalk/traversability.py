@@ -21,7 +21,7 @@ from .errors import MarswalkError
 # Per-cell reason codes (uint8) in BaselineRoutingInputs.reason
 CELL_OK = 0
 CELL_NO_DATA = 1            # unknown: source has no valid elevation
-CELL_NO_KERNEL = 2          # unknown: policy needs a derivative but 3x3 support is incomplete
+CELL_NO_KERNEL = 2          # unknown: an active derivative policy has incomplete support
 CELL_PACK_SCREEN = 3        # known excluded: producer screen mask in the pack
 CELL_SLOPE_POLICY = 4       # known excluded: runtime slope policy
 CELL_ROUGHNESS_POLICY = 5   # known excluded: runtime roughness policy
@@ -43,17 +43,18 @@ class TerrainSupport:
     vertical_reference: str
     pack_id: str
     classification: str        # "synthetic" or source-backed
+    pack_version: str | None = None
 
     @classmethod
     def from_affine(cls, shape, affine, *, native_spacing_m, vertical_reference="unspecified",
-                    pack_id="unpacked", classification="synthetic"):
+                    pack_id="unpacked", classification="synthetic", pack_version=None):
         a, b, _, d, e, _ = map(float, affine)
         if a <= 0 or e >= 0 or b or d:
             raise MarswalkError("INVALID_GRID", "expected a north-up affine with no skew")
         if native_spacing_m <= 0:
             raise MarswalkError("INVALID_GRID", "native spacing must be positive")
         return cls(tuple(shape), tuple(map(float, affine)), a, -e, float(native_spacing_m),
-                   vertical_reference, pack_id, classification)
+                   vertical_reference, pack_id, classification, pack_version)
 
     @property
     def finer_than_native(self):
@@ -180,7 +181,6 @@ def build_baseline(support, z_m, valid_mask, screen_excluded_mask=None, *,
         raise MarswalkError("INVALID_MASK", "screen may only exclude valid cells")
 
     dx, dy = support.cell_dx_m, support.cell_dy_m
-    kernel = kernel_support(valid)
     slope = horn_slope_deg(z, valid, dx, dy)
     rough = (detrended_roughness_m(z, valid, dx, dy, policy.roughness_window)
              if policy.roughness_limit_m is not None else None)
@@ -188,11 +188,15 @@ def build_baseline(support, z_m, valid_mask, screen_excluded_mask=None, *,
     reason = np.full(shape, CELL_OK, dtype=np.uint8)
     reason[~valid] = CELL_NO_DATA
     reason[valid & screen] = CELL_PACK_SCREEN
-    needs_kernel = policy.slope_limit_deg is not None or policy.roughness_limit_m is not None
+    missing_derivative = np.zeros(shape, dtype=bool)
     if policy.slope_limit_deg is not None:
-        reason[(reason == CELL_OK) & kernel & (slope > policy.slope_limit_deg)] = CELL_SLOPE_POLICY
+        known_slope = np.isfinite(slope)
+        missing_derivative |= ~known_slope
+        reason[(reason == CELL_OK) & known_slope & (slope > policy.slope_limit_deg)] = CELL_SLOPE_POLICY
     if rough is not None:
-        reason[(reason == CELL_OK) & kernel & (rough > policy.roughness_limit_m)] = CELL_ROUGHNESS_POLICY
+        known_roughness = np.isfinite(rough)
+        missing_derivative |= ~known_roughness
+        reason[(reason == CELL_OK) & known_roughness & (rough > policy.roughness_limit_m)] = CELL_ROUGHNESS_POLICY
     flagged = []
     for feature in features:
         cells = tuple(tuple(c) for c in feature.cells)
@@ -204,8 +208,7 @@ def build_baseline(support, z_m, valid_mask, screen_excluded_mask=None, *,
                     reason[cell] = CELL_MAPPED_OBSTACLE
         else:
             flagged.append((feature.id, feature.kind))
-    if needs_kernel:
-        reason[(reason == CELL_OK) & ~kernel] = CELL_NO_KERNEL
+    reason[(reason == CELL_OK) & missing_derivative] = CELL_NO_KERNEL
 
     unknown = np.isin(reason, UNKNOWN_REASONS)
     known_excluded = (reason != CELL_OK) & ~unknown
@@ -228,6 +231,6 @@ def baseline_from_pack(pack, *, policy=ScreenPolicy(), features=()):
         site["grid"]["shape"], site["grid"]["affine"],
         native_spacing_m=float(site["reference"]["native_spacing_m"]),
         vertical_reference=site["reference"]["vertical_reference"],
-        pack_id=site["pack_id"], classification=site["classification"])
+        pack_id=site["pack_id"], classification=site["classification"], pack_version=site["pack_version"])
     return build_baseline(support, pack.terrain["z_m"], pack.terrain["valid_mask"],
                           pack.terrain["screen_excluded_mask"], policy=policy, features=features)

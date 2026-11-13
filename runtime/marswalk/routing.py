@@ -290,12 +290,12 @@ class Router:
             if not (0 <= c[0] < rows and 0 <= c[1] < cols):
                 return Leg(LEG_OUT_OF_BOUNDS, a, b, f"cell {list(c)} is outside the grid")
         for c in (a, b):
-            if self.baseline.unknown[c]:
-                return Leg(LEG_NO_EVIDENCE, a, b, f"cell {list(c)} has insufficient terrain evidence")
-        for c in (a, b):
             if self.baseline.known_excluded[c] or self.closed[c]:
                 why = "closed by a field report" if self.closed[c] else "excluded by traversability"
                 return Leg(LEG_ENDPOINT_EXCLUDED, a, b, f"cell {list(c)} is {why}")
+        for c in (a, b):
+            if self.baseline.unknown[c]:
+                return Leg(LEG_NO_EVIDENCE, a, b, f"cell {list(c)} has insufficient terrain evidence")
         return None
 
     def _diagnose(self, a, b):

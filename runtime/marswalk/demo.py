@@ -31,13 +31,13 @@ def demo_inputs(*, closed=False, remaining_s=3600, pace_scenario="nominal", crew
     z, valid, closure_cells = demo_terrain()
     support = TerrainSupport.from_affine((N, N), (CELL_M, 0, 0, 0, -CELL_M, N * CELL_M),
                                          native_spacing_m=CELL_M, vertical_reference="synthetic-demo",
-                                         pack_id="marswalk-synthetic-demo", classification="synthetic")
+                                         pack_id="marswalk-synthetic-demo", pack_version="demo")
     policy = ScreenPolicy(policy_id="demo-slope-15deg", slope_limit_deg=15.0)
     baseline = build_baseline(support, z, valid, policy=policy)
     tasks = (Task("transect", (30, 102), 15 * 60, 2, "measure bedding across the upper scarp", "scaled bedding transect"),
              Task("photo-set", (65, 62), 8 * 60, 1, "photograph exposed beds", "oriented photo set"))
     snapshot = MissionSnapshot(
-        mission_id="demo", revision=2 if closed else 1, pack_id=support.pack_id, pack_version="demo",
+        mission_id="demo", revision=2 if closed else 1, pack_id=support.pack_id, pack_version=support.pack_version,
         scenario_id="demo-north-ramp", current_cell=(50, 80), return_cell=(80, 40), tasks=tasks,
         completed_task_ids=(), remaining_s=remaining_s, reserve_s=15 * 60,
         closures=((NORTH_RAMP_CLOSURE, closure_cells),) if closed else (),

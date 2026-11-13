@@ -21,7 +21,7 @@ from itertools import permutations
 import numpy as np
 
 from .errors import FAIL, LEG_NO_EVIDENCE, LEG_OK, PASS, UNKNOWN
-from .resources import MARGIN_NO_ROUTE, MARGIN_OK, Phase, route_resource_ledger
+from .resources import Phase, route_resource_ledger
 
 EXCLUDED_FROM_CORE = (
     "AI/ML decision making", "live telemetry", "suit or life-support forecasts",
@@ -126,10 +126,10 @@ def reevaluate_science_tasks(plans, snapshot):
 def _positions_rule(snapshot, router):
     outcomes = []
     for name, cell in (("current", snapshot.current_cell), ("return", snapshot.return_cell)):
-        if router.baseline.unknown[cell]:
-            outcomes.append((UNKNOWN, f"{name} cell has insufficient terrain evidence"))
-        elif router.baseline.known_excluded[cell] or router.closed[cell]:
+        if router.baseline.known_excluded[cell] or router.closed[cell]:
             outcomes.append((FAIL, f"{name} cell is excluded or closed"))
+        elif router.baseline.unknown[cell]:
+            outcomes.append((UNKNOWN, f"{name} cell has insufficient terrain evidence"))
     if any(o == FAIL for o, _ in outcomes):
         return FAIL, "; ".join(r for _, r in outcomes)
     if outcomes:
@@ -137,18 +137,17 @@ def _positions_rule(snapshot, router):
     return PASS, "current and return cells supported"
 
 
-def enforce_hard_constraints(plan, snapshot, router, direct_gate):
+def enforce_hard_constraints(plan, snapshot, router, *, direct_plan=None):
     rules = []
     rules.append(("positions_supported", *_positions_rule(snapshot, router)))
     if plan.kind != "direct_return":
         rules.append(("crew_status", *((PASS, "crew status ok") if snapshot.crew_status == "ok"
                                         else (FAIL, "crew reported an issue: return now"))))
-        if direct_gate.status == MARGIN_OK:
-            rules.append(("direct_return_gate", PASS, "direct return fits before reserve"))
-        elif direct_gate.status == MARGIN_NO_ROUTE:
-            rules.append(("direct_return_gate", FAIL, "no admissible direct return"))
+        if direct_plan.passed:
+            rules.append(("direct_return_gate", PASS, "direct return passes all required constraints"))
         else:
-            rules.append(("direct_return_gate", FAIL, "direct return already exceeds the reserve"))
+            blocking = ", ".join(rule for rule, outcome, _ in direct_plan.constraints if outcome != PASS)
+            rules.append(("direct_return_gate", FAIL, f"direct return is blocked by {blocking}"))
     statuses = [leg.status for _, leg in plan.legs]
     if all(s == LEG_OK for s in statuses):
         rules.append(("path_exists", PASS, "all legs admissible"))
@@ -228,10 +227,10 @@ def compare_pareto(plans, router, *, exposure_slope_deg=10.0):
 
 
 # ------------------------------------------------------------------ select
-def select_next_action(plans, front_ids, snapshot, direct_gate):
+def select_next_action(plans, front_ids, snapshot):
     """Highest science priority, then greatest margin, then stable id. If no
     science plan qualifies, return now when the direct return is admissible."""
-    if direct_gate.status != MARGIN_OK:
+    if not plans[0].passed:
         return None
     front = [p for p in plans if p.id in front_ids and p.kind != "direct_return"]
     if snapshot.crew_status == "ok" and front:

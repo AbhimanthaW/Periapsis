@@ -139,11 +139,19 @@ Options: `--pace-scenario slow` (speed × 0.7), `--crew-status issue`
 `--backend scipy|python`.
 
 Outcome codes: `OK`, `NO_RETURN_ROUTE`, `RETURN_OVER_RESERVE` and
-`INSUFFICIENT_TERRAIN_EVIDENCE`. The last means only unverified terrain could
-connect the crew to the shelter, so no route is drawn. Each leg reports `ok`,
+`INSUFFICIENT_TERRAIN_EVIDENCE`. A direct return that violates a hard limit yields
+`NO_RETURN_ROUTE` when it otherwise fits the time budget. The candidate retains
+the evaluated leg and the failed rule for inspection. Insufficient terrain
+evidence means only unverified terrain could connect the crew to the shelter,
+so no route is drawn. Each leg reports `ok`,
 `no_path_under_constraints`, `insufficient_terrain_evidence`,
 `endpoint_excluded` or `out_of_bounds`. Each constraint reports
 `pass`/`fail`/`unknown`, and an unknown required value blocks the plan.
+Science requires a passing direct return. Each published outbound alternative
+passes the mission constraints with the same remaining legs and dwell phases.
+For in-memory terrain, provide `TerrainSupport.pack_version` matching the
+snapshot. Checked packs supply it automatically. The supported authorized
+limit is mission-wide `max_leg_s`, expressed in seconds (`s`).
 
 Limits: pace parameters and thresholds are illustrative assumptions, not
 calibrated Mars-suit data or proof of safety. Only time is budgeted. The
