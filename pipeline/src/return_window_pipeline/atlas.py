@@ -25,6 +25,8 @@ LAYERS = {"elevation": ("elevation.tif", "m"), "observation_counts": ("observati
 GRID = Affine(0.25, 0, -180, 0, -0.25, 90)
 SHAPE = (720, 1440)
 BOUNDS = (-180, -90, 180, 90)
+# Bundle identity from the reviewed Stage 1 source record in evidence/mola.
+MEG004_BUNDLE_SHA256 = "a845aec8791ba95375d1cecec5b8f6de9f07e2c227bdaf2aec66c8bbf29b9136"
 
 
 def _load_global_source(spec: SourceSpec, workspace: Path):
@@ -33,6 +35,8 @@ def _load_global_source(spec: SourceSpec, workspace: Path):
             or not all(member.expected_sha256 for member in spec.members)):
         raise ConfigurationError("The whole-Mars atlas requires the pinned MOLA MEG004 topography and counts pair")
     record, _, _ = ingest(spec, workspace, offline=True)
+    if record["bundle_sha256"] != MEG004_BUNDLE_SHA256:
+        raise IntegrityError("Source does not match the reviewed MOLA MEG004 bundle")
     bundle = workspace.resolve() / "cache" / "bundles" / record["bundle_sha256"]
     crs = CRS.from_wkt(record["raster"]["crs_wkt"]).geodetic_crs
 

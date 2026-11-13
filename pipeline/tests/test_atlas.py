@@ -4,6 +4,7 @@ from io import StringIO
 import json
 import os
 from pathlib import Path
+from shutil import copytree
 from tempfile import TemporaryDirectory
 import unittest
 
@@ -22,14 +23,55 @@ WORKSPACE = Path(os.environ.get("RW_MOLA_WORKSPACE", ROOT / "data"))
 
 
 class GlobalAtlasTests(unittest.TestCase):
-    def run_atlas(self, command, directory, expected_exit=0):
+    def run_atlas(self, command, directory, expected_exit=0, *, config=CONFIG, workspace=WORKSPACE):
         output, errors = StringIO(), StringIO()
         with redirect_stdout(output), redirect_stderr(errors):
             destination = "--output" if command == "build-global-atlas" else "--directory"
-            status = main([command, str(CONFIG), "--workspace", str(WORKSPACE),
+            status = main([command, str(config), "--workspace", str(workspace),
                            "--regions", str(REGIONS), destination, str(directory)])
         self.assertEqual(status, expected_exit, errors.getvalue())
         return json.loads(output.getvalue() if status == 0 else errors.getvalue())
+
+    def test_accept_byte_identical_mirror_and_reject_rehashed_source(self):
+        record, _, _ = ingest(SourceSpec.load(CONFIG), WORKSPACE, offline=True)
+        bundle = WORKSPACE / "cache" / "bundles" / record["bundle_sha256"]
+
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            mirror = root / "mirror"
+            copytree(bundle, mirror)
+            config = root / "source.json"
+            specification = json.loads(CONFIG.read_bytes())
+            for member in specification["members"]:
+                member["uri"] = (mirror / member["name"]).as_uri()
+            config.write_text(json.dumps(specification), encoding="utf-8")
+
+            workspace = root / "data"
+            ingest(SourceSpec.load(config), workspace)
+            directory = root / "atlas"
+            self.run_atlas("build-global-atlas", directory, config=config, workspace=workspace)
+
+            elevation = mirror / "megt90n000cb.img"
+            with elevation.open("r+b") as stream:
+                first_value = int.from_bytes(stream.read(2), "big", signed=True)
+                stream.seek(0)
+                stream.write((first_value + 1).to_bytes(2, "big", signed=True))
+                stream.seek(0)
+                altered_sha = file_digest(stream, "sha256").hexdigest()
+            for member in specification["members"]:
+                if member["name"] == elevation.name:
+                    member["expected_sha256"] = altered_sha
+            config.write_text(json.dumps(specification), encoding="utf-8")
+            ingest(SourceSpec.load(config), workspace)
+
+            for command, destination in (
+                ("build-global-atlas", root / "altered-atlas"),
+                ("validate-global-atlas", directory),
+            ):
+                with self.subTest(command=command):
+                    result = self.run_atlas(command, destination, expected_exit=2, config=config, workspace=workspace)
+                    self.assertIn("does not match the reviewed MOLA MEG004 bundle", result["message"])
+            self.assertFalse((root / "altered-atlas").exists())
 
     def test_build_validate_and_reject_rehashed_global_raster(self):
         with TemporaryDirectory() as temp:
