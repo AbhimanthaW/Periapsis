@@ -91,3 +91,71 @@ request IDs, clear stale recommendations and key session state by pack version.
 
 Run the headless acceptance checks with
 `uv run --project documentation --locked --offline python -m pytest runtime/tests/test_planning_api.py -q`.
+
+## Human Marswalk pipeline (`runtime/marswalk/`)
+
+A deterministic implementation of the **Human Marswalk** architecture view:
+Mission configuration (01) → Human traversal time (04) + Traversability (03)
+→ Terrain routing (09) → Resource budgets (07) → Mission optimization (10).
+It is a separate module. `mission.py`, `planning_api.py` and their regression
+outputs are unchanged, and the planning API is not wired to it yet. That
+integration needs the route-geometry, units and refusal review described in
+the Senula handoff above.
+
+| Module | Architecture boxes |
+| --- | --- |
+| `config.py` | Mission snapshot, Human operating profile, Authorized operating limits |
+| `mobility.py` | Human traversal time: asymmetric, illustrative pace (`tobler_scaled`), plus the fixture `control_linear` model |
+| `traversability.py` | Terrain scale and support, Coverage and support masks, Scale-aware roughness (P1), Characterize surface evidence (P1), Slope screening, Obstacles and exclusions, Baseline routing inputs |
+| `routing.py` | Shared mobility contract, Directed terrain graph (CSR, 4/8 neighbours, no corner cutting), two directed Dijkstra runs, Route reconstruction, Diverse candidate routes |
+| `resources.py` | Compute return-time margin (B − R − travel), Route resource ledger with prefix checks |
+| `optimization.py` | Compose candidate plans, Reevaluate science tasks, Enforce hard constraints, Compare Pareto alternatives, Select next action, Bounded multi-stop planning (P1), Excluded from core |
+| `plan.py` | Orchestration and the `marswalk-plan-v1` JSON output |
+
+Dijkstra runs in SciPy when it is importable and otherwise uses an equivalent
+pure-Python implementation over the same CSR arrays. The locked environment
+has no SciPy, so CI exercises the fallback. Both produce identical times.
+With exact ties they may choose different but equally fast cells. Each plan
+reports the backend it used. A 1.6 km × 1.6 km grid at 5 m runs a full plan
+in about 0.1 s with SciPy and 0.3 s without it.
+
+```sh
+# synthetic scenario, no pack needed: decision table before and after a closure
+uv run --project documentation --locked --offline python -m runtime.marswalk demo
+# add --png marswalk-demo.png from an environment that has Matplotlib (it is not in the lock)
+# the pack v1 fixture with the human profile (8 neighbours, illustrative pace). At this
+# 10 m toy scale it reports RETURN_OVER_RESERVE after the closure; that is expected
+uv run --project documentation --locked --offline python -m runtime.marswalk plan contracts/fixtures/synthetic-v1 --closure mid
+# reproduce runtime.mission's control model exactly (4 neighbours, 1 s/m + 2 s per m ascent)
+uv run --project documentation --locked --offline python -m runtime.marswalk plan contracts/fixtures/synthetic-v1 --closure mid --pace-model control_linear --neighbours 4
+# tests, including a cross-check against runtime.mission.simulate for every closure set
+uv run --project documentation --locked --offline python -m pytest runtime/tests/test_marswalk.py -q
+```
+
+Options: `--pace-scenario slow` (speed × 0.7), `--crew-status issue`
+(no science; return now), `--multistop` (ordered two-task plans),
+`--alternatives K` (diverse outbound routes for the recommendation),
+`--slope-limit-deg` (runtime slope policy on top of the pack screen) and
+`--backend scipy|python`.
+
+Outcome codes: `OK`, `NO_RETURN_ROUTE`, `RETURN_OVER_RESERVE` and
+`INSUFFICIENT_TERRAIN_EVIDENCE`. A direct return that violates a hard limit yields
+`NO_RETURN_ROUTE` when it otherwise fits the time budget. The candidate retains
+the evaluated leg and the failed rule for inspection. Insufficient terrain
+evidence means only unverified terrain could connect the crew to the shelter,
+so no route is drawn. Each leg reports `ok`,
+`no_path_under_constraints`, `insufficient_terrain_evidence`,
+`endpoint_excluded` or `out_of_bounds`. Each constraint reports
+`pass`/`fail`/`unknown`, and an unknown required value blocks the plan.
+Science requires a passing direct return. Each published outbound alternative
+passes the mission constraints with the same remaining legs and dwell phases.
+For in-memory terrain, provide `TerrainSupport.pack_version` matching the
+snapshot. Checked packs supply it automatically. The supported authorized
+limit is mission-wide `max_leg_s`, expressed in seconds (`s`).
+
+Limits: pace parameters and thresholds are illustrative assumptions, not
+calibrated Mars-suit data or proof of safety. Only time is budgeted. The
+return check assumes no rescue. Closures are simulated field reports. The
+following are deliberately excluded: AI/ML decisions, live telemetry, suit
+forecasts, safety scores, medical suitability or crew ranking, and assumed
+vehicle rescue.
