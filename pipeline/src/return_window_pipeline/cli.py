@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 
+from .atlas import build_global_atlas, validate_global_atlas
 from .coordinates import normalize_position
 from .errors import PipelineError
 from .ingestion import ingest, verify_workspace
@@ -34,6 +35,16 @@ def main(argv=None) -> int:
     preview.add_argument("--output", type=Path, required=True)
     check = sub.add_parser("verify-preview", help="Check an offline elevation-preview pack")
     check.add_argument("directory", type=Path)
+    atlas = sub.add_parser("build-global-atlas", help="Build offline elevation and count layers covering all Mars")
+    atlas.add_argument("configuration", type=Path)
+    atlas.add_argument("--workspace", type=Path, required=True)
+    atlas.add_argument("--output", type=Path, required=True)
+    atlas.add_argument("--regions", type=Path, required=True, help="Periapsis atlas region catalog JSON")
+    atlas_check = sub.add_parser("validate-global-atlas", help="Verify both global layers against pinned MOLA data")
+    atlas_check.add_argument("configuration", type=Path)
+    atlas_check.add_argument("--workspace", type=Path, required=True)
+    atlas_check.add_argument("--directory", type=Path, required=True)
+    atlas_check.add_argument("--regions", type=Path, required=True, help="Periapsis atlas region catalog JSON")
     args = parser.parse_args(argv)
     try:
         if args.command == "ingest":
@@ -53,6 +64,12 @@ def main(argv=None) -> int:
                       "coverage": manifest["coverage"], "capabilities": manifest["capabilities"]}
         elif args.command == "verify-preview":
             result = verify_preview(args.directory)
+        elif args.command == "build-global-atlas":
+            result = build_global_atlas(SourceSpec.load(args.configuration), args.workspace, args.output,
+                                        regions=args.regions)
+        elif args.command == "validate-global-atlas":
+            result = validate_global_atlas(SourceSpec.load(args.configuration), args.workspace, args.directory,
+                                           regions=args.regions)
         else:
             reference = SourceSpec.load(args.configuration).reference
             lon, lat = normalize_position(args.longitude, args.latitude, reference)

@@ -39,7 +39,7 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               print(f"web={str(changed('web/')).lower()}", file=out)
               print(f"science={str(changed('documentation/', 'evidence/jezero/', 'web/src/atlas/regions.json', 'contracts/', 'runtime/', 'pipeline/scripts/')).lower()}", file=out)
-              print(f"pipeline={str(changed('pipeline/', 'evidence/mola/', 'contracts/')).lower()}", file=out)
+              print(f"pipeline={str(changed('pipeline/', 'evidence/mola/', 'contracts/', 'web/src/atlas/regions.json')).lower()}", file=out)
           PY
 
   web:

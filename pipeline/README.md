@@ -23,3 +23,18 @@ $work = Join-Path $env:TEMP "return-window-stage2"
 ```
 
 Choose a new output directory for each rebuild. See the [Windows verification report](reports/stage2-verification.json) and the [USGS data release](https://www.usgs.gov/data/mars-2020-terrain-relative-navigation-ctx-dtm-mosaic).
+
+## Stage 3 whole-Mars validation
+
+Use the MOLA MEG004 global elevation and observation-count grids as the planet-wide source. The atlas covers all longitudes and latitudes at the native 4 pixels per degree. Both GeoTIFF layers use east-positive longitude from −180° to 180°, with the native samples reordered to match the atlas map and no resampling. The manifest records source identity, grid, coverage and artifact checksums. The region index uses every entry in the uploaded [Periapsis region catalog](../web/src/atlas/regions.json), preserving its ID, name and point. Each entry reports the MOLA elevation and observation count for the cell containing that point. The catalog provides Gazetteer centers and representative anchors, so these samples describe point locations.
+
+Run these PowerShell commands from `pipeline/` after installing the pipeline. The first command prepares the source cache. The last two run offline.
+
+```powershell
+$work = Join-Path $env:TEMP "return-window-whole-mars"
+.\.venv\Scripts\return-window.exe ingest configs\mola-global-4ppd-topography.json --workspace "$work\data"
+.\.venv\Scripts\return-window.exe build-global-atlas configs\mola-global-4ppd-topography.json --workspace "$work\data" --output "$work\atlas" --regions ..\web\src\atlas\regions.json
+.\.venv\Scripts\return-window.exe validate-global-atlas configs\mola-global-4ppd-topography.json --workspace "$work\data" --directory "$work\atlas" --regions ..\web\src\atlas\regions.json
+```
+
+Choose a new output directory for each rebuild. Validation checks the pinned source, manifest, hashes, projection, bounds, every elevation and observation-count cell, and every region index entry against the supplied catalog. A zero observation count is distinct from a missing value. The atlas provides coarse elevation and sampling context. Browser tile integration and formal atlas release acceptance are pending.
