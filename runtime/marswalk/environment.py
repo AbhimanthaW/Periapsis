@@ -18,8 +18,9 @@ kernels named in the architecture and is accurate to about 0.1 degree, which
 is ample for context, daylight and shadow screening.
 """
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import math
+from numbers import Real
 
 import numpy as np
 
@@ -40,12 +41,12 @@ def parse_utc(text):
         raise MarswalkError("INVALID_TIME", f"cannot parse {text!r}") from error
     if when.utcoffset() is None or when.utcoffset().total_seconds() != 0:
         raise MarswalkError("INVALID_TIME", "time must be explicitly UTC")
-    if when.year < 2017:
-        raise MarswalkError("INVALID_TIME", "TT - UTC is pinned for dates from 2017 onward")
     return when.astimezone(timezone.utc)
 
 
 def _julian_tt(when):
+    if when.year < 2017:
+        raise MarswalkError("INVALID_TIME", "TT - UTC is pinned for dates from 2017 onward")
     jd_ut = when.timestamp() / 86400.0 + 2440587.5
     return jd_ut + TT_MINUS_UTC_S / 86400.0
 
@@ -110,44 +111,52 @@ def mars_sun(time_utc, lat_deg, lon_east_deg):
                        SOLAR_CONSTANT_1AU_W_M2 / r_au ** 2)
 
 
-def terrain_illumination(baseline, cells, sun):
-    """'night' | 'shadow' | 'lit' | 'unresolved' per cell. A ray toward the Sun
-    is marched across the grid; it is only 'lit' if it rises above every cell
-    in the grid before leaving it, otherwise terrain beyond the grid could
-    still block it and the answer is 'unresolved'."""
+def terrain_illumination(baseline, cells, sun, *, horizon_upper_bound_m=None):
+    """Resolve terrain rays against a separately declared upper bound on all
+    intervening terrain, including beyond the grid. The DEM is piecewise constant."""
+    if not sun.above_horizon:
+        return {tuple(c): "night" for c in cells}
     z = np.asarray(baseline.z_m, float)
     sup = baseline.support
     rows, cols = z.shape
-    ceiling = np.nanmax(z)
-    out = {}
-    if not sun.above_horizon:
-        return {tuple(c): "night" for c in cells}
     tan_el = math.tan(math.radians(sun.elevation_deg))
     az = math.radians(sun.azimuth_deg)
-    east, north = math.sin(az), math.cos(az)
-    step = 0.5 * min(sup.cell_dx_m, sup.cell_dy_m)
+    row_rate = -math.cos(az) / sup.cell_dy_m
+    col_rate = math.sin(az) / sup.cell_dx_m
+
+    def crossings(rate):
+        if abs(rate) < 1e-15:
+            return 0, math.inf, math.inf
+        step = 1 / abs(rate)
+        return (1 if rate > 0 else -1), step / 2, step
+
+    dr, first_row, row_step = crossings(row_rate)
+    dc, first_col, col_step = crossings(col_rate)
+    out = {}
     for cell in cells:
-        r0, c0 = map(int, cell)
-        z0 = z[r0, c0]
-        if not np.isfinite(z0):
-            out[(r0, c0)] = "unresolved"
-            continue
-        status, dist = None, step
-        while status is None:
-            col = c0 + east * dist / sup.cell_dx_m
-            row = r0 - north * dist / sup.cell_dy_m
-            ri, ci = int(round(row)), int(round(col))
-            ray = z0 + dist * tan_el
-            if not (0 <= ri < rows and 0 <= ci < cols):
-                status = "lit" if ray > ceiling else "unresolved"
-            elif not np.isfinite(z[ri, ci]):
-                status = "unresolved"
-            elif z[ri, ci] > ray:
-                status = "shadow"
-            elif ray > ceiling:
-                status = "lit"
-            dist += step
-        out[(r0, c0)] = status
+        r, c = cell
+        z0 = z[r, c]
+        status = "unresolved"
+        if np.isfinite(z0):
+            next_row, next_col = first_row, first_col
+            while True:
+                dist = min(next_row, next_col)
+                ray = z0 + dist * tan_el
+                if horizon_upper_bound_m is not None and ray > horizon_upper_bound_m:
+                    status = "lit"
+                    break
+                if next_row == dist:
+                    r += dr
+                    next_row += row_step
+                if next_col == dist:
+                    c += dc
+                    next_col += col_step
+                if not (0 <= r < rows and 0 <= c < cols) or not np.isfinite(z[r, c]):
+                    break
+                if z[r, c] > ray:
+                    status = "shadow"
+                    break
+        out[tuple(cell)] = status
     return out
 
 
@@ -172,6 +181,10 @@ class Observation:
 
 
 # ------------------------------------------------------------------ power availability (P1)
+def _nonnegative_finite(value):
+    return isinstance(value, Real) and not isinstance(value, bool) and 0 <= value < math.inf
+
+
 @dataclass(frozen=True)
 class PowerScenario:
     """Declared supply for a vehicle. 'none' is a declared no-generation case,
@@ -186,6 +199,8 @@ class PowerScenario:
     panel_efficiency: float | None = None
     atmospheric_transmittance: float | None = None   # 0..1, declared (dust/opacity assumption)
     orientation: str = "horizontal"
+    curve_source: str | None = None       # solar | non_solar
+    horizon_upper_bound_m: float | None = None  # declared in the terrain vertical datum
 
     def __post_init__(self):
         if self.kind not in {"declared_curve", "solar_derived", "non_solar", "none"}:
@@ -193,49 +208,80 @@ class PowerScenario:
         if self.provenance not in {"assumed", "authorized", "simulated", "evidence"}:
             raise MarswalkError("INVALID_POWER", "power scenario needs a provenance tag")
         if self.kind == "declared_curve":
+            if not isinstance(self.curve, (list, tuple)) or len(self.curve) < 2 or any(
+                not isinstance(point, (tuple, list)) or len(point) != 2
+                or not all(_nonnegative_finite(value) for value in point)
+                for point in self.curve
+            ):
+                raise MarswalkError("INVALID_POWER", "curve needs at least two finite (seconds, watts) points")
             ts = [t for t, _ in self.curve]
-            if len(self.curve) < 2 or ts != sorted(ts) or ts[0] != 0 or any(w < 0 for _, w in self.curve):
-                raise MarswalkError("INVALID_POWER", "curve needs >= 2 points from t=0, increasing t, watts >= 0")
-        if self.kind == "non_solar" and (self.constant_w is None or self.constant_w < 0):
-            raise MarswalkError("INVALID_POWER", "non_solar needs constant_w >= 0")
+            if ts[0] != 0 or any(a >= b for a, b in zip(ts, ts[1:])):
+                raise MarswalkError("INVALID_POWER", "curve times must strictly increase from zero")
+            object.__setattr__(self, "curve", tuple(tuple(point) for point in self.curve))
+            if self.curve_source not in (None, "solar", "non_solar"):
+                raise MarswalkError("INVALID_POWER", "curve_source must be solar or non_solar")
+        if self.kind == "non_solar" and not _nonnegative_finite(self.constant_w):
+            raise MarswalkError("INVALID_POWER", "non_solar needs finite constant_w >= 0")
         if self.kind == "solar_derived":
             if self.orientation != "horizontal":
                 raise MarswalkError("INVALID_POWER", "only a horizontal panel is supported")
-            for name in ("panel_area_m2", "panel_efficiency", "atmospheric_transmittance"):
-                if getattr(self, name) is None:
-                    raise MarswalkError("INVALID_POWER", f"solar_derived needs {name}")
-            if not (self.panel_area_m2 > 0 and 0 < self.panel_efficiency <= 1
-                    and 0 <= self.atmospheric_transmittance <= 1):
-                raise MarswalkError("INVALID_POWER", "solar parameters out of range")
+            area, efficiency, transmittance = (
+                self.panel_area_m2, self.panel_efficiency, self.atmospheric_transmittance)
+            if (not all(map(_nonnegative_finite, (area, efficiency, transmittance)))
+                    or not (area > 0 and 0 < efficiency <= 1 and transmittance <= 1)):
+                raise MarswalkError("INVALID_POWER", "solar parameters must be finite and in range")
+        bound = self.horizon_upper_bound_m
+        if bound is not None and (not isinstance(bound, Real) or isinstance(bound, bool)
+                                  or not -math.inf < bound < math.inf):
+            raise MarswalkError("INVALID_POWER", "horizon upper bound must be finite")
+
+    def validate_source(self, source):
+        if self.kind == "none":
+            return
+        declared = {"solar_derived": "solar", "non_solar": "non_solar",
+                    "declared_curve": self.curve_source}[self.kind]
+        if declared != source or declared is None:
+            raise MarswalkError("INVALID_POWER", f"{self.kind} is incompatible with rover source {source!r}")
 
 
-def supply_energy_j(scenario, t0_s, t1_s, *, time_utc=None, lat_deg=None, lon_east_deg=None, step_s=60.0):
-    """Energy supplied between plan times t0 and t1 (seconds from plan start).
-    Returns None when the scenario needs context that was not declared."""
+def supply_energy_j(scenario, t0_s, t1_s, *, time_utc=None, lat_deg=None, lon_east_deg=None,
+                    baseline=None, stationary_cell=None, max_charge_w=None):
+    """Credit declared supply. Solar credit is available only for a resolved
+    stationary interval. During driving and unresolved visibility it is zero."""
     if scenario is None or t1_s < t0_s:
         return None
     if t1_s == t0_s or scenario.kind == "none":
         return 0.0
+    cap = math.inf if max_charge_w is None else max_charge_w
     if scenario.kind == "non_solar":
-        return scenario.constant_w * (t1_s - t0_s)
+        return min(cap, scenario.constant_w) * (t1_s - t0_s)
     if scenario.kind == "declared_curve":
-        ts = np.array([t for t, _ in scenario.curve], float)
-        ws = np.array([w for _, w in scenario.curve], float)
+        ts, ws = np.asarray(scenario.curve, float).T
         if t1_s > ts[-1]:
-            return None                             # beyond the declared curve
+            return None
         grid = np.unique(np.concatenate([[t0_s, t1_s], ts[(ts > t0_s) & (ts < t1_s)]]))
-        return float(np.trapezoid(np.interp(grid, ts, ws), grid))
-    if time_utc is None or lat_deg is None or lon_east_deg is None:
-        return None                                 # solar needs time and site
-    start = parse_utc(time_utc).timestamp()
-    n = max(2, int(math.ceil((t1_s - t0_s) / step_s)) + 1)
-    times = np.linspace(t0_s, t1_s, n)
+        # Interpolating clipped endpoints conservatively bounds energy at crossings.
+        return float(np.trapezoid(np.minimum(cap, np.interp(grid, ts, ws)), grid))
+    if any(value is None for value in (time_utc, lat_deg, lon_east_deg)):
+        return None
+    if stationary_cell is None or baseline is None or scenario.horizon_upper_bound_m is None:
+        return 0.0
+    start = parse_utc(time_utc)
+    if start.year < 2017:
+        return None
+    count = max(2, int(math.ceil((t1_s - t0_s) / 60.0)) + 1)
+    times = np.linspace(t0_s, t1_s, count)
     watts = []
     for t in times:
-        sun = mars_sun(datetime.fromtimestamp(start + t, tz=timezone.utc), lat_deg, lon_east_deg)
-        watts.append(sun.top_of_atmosphere_w_m2 * scenario.atmospheric_transmittance * scenario.panel_area_m2
-                     * scenario.panel_efficiency * max(0.0, math.sin(math.radians(sun.elevation_deg))))
-    return float(np.trapezoid(watts, times))
+        sun = mars_sun(start + timedelta(seconds=float(t)), lat_deg, lon_east_deg)
+        visibility = terrain_illumination(baseline, [stationary_cell], sun,
+                                          horizon_upper_bound_m=scenario.horizon_upper_bound_m)
+        power = 0.0
+        if visibility[stationary_cell] == "lit":
+            power = (sun.top_of_atmosphere_w_m2 * scenario.atmospheric_transmittance * scenario.panel_area_m2
+                     * scenario.panel_efficiency * math.sin(math.radians(sun.elevation_deg)))
+        watts.append(min(cap, power))
+    return float(np.dot(np.diff(times), np.minimum(watts[:-1], watts[1:])))
 
 
 # ------------------------------------------------------------------ environmental activation (P0)
@@ -265,6 +311,7 @@ class EnvironmentalVariable:
     required: bool = False            # if True and not active -> unverified_environment
     observations: tuple = ()          # Observation, ... (historical context)
     note: str = ""
+    scenario_id: str | None = None   # scope for an explicit operating scenario
 
     def __post_init__(self):
         if self.mode not in MODES:
@@ -278,6 +325,9 @@ class EnvironmentalVariable:
         for t in (self.valid_from_utc, self.valid_to_utc):
             if t is not None:
                 parse_utc(t)
+        if (self.valid_from_utc and self.valid_to_utc
+                and parse_utc(self.valid_from_utc) > parse_utc(self.valid_to_utc)):
+            raise MarswalkError("INVALID_ENVIRONMENT", "validity window ends before it starts")
         object.__setattr__(self, "cells", tuple(tuple(c) for c in self.cells))
 
 
@@ -294,33 +344,37 @@ class Activation:
         return dict(self.__dict__)
 
 
-def activate_environment(variables, *, time_utc=None):
-    """Classify every variable. Only an authorized, applicable explicit
-    scenario or validated prediction becomes ACTIVE and may constrain a plan."""
-    out = []
+def activate_environment(variables, *, scenario_id=None, time_utc=None, duration_s=None):
+    """Classify declarations for the scenario and its full planning window."""
     now = None if time_utc is None else parse_utc(time_utc)
+    out = []
     for v in variables:
-        status, reason = None, ""
         if v.mode == "inactive":
             status, reason = INACTIVE, "declared inactive"
         elif v.mode == "historical_context":
-            status, reason = CONTEXT_ONLY, "historical records are context only and never constrain a plan"
-        elif not v.authorized_by:
-            status, reason = UNVERIFIED, "no authorization recorded"
-        elif v.mode == "supported_prediction" and not v.validation_ref:
-            status, reason = UNVERIFIED, "prediction has no validation reference"
-        elif v.valid_from_utc or v.valid_to_utc:
-            if now is None:
-                status, reason = UNVERIFIED, "time window declared but plan time is unknown"
-            elif (v.valid_from_utc and now < parse_utc(v.valid_from_utc)) or \
-                    (v.valid_to_utc and now > parse_utc(v.valid_to_utc)):
-                status, reason = INACTIVE, "plan time is outside the declared window"
-        if status is None:
-            if v.effect == "context":
-                status, reason = CONTEXT_ONLY, "authorized but declared for context only"
-            else:
-                status, reason = ACTIVE, f"{v.mode.replace('_', ' ')} authorized by {v.authorized_by}"
-        if status in (INACTIVE, CONTEXT_ONLY) and v.required and v.effect != "context":
+            status, reason = CONTEXT_ONLY, "historical records are context only"
+        elif v.effect == "context":
+            status, reason = CONTEXT_ONLY, "declared for context only"
+        elif v.mode == "supported_prediction":
+            # A caller-supplied reference cannot establish forecast validation,
+            # spatial coverage or horizon. No qualified forecast product is wired in.
+            status, reason = UNVERIFIED, "no qualified prediction coverage is configured"
+        elif (not isinstance(v.authorized_by, str) or not v.authorized_by.strip()
+              or not isinstance(v.purpose, str) or not v.purpose.strip()
+              or v.provenance not in {"simulated", "authorized"}
+              or not scenario_id or v.scenario_id != scenario_id):
+            status, reason = UNVERIFIED, "operating scenario needs matching scope, purpose and authorization"
+        elif (v.valid_from_utc or v.valid_to_utc) and now is None:
+            status, reason = UNVERIFIED, "time window declared but plan time is unknown"
+        elif ((v.valid_from_utc and now < parse_utc(v.valid_from_utc))
+              or (v.valid_to_utc and now > parse_utc(v.valid_to_utc))):
+            status, reason = INACTIVE, "plan start is outside the declared window"
+        elif v.valid_to_utc and (duration_s is None
+                                 or duration_s > (parse_utc(v.valid_to_utc) - now).total_seconds()):
+            status, reason = UNVERIFIED, "validity window does not cover the planning interval"
+        else:
+            status, reason = ACTIVE, f"explicit scenario authorized by {v.authorized_by}"
+        if status != ACTIVE and v.required and v.effect != "context":
             status, reason = UNVERIFIED, f"required input not active ({reason})"
         out.append(Activation(v.id, v.variable, status, v.effect, reason, v.required))
     return out

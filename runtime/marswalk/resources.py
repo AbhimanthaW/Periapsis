@@ -8,10 +8,11 @@ Boxes:
     A prefix check runs after every phase: a good end balance can never hide
     an earlier depletion. A missing (None) use fails the check, never defaults.
 
-Only TIME is modelled. Human consumables enter as the authorized remaining
-time B supplied by the crew; no oxygen or physiology model is used here.
+Human consumables enter as authorized remaining time. Rover batteries
+have a separate energy ledger with prefix reserve and discharge power checks.
 """
 from dataclasses import dataclass
+from math import isfinite
 
 from .errors import FAIL, PASS, UNKNOWN
 
@@ -105,21 +106,29 @@ class EnergyPhase:
     duration_s: float | None
 
 
-def energy_ledger(phases, *, initial_j, reserve_j, capacity_j):
+def energy_ledger(phases, *, initial_j, reserve_j, capacity_j, max_discharge_w=None):
     """Battery ledger. In each phase consumption is applied BEFORE that
     phase's supply (conservative), the prefix check runs, then supply is
     added and clipped at capacity. Missing consumption or supply -> unknown."""
     rows, charge, used = [], float(initial_j), 0.0
     check, reason = PASS, "battery stays above reserve"
     for phase in phases:
-        if phase.consumption_j is None or phase.supply_j is None:
-            missing = "consumption" if phase.consumption_j is None else "supply"
-            rows.append(LedgerRow(phase.name, phase.kind, phase.consumption_j, None, None))
+        invalid = [name for name, value in (
+            ("consumption", phase.consumption_j), ("supply", phase.supply_j), ("duration", phase.duration_s)
+        ) if value is None or not isfinite(value) or value < 0]
+        if invalid:
+            missing = ", ".join(invalid)
+            rows.append(LedgerRow(phase.name, phase.kind, None, None, None))
             return ResourceLedger("energy", "J", float(initial_j), float(reserve_j), tuple(rows), None, None,
-                                  None, UNKNOWN, f"unsupported {missing} in phase {phase.name}")
+                                  None, FAIL if check == FAIL else UNKNOWN,
+                                  reason if check == FAIL else f"unsupported {missing} in phase {phase.name}")
         charge -= phase.consumption_j
         used += phase.consumption_j
-        prefix_ok = charge >= reserve_j
+        within_power = (max_discharge_w is None
+                        or phase.consumption_j <= max_discharge_w * phase.duration_s)
+        prefix_ok = charge >= reserve_j and within_power
+        if not within_power and check == PASS:
+            check, reason = FAIL, f"battery discharge power exceeded during {phase.name}"
         if not prefix_ok and check == PASS:
             check, reason = FAIL, f"battery reserve breached during {phase.name}"
         charge = min(float(capacity_j), charge + phase.supply_j)

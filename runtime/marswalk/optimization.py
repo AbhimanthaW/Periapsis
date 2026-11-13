@@ -15,14 +15,14 @@ Boxes, in order:
   * Excluded from core          - no AI/ML, live telemetry, suit forecasts,
                                   safety scores, medical ranking or rescue assumptions
 """
-from dataclasses import dataclass, field
-from itertools import permutations
+from dataclasses import dataclass, field, replace
+from itertools import permutations, product
 
 import numpy as np
 
 from .errors import FAIL, LEG_NO_EVIDENCE, LEG_OK, PASS, UNKNOWN
 from .environment import ACTIVE, UNVERIFIED, supply_energy_j
-from .resources import EnergyPhase, Phase, energy_ledger, route_resource_ledger
+from .resources import EnergyPhase, Phase, ResourceLedger, energy_ledger, route_resource_ledger
 
 EXCLUDED_FROM_CORE = (
     "AI/ML decision making", "live telemetry", "suit or life-support forecasts",
@@ -105,28 +105,62 @@ def bounded_multistop(snapshot, router, unfinished, max_tasks=2):
 
 
 # ------------------------------------------------------------------ reevaluate
-def _energy_ledger(plan, snapshot, mobility):
-    """Battery ledger along the plan timeline (rover profiles only)."""
+def _energy_ledger(plan, snapshot, router):
+    """Check driving at edge resolution and science dwell as a stationary phase."""
+    mobility = router.graph.mobility
     profile, dwell = mobility.profile, dict(plan.dwell)
     phases, t = [], 0.0
-    ctx = dict(time_utc=snapshot.time_utc, lat_deg=snapshot.site_lat_deg, lon_east_deg=snapshot.site_lon_east_deg)
+    ctx = dict(time_utc=snapshot.time_utc, lat_deg=snapshot.site_lat_deg,
+               lon_east_deg=snapshot.site_lon_east_deg, baseline=router.baseline,
+               max_charge_w=profile.max_charge_w)
+    if any(leg.seconds or leg.edge_ids for _, leg in plan.legs) or any(dwell.values()):
+        if profile.max_discharge_w is None or profile.max_charge_w is None:
+            return ResourceLedger("energy", "J", profile.initial_charge_j, profile.battery_reserve_j,
+                                  (), None, None, None, UNKNOWN, "battery power ratings are undeclared")
 
-    def add(name, kind, consumption, duration):
+    def add(name, kind, consumption, duration, *, cell=None):
         nonlocal t
         if duration is None:
             phases.append(EnergyPhase(name, kind, None, None, None))
             return
-        supply = supply_energy_j(snapshot.power, t, t + duration, **ctx)
+        supply = supply_energy_j(snapshot.power, t, t + duration, stationary_cell=cell, **ctx)
         phases.append(EnergyPhase(name, kind, consumption, supply, duration))
         t += duration
 
+    times = router.graph.times
     for name, leg in plan.legs:
-        add(name, name, leg.energy_j if leg.ok else None, leg.seconds if leg.ok else None)
+        if leg.edge_ids:
+            for index, edge in enumerate(leg.edge_ids, start=1):
+                add(f"{name}:edge:{index}", name, float(times.energy_j[edge]), float(times.seconds[edge]))
+        else:
+            add(name, name, leg.energy_j, leg.seconds)
         if name in ("outbound", "transfer") and plan.task_ids:
             target = plan.task_ids[0] if name == "outbound" else plan.task_ids[1]
-            add(f"dwell:{target}", "dwell", mobility.dwell_energy_j(dwell[target]), dwell[target])
+            add(f"dwell:{target}", "dwell", mobility.dwell_energy_j(dwell[target]), dwell[target], cell=leg.goal)
     return energy_ledger(phases, initial_j=profile.initial_charge_j, reserve_j=profile.battery_reserve_j,
-                         capacity_j=profile.battery_capacity_j)
+                         capacity_j=profile.battery_capacity_j, max_discharge_w=profile.max_discharge_w)
+
+
+def select_energy_feasible_legs(plan, snapshot, router, *, direct_plan=None, activations=()):
+    """Try bounded time/energy combinations when the fastest plan fails energy."""
+    ledger = plan.energy_ledger
+    if (ledger is None or ledger.check != FAIL
+            or any(outcome != PASS for rule, outcome, _ in plan.constraints if rule != "energy_budget")):
+        return plan
+    max_discharge_w = router.graph.mobility.profile.max_discharge_w
+    choices = [[(name, route) for route in (leg, *router.energy_alternatives(leg, max_discharge_w))]
+               for name, leg in plan.legs]
+    routes = sorted(product(*choices), key=lambda legs: sum(leg.seconds for _, leg in legs))
+    for legs in routes:
+        if list(legs) == plan.legs:
+            continue
+        candidate = replace(plan, legs=list(legs), failure_reasons=[], deferred_artifacts=[])
+        reevaluate_science_tasks([candidate], snapshot, router)
+        enforce_hard_constraints(candidate, snapshot, router, direct_plan=direct_plan, activations=activations)
+        if candidate.passed:
+            return candidate
+    plan.failure_reasons.append("bounded route search found no energy-feasible alternative")
+    return plan
 
 
 def reevaluate_science_tasks(plans, snapshot, router=None):
@@ -148,7 +182,7 @@ def reevaluate_science_tasks(plans, snapshot, router=None):
         if plan.ledger.check == FAIL:
             plan.failure_reasons.append(plan.ledger.reason)
         if vehicle:
-            plan.energy_ledger = _energy_ledger(plan, snapshot, mobility)
+            plan.energy_ledger = _energy_ledger(plan, snapshot, router)
         if plan.task_ids and (plan.ledger.check != PASS or any(not leg.ok for _, leg in plan.legs)):
             plan.deferred_artifacts = [by_id[t].expected_artifact or t for t in plan.task_ids]
     return plans
@@ -170,8 +204,7 @@ def _positions_rule(snapshot, router):
 
 
 def _environment_rule(activations):
-    """Only ACTIVE variables constrain; a required variable that is not active
-    leaves the plan unknown. Returning to shelter is never blocked here."""
+    """Only active restrictions apply. Required unverified inputs stay unknown."""
     stop = [a for a in activations if a.status == ACTIVE and a.effect == "return_now"]
     if stop:
         return FAIL, "return now required by " + ", ".join(a.id for a in stop)
@@ -193,6 +226,10 @@ def enforce_hard_constraints(plan, snapshot, router, *, direct_plan=None, activa
         else:
             blocking = ", ".join(rule for rule, outcome, _ in direct_plan.constraints if outcome != PASS)
             rules.append(("direct_return_gate", FAIL, f"direct return is blocked by {blocking}"))
+    else:
+        required_closures = [a for a in activations if a.effect == "block_cells" and a.required]
+        if required_closures:
+            rules.append(("environment", *_environment_rule(required_closures)))
     statuses = [leg.status for _, leg in plan.legs]
     if all(s == LEG_OK for s in statuses):
         rules.append(("path_exists", PASS, "all legs admissible"))

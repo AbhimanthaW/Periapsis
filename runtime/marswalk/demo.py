@@ -32,13 +32,13 @@ DEMO_TIME_UTC = "2021-02-18T20:43:49Z"          # Perseverance landing (spacecra
 DEMO_SITE = (18.44, 77.45)                        # declared site coordinates used ONLY for sun geometry
 
 
-def sep_scenario(time_utc=DEMO_TIME_UTC):
+def sep_scenario(scenario_id, time_utc=DEMO_TIME_UTC):
     """Explicit, SIMULATED solar particle event scenario (modelled on the
     kind of event MSL-RAD recorded in September 2017). Not a forecast."""
     return EnvironmentalVariable(
         id="sep-drill", variable="solar_particle_event", mode="explicit_scenario", effect="return_now",
         purpose="rehearse a shelter return", authorized_by="demo operator", provenance="simulated",
-        valid_from_utc=time_utc, note="simulated alert; no dose is inferred")
+        valid_from_utc=time_utc, scenario_id=scenario_id, note="simulated alert; no dose is inferred")
 
 
 def demo_power():
@@ -66,7 +66,7 @@ def demo_inputs(*, closed=False, remaining_s=3600, pace_scenario="nominal", crew
         provenance=(("terrain", "simulated"), ("closures", "simulated"), ("remaining_s", "crew_input")),
         time_utc=DEMO_TIME_UTC if with_time else None,
         site_lat_deg=DEMO_SITE[0] if with_time else None, site_lon_east_deg=DEMO_SITE[1] if with_time else None,
-        environment=(sep_scenario(),) if sep_alert else (),
+        environment=(sep_scenario("demo-north-ramp"),) if sep_alert else (),
         power=demo_power() if platform == "rover" else None)
     return baseline, snapshot
 

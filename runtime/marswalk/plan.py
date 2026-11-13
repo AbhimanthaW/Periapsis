@@ -15,13 +15,15 @@ active leaves science unknown.
 """
 from dataclasses import dataclass, field, replace
 
-from .errors import (INSUFFICIENT_TERRAIN_EVIDENCE, LEG_NO_EVIDENCE, MarswalkError, NO_RETURN_ROUTE, OK,
-                     RETURN_OVER_RESERVE)
+from .errors import (FAIL, INSUFFICIENT_TERRAIN_EVIDENCE, LEG_NO_EVIDENCE, MarswalkError, NO_RETURN_ROUTE, OK, PASS,
+                     RETURN_ENERGY_SEARCH_EXHAUSTED, RETURN_ENERGY_UNVERIFIED, RETURN_ENVIRONMENT_UNVERIFIED,
+                     RETURN_OVER_RESERVE, UNKNOWN)
 from .environment import (ACTIVE, activate_environment, comms_and_forecast_assessment, mars_sun,
-                          terrain_illumination)
+                          parse_utc, terrain_illumination)
 from .mobility import pace_for
 from .optimization import (EXCLUDED_FROM_CORE, compare_pareto, compose_candidate_plans,
-                           enforce_hard_constraints, reevaluate_science_tasks, select_next_action)
+                           enforce_hard_constraints, reevaluate_science_tasks, select_energy_feasible_legs,
+                           select_next_action)
 from .resources import MARGIN_NO_ROUTE, MARGIN_OVER_RESERVE, return_time_margin
 from .routing import Router, TerrainGraph, diverse_routes
 
@@ -114,10 +116,15 @@ def _environment_dict(self):
     if snap.time_utc is None or snap.site_lat_deg is None:
         out["solar"] = {"status": "not_declared", "reason": "plan time and site coordinates are both required"}
         return out
-    sun = mars_sun(snap.time_utc, snap.site_lat_deg, snap.site_lon_east_deg)
+    when = parse_utc(snap.time_utc)
+    if when.year < 2017:
+        out["solar"] = {"status": "unsupported_epoch", "reason": "Mars24 time conversion is pinned from 2017"}
+        return out
+    sun = mars_sun(when, snap.site_lat_deg, snap.site_lon_east_deg)
     cells = {"current": snap.current_cell, "return": snap.return_cell,
              **{f"task:{t.id}": t.approach_cell for t in snap.tasks}}
-    lit = terrain_illumination(self.baseline, list(cells.values()), sun)
+    horizon = None if snap.power is None else snap.power.horizon_upper_bound_m
+    lit = terrain_illumination(self.baseline, list(cells.values()), sun, horizon_upper_bound_m=horizon)
     out["solar"] = {"status": "computed", "method": "Mars24 (Allison & McEwen 2000)", "sun": sun.to_dict(),
                     "illumination": {name: lit[tuple(c)] for name, c in cells.items()}}
     return out
@@ -128,14 +135,18 @@ MarswalkPlan._environment_dict = _environment_dict
 
 def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposure_slope_deg=10.0,
                   alternatives_k=0, expected_revision=None):
-    """Run the whole Human Marswalk path for one immutable snapshot."""
+    """Plan human or rover routes for one immutable snapshot."""
     support = baseline.support
     if not support.pack_version:
         raise MarswalkError("MIXED_PACK", "loaded terrain must declare its pack version")
     snapshot.validate(support.shape, pack_id=support.pack_id, pack_version=support.pack_version,
                       expected_revision=expected_revision)
     profile = snapshot.profile
-    activations = tuple(activate_environment(snapshot.environment, time_utc=snapshot.time_utc))
+    horizon = None if snapshot.power is None else snapshot.power.horizon_upper_bound_m
+    if horizon is not None and (baseline.z_m > horizon).any():
+        raise MarswalkError("INVALID_POWER", "horizon upper bound contradicts the terrain grid")
+    activations = tuple(activate_environment(snapshot.environment, scenario_id=snapshot.scenario_id,
+                                             time_utc=snapshot.time_utc, duration_s=snapshot.remaining_s))
     blocked = tuple(cell for v, a in zip(snapshot.environment, activations)
                     if a.status == ACTIVE and a.effect == "block_cells" for cell in v.cells)
     graph = TerrainGraph(baseline, pace_for(profile), scenario=getattr(profile, "pace_scenario", "nominal"),
@@ -144,12 +155,14 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
 
     plans = compose_candidate_plans(snapshot, router, multistop=multistop)
     reevaluate_science_tasks(plans, snapshot, router)
-    direct_plan = plans[0]
+    direct_plan = enforce_hard_constraints(plans[0], snapshot, router, activations=activations)
+    plans[0] = direct_plan = select_energy_feasible_legs(direct_plan, snapshot, router, activations=activations)
     direct = direct_plan.legs[0][1]
     gate = return_time_margin(snapshot.remaining_s, snapshot.reserve_s, direct)
-    enforce_hard_constraints(direct_plan, snapshot, router, activations=activations)
-    for plan in plans[1:]:
+    for index, plan in enumerate(plans[1:], start=1):
         enforce_hard_constraints(plan, snapshot, router, direct_plan=direct_plan, activations=activations)
+        plans[index] = select_energy_feasible_legs(plan, snapshot, router, direct_plan=direct_plan,
+                                                   activations=activations)
     front, used = compare_pareto(plans, router, exposure_slope_deg=exposure_slope_deg)
     recommendation = select_next_action(plans, front, snapshot)
 
@@ -158,7 +171,14 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
     elif gate.status == MARGIN_OVER_RESERVE:
         status = RETURN_OVER_RESERVE
     else:
+        blocked_rules = {rule: outcome for rule, outcome, _ in direct_plan.constraints if outcome != PASS}
         status = OK if direct_plan.passed else NO_RETURN_ROUTE
+        if blocked_rules.get("environment") == UNKNOWN:
+            status = RETURN_ENVIRONMENT_UNVERIFIED
+        elif blocked_rules == {"energy_budget": UNKNOWN}:
+            status = RETURN_ENERGY_UNVERIFIED
+        elif blocked_rules == {"energy_budget": FAIL}:
+            status = RETURN_ENERGY_SEARCH_EXHAUSTED
 
     alternatives = {}
     if alternatives_k > 1 and recommendation not in (None, "direct_return"):

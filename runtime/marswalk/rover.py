@@ -51,9 +51,10 @@ class RoverMobility:
         rel = np.maximum(relief[src], relief[dst])
         unsupported = ~np.isfinite(tilt) | ~np.isfinite(rel)
         tag[unsupported] = TAG_UNSUPPORTED
-        too_steep = ~unsupported & ((grade_deg > p.max_incline_deg) | (tilt > p.max_incline_deg))
+        too_steep = ((grade_deg > p.max_incline_deg) | (slope[src] > p.max_incline_deg)
+                     | (slope[dst] > p.max_incline_deg))
         tag[too_steep] = TAG_REFUSED_GRADE
-        too_high = ~unsupported & ~too_steep & (rel > p.clearance_m)
+        too_high = ~too_steep & ((relief[src] > p.clearance_m) | (relief[dst] > p.clearance_m))
         tag[too_high] = TAG_CLEARANCE
         usable = tag == TAG_OK
 
@@ -92,7 +93,7 @@ def summary(profile):
         "profile_id", "source_type", "source", "provenance", "mass_kg", "payload_kg", "clearance_m",
         "max_incline_deg", "nominal_speed_mps", "rolling_resistance", "drivetrain_efficiency",
         "auxiliary_power_w", "science_power_w", "battery_capacity_j", "battery_reserve_j",
-        "initial_charge_j", "power_source")}
+        "initial_charge_j", "power_source", "max_charge_w", "max_discharge_w")}
 
 
 def hypothetical_crew_rover():
@@ -103,4 +104,5 @@ def hypothetical_crew_rover():
         profile_id="hypothetical-crew-rover", source_type="hypothetical", mass_kg=900.0, payload_kg=250.0,
         wheel_radius_m=0.4, clearance_m=0.35, max_incline_deg=20.0, nominal_speed_mps=1.5,
         rolling_resistance=0.15, drivetrain_efficiency=0.7, auxiliary_power_w=400.0, science_power_w=150.0,
-        battery_capacity_j=20 * kwh, battery_reserve_j=4 * kwh, initial_charge_j=16 * kwh, power_source="solar")
+        battery_capacity_j=20 * kwh, battery_reserve_j=4 * kwh, initial_charge_j=16 * kwh, power_source="solar",
+        max_charge_w=1200.0, max_discharge_w=4000.0)

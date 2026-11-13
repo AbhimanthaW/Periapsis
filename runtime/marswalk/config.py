@@ -127,6 +127,8 @@ class RoverProfile:
     neighbours: int = 8
     platform: str = "rover"
     provenance: str = "assumed"
+    max_charge_w: float | None = None
+    max_discharge_w: float | None = None
 
     def __post_init__(self):
         if self.platform != "rover":
@@ -144,6 +146,9 @@ class RoverProfile:
         for name in ("payload_kg", "rolling_resistance", "auxiliary_power_w", "science_power_w",
                      "battery_reserve_j", "initial_charge_j"):
             _positive(name, getattr(self, name), allow_zero=True)
+        for name in ("max_charge_w", "max_discharge_w"):
+            if getattr(self, name) is not None:
+                _positive(name, getattr(self, name), allow_zero=True)
         _positive("max_incline_deg", self.max_incline_deg)
         if self.max_incline_deg >= 90:
             raise MarswalkError("INVALID_PROFILE", "max_incline_deg must be below 90")
@@ -246,6 +251,8 @@ class MissionSnapshot:
         for variable in self.environment:
             for cell in variable.cells:
                 _cell(f"environment {variable.id}", cell, shape)
+        if isinstance(self.profile, RoverProfile) and self.power is not None:
+            self.power.validate_source(self.profile.power_source)
         ids = [task.id for task in self.tasks]
         if len(set(ids)) != len(ids):
             raise MarswalkError("INVALID_SNAPSHOT", "duplicate task id")

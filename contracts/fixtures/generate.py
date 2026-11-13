@@ -21,7 +21,7 @@ def json_bytes(value):
     return (json.dumps(value, indent=2, allow_nan=False) + "\n").encode()
 
 
-def build(directory):
+def build(directory, *, rover=False):
     directory.mkdir(parents=True, exist_ok=False)
     source = dict(id="synthetic-grid-source", version="1", kind="synthetic", recipe_id="synthetic-fixture-v1",
                   attribution="Team Periapsis synthetic fixture", native_spacing_m=10, effective_scale_m=None,
@@ -29,6 +29,13 @@ def build(directory):
     source_crs = CRS.from_wkt(WKT)
     to_geo = Transformer.from_crs(source_crs, source_crs.geodetic_crs, always_xy=True)
     ring = [(100,200),(150,200),(150,170),(140,170),(140,180),(130,180),(130,170),(100,170),(100,200)]
+    grid = GRID
+    recipe = "synthetic-fixture-v1"
+    if rover:
+        grid = dict(GRID, shape=[7, 9], bounds_m=[100, 130, 190, 200])
+        ring = [(100, 200), (190, 200), (190, 130), (100, 130), (100, 200)]
+        recipe = "synthetic-rover-v1"
+        source["recipe_id"] = recipe
     evidence = dict(VERSION, package_id="rw-synthetic-evidence", version="1",
                     datasets=[dict(id="fixture-dataset", mission="Simulation", instrument="Simulation",
                                    modality="stereo_topography", product_class="stereo_dtm", archive_url=URL,
@@ -38,7 +45,7 @@ def build(directory):
                                                    equatorial_radius_m=3396190, polar_radius_m=3396190),
                                    processing_level="simulated", readiness="usable", variables=["elevation"],
                                    native_spacing_m=10, support_extent_complete=True, observation_extent_complete=False,
-                                   provenance=["synthetic-fixture-v1: software-only test"])],
+                                   provenance=[f"{recipe}: software-only test"])],
                     footprints=[dict(id="fixture-support", product_id=source["id"], source_url=URL,
                                      status="canonical_verified", coverage_kind="usable_support",
                                      transform="Inverse projection of synthetic valid-cell perimeter",
@@ -53,6 +60,14 @@ def build(directory):
     z = np.array([[0,1,2,3,4], [0,1,2,3,4], [0,1,2,np.nan,4]], dtype="<f4")
     excluded = np.zeros(z.shape, dtype=bool)
     excluded[2,1] = True
+    if rover:
+        z = np.zeros(grid["shape"], dtype="<f4")
+        excluded = np.zeros(z.shape, dtype=bool)
+        stations["stations"][0]["approach_cell"] = [4, 5]
+        stations["stations"][1]["approach_cell"] = [3, 7]
+        scenario.update(scenario_id="synthetic-rover-v1", checkpoint=dict(id="crew", cell=[3, 7]),
+                        shelter=dict(id="home", cell=[3, 1]), remaining_s=180,
+                        closures=[dict(id="mid", cells=[[3, 4]])])
     terrain = BytesIO()
     with ZipFile(terrain, "w") as archive:
         for key, value in dict(z_m=z, valid_mask=np.isfinite(z), screen_excluded_mask=excluded).items():
@@ -72,10 +87,10 @@ def build(directory):
                10: ("not_evaluated", "Loader acceptance is recorded externally")}
     gates = {f"G{i}": dict(zip(("state", "reason"), reasons.get(i, ("pass_fixture", "Synthetic fixture control"))))
              for i in range(1, 11)}
-    site = dict(VERSION, pack_id="rw-synthetic", pack_version="1.0.0", region_id="synthetic-grid",
-                classification="synthetic", build_id="synthetic-fixture-v1", processed_at="2026-11-10T00:00:00Z",
+    site = dict(VERSION, pack_id="rw-synthetic-rover" if rover else "rw-synthetic", pack_version="1.0.0", region_id="synthetic-grid",
+                classification="synthetic", build_id=recipe, processed_at="2026-11-10T00:00:00Z",
                 capabilities=["routing_simulation"], gates=gates, omissions=["Tactical routing and real science are disabled"],
-                grid=GRID, reference=dict(source_crs_wkt=WKT, local_crs_wkt=WKT, horizontal_unit="m", vertical_unit="m",
+                grid=grid, reference=dict(source_crs_wkt=WKT, local_crs_wkt=WKT, horizontal_unit="m", vertical_unit="m",
                                           vertical_reference="synthetic-zero-plane-v1", native_spacing_m=10),
                 artifacts={role: pin(name, raw) for role, (name, raw) in files.items()})
     (directory / "site.json").write_bytes(json_bytes(site))
@@ -84,4 +99,6 @@ def build(directory):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path)
-    build(parser.parse_args().directory)
+    parser.add_argument("--rover", action="store_true", help="generate a rover-capable pack with interior endpoints")
+    args = parser.parse_args()
+    build(args.directory, rover=args.rover)

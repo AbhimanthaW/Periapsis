@@ -1,6 +1,7 @@
 """Human Marswalk CLI.
 
   python -m runtime.marswalk plan contracts/fixtures/synthetic-v1 --closure mid
+  python -m runtime.marswalk plan /path/to/rover-pack --platform rover --power battery-only
   python -m runtime.marswalk demo --png marswalk-demo.png
 
 `plan` reads a checked pack v1 with routing simulation enabled and prints the
@@ -8,11 +9,13 @@ JSON plan. `demo` needs no pack: it runs a built-in synthetic scenario before
 and after a simulated closure and prints a decision table.
 """
 import argparse
+from dataclasses import replace
 import json
 from pathlib import Path
 import sys
 
 from .config import HumanProfile, snapshot_from_pack
+from .environment import PowerScenario
 from .errors import MarswalkError
 from .plan import plan_marswalk
 from .traversability import ScreenPolicy, baseline_from_pack
@@ -21,7 +24,7 @@ from .traversability import ScreenPolicy, baseline_from_pack
 def _profile(args):
     if args.platform == "rover":
         from .rover import hypothetical_crew_rover
-        return hypothetical_crew_rover()
+        return replace(hypothetical_crew_rover(), neighbours=args.neighbours)
     return HumanProfile(pace_model=args.pace_model, pace_scenario=args.pace_scenario, neighbours=args.neighbours)
 
 
@@ -60,6 +63,11 @@ def main(argv=None):
             p.add_argument("--closure", action="append", default=[])
             p.add_argument("--remaining-s", type=int)
             p.add_argument("--slope-limit-deg", type=float)
+            p.add_argument("--power", choices=("battery-only", "demo-solar"))
+            p.add_argument("--time-utc")
+            p.add_argument("--site-lat-deg", type=float)
+            p.add_argument("--site-lon-east-deg", type=float)
+            p.add_argument("--horizon-upper-bound-m", type=float)
         else:
             p.add_argument("--png", type=Path)
             p.add_argument("--remaining-s", type=int, default=3600)
@@ -71,7 +79,7 @@ def main(argv=None):
         p.add_argument("--alternatives", type=int, default=0)
         p.add_argument("--backend", choices=("auto", "scipy", "python"), default="auto")
         p.add_argument("--platform", choices=("human", "rover"), default="human",
-                       help="rover uses a HYPOTHETICAL crew-rover record and a declared solar power scenario")
+                       help="rover uses a hypothetical crew-rover record")
         p.add_argument("--sep-alert", action="store_true",
                        help="add an explicit SIMULATED solar particle event scenario (return now)")
     args = parser.parse_args(argv)
@@ -89,12 +97,22 @@ def main(argv=None):
             baseline = baseline_from_pack(pack, policy=policy)
             snapshot = snapshot_from_pack(pack, closure_ids=tuple(args.closure), remaining_s=args.remaining_s,
                                           profile=_profile(args), crew_status=args.crew_status)
-            if args.platform == "rover" or args.sep_alert:
-                from dataclasses import replace
-                from .demo import DEMO_TIME_UTC, demo_power, sep_scenario
-                snapshot = replace(snapshot, power=demo_power() if args.platform == "rover" else None,
-                                   environment=(sep_scenario(),) if args.sep_alert else (),
-                                   time_utc=DEMO_TIME_UTC if args.sep_alert else None)
+            from .demo import DEMO_TIME_UTC, demo_power, sep_scenario
+            power = None
+            if args.platform == "rover" and args.power is None:
+                raise MarswalkError("INVALID_POWER", "rover pack planning requires --power")
+            if args.power and args.platform != "rover":
+                raise MarswalkError("INVALID_POWER", "--power requires --platform rover")
+            if args.power == "battery-only":
+                power = PowerScenario("none")
+            elif args.power == "demo-solar":
+                if any(value is None for value in (args.time_utc, args.site_lat_deg, args.site_lon_east_deg)):
+                    raise MarswalkError("INVALID_POWER", "demo solar needs explicit time and site coordinates")
+                power = replace(demo_power(), horizon_upper_bound_m=args.horizon_upper_bound_m)
+            time_utc = args.time_utc or (DEMO_TIME_UTC if args.sep_alert else None)
+            snapshot = replace(snapshot, power=power, time_utc=time_utc,
+                               site_lat_deg=args.site_lat_deg, site_lon_east_deg=args.site_lon_east_deg,
+                               environment=(sep_scenario(snapshot.scenario_id, time_utc),) if args.sep_alert else ())
             result = plan_marswalk(baseline, snapshot, backend=args.backend, multistop=args.multistop,
                                    alternatives_k=args.alternatives)
             print(json.dumps(result.to_dict(), allow_nan=False))
@@ -105,7 +123,7 @@ def main(argv=None):
             baseline, snapshot = demo_inputs(closed=closed, remaining_s=args.remaining_s,
                                              pace_scenario=args.pace_scenario, crew_status=args.crew_status,
                                              platform=args.platform, sep_alert=args.sep_alert)
-            snapshot = snapshot.__class__(**{**snapshot.__dict__, "profile": _profile(args)})
+            snapshot = replace(snapshot, profile=_profile(args))
             results.append(plan_marswalk(baseline, snapshot, backend=args.backend, multistop=args.multistop,
                                          alternatives_k=args.alternatives))
         print("SYNTHETIC DEMO - not Mars data\n\nBEFORE closure\n" + _table(results[0]))

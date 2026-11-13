@@ -26,7 +26,7 @@ import numpy as np
 
 from .errors import (LEG_ENDPOINT_EXCLUDED, LEG_NO_EVIDENCE, LEG_NO_PATH, LEG_OK, LEG_OUT_OF_BOUNDS,
                      MarswalkError)
-from .mobility import EdgeTimes, human_traversal_time
+from .mobility import TAG_UNSUPPORTED, EdgeTimes, human_traversal_time
 
 try:  # optional accelerator
     from scipy.sparse import csr_matrix as _scipy_csr
@@ -219,6 +219,7 @@ class Router:
         bad[diag] |= cf[graph.side_a[diag]] | cf[graph.side_b[diag]]
         keep = np.isfinite(graph.times.seconds) & ~bad
         self.edge_ids = np.flatnonzero(keep)
+        self._unknown_edges = np.flatnonzero(~bad & (graph.times.tag == TAG_UNSUPPORTED))
         self.csr = csr_from_edges(graph.src[keep], graph.dst[keep], graph.times.seconds[keep],
                                   self.edge_ids, graph.n)
         self.csr_t = self.csr.transposed()
@@ -227,7 +228,7 @@ class Router:
         self._key, self._key_edges = self._key[order], self.edge_ids[order]
         self.backend = backend if backend != "auto" else ("scipy" if "scipy" in available_backends() else "python")
         self.limit_s = limit_s
-        self._fwd, self._bwd = {}, {}
+        self._fwd, self._bwd, self._energy_fields = {}, {}, {}
         self.dijkstra_runs = 0
 
     # -- helpers
@@ -290,6 +291,37 @@ class Router:
             nodes.append(int(pred[nodes[-1]]))      # next hop toward the shelter
         return self._leg(start, home, nodes)
 
+    def energy_alternatives(self, leg, max_discharge_w):
+        """Fastest power-admissible, minimum energy and two mixed-weight paths."""
+        if not leg.ok or not leg.edge_ids:
+            return ()
+        g = self.graph
+        edges = self.csr.edge_ids
+        seconds, joules = g.times.seconds[edges], g.times.energy_j[edges]
+        admissible = joules <= max_discharge_w * seconds
+        if not np.any(admissible):
+            return ()
+        start, goal = self.node(leg.start), self.node(leg.goal)
+        energy_scale = max(1.0, max_discharge_w)
+        seen, alternatives = {leg.edge_ids}, []
+        for time_weight, energy_weight in ((1, 0), (0, 1), (1, 1), (1, 4)):
+            key = (start, max_discharge_w, time_weight, energy_weight)
+            if key not in self._energy_fields:
+                weight = time_weight * seconds + energy_weight * (joules / energy_scale)
+                csr = self.csr.with_data(np.where(admissible, weight, np.inf))
+                self._energy_fields[key] = dijkstra(csr, start, backend=self.backend)
+                self.dijkstra_runs += 1
+            dist, pred = self._energy_fields[key]
+            if np.isfinite(dist[goal]):
+                nodes = [goal]
+                while nodes[-1] != start:
+                    nodes.append(int(pred[nodes[-1]]))
+                candidate = self._leg(leg.start, leg.goal, nodes[::-1])
+                if candidate.edge_ids not in seen:
+                    seen.add(candidate.edge_ids)
+                    alternatives.append(candidate)
+        return tuple(alternatives)
+
     def _endpoints(self, a, b):
         a, b = tuple(map(int, a)), tuple(map(int, b))
         rows, cols = self.shape
@@ -306,12 +338,13 @@ class Router:
         return None
 
     def _diagnose(self, a, b):
-        """Relax ONLY unknown cells (known exclusions and closures stay). If that
-        connects the pair, the gap is evidence, not terrain: draw no path."""
+        """Relax unknown cells and mobility edges while preserving known
+        exclusions and closures. The diagnostic connection is never drawn."""
         a, b = tuple(map(int, a)), tuple(map(int, b))
         relaxed = (np.asarray(self.baseline.routable) | np.asarray(self.baseline.unknown)) & ~self.closed
         unknown = np.asarray(self.baseline.unknown)
-        real = set(zip(self.graph.src[self.edge_ids].tolist(), self.graph.dst[self.edge_ids].tolist()))
+        diagnostic_edges = np.concatenate((self.edge_ids, self._unknown_edges))
+        allowed = set(zip(self.graph.src[diagnostic_edges], self.graph.dst[diagnostic_edges]))
         moves = NEIGHBOURS_8 if self.graph.neighbours == 8 else NEIGHBOURS_4
         rows, cols = self.shape
         seen, queue = {a}, deque([a])
@@ -326,7 +359,7 @@ class Router:
                 if dr and dc and not (relaxed[r + dr, c] and relaxed[r, c + dc]):
                     continue
                 touches_unknown = unknown[r, c] or unknown[nr, nc] or (dr and dc and (unknown[r + dr, c] or unknown[r, c + dc]))
-                if not touches_unknown and (self.node((r, c)), self.node((nr, nc))) not in real:
+                if not touches_unknown and (self.node((r, c)), self.node((nr, nc))) not in allowed:
                     continue
                 seen.add((nr, nc))
                 queue.append((nr, nc))
