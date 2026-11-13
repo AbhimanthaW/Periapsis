@@ -161,10 +161,22 @@ class PreviewTests(unittest.TestCase):
         with self.assertRaisesRegex(ConfigurationError, "already exists"):
             build_preview(self.job, self.workspace, self.output)
 
+    def test_editing_returned_manifest_does_not_change_preview_policy(self):
+        manifest = build_preview(self.job, self.workspace, self.output)
+        manifest["capabilities"]["routing"] = True
+        manifest["gate_results"]["routing"] = "pass"
+
+        self.assertEqual(verify_preview(self.output)["verified_artifacts"], 1)
+        another = build_preview(self.job, self.workspace, self.output.with_name("another"))
+        self.assertFalse(another["capabilities"]["routing"])
+        self.assertNotIn("routing", another["gate_results"])
+
     def test_rejects_bad_affine_false_capability_and_missing_or_corrupt_artifact(self):
         manifest = build_preview(self.job, self.workspace, self.output)
         path = self.output / MANIFEST
         for field, value, message in [
+            ("vertical_unit", "km", "encoding"),
+            ("output_posting_m", [40, 20], "grid"),
             ("affine", [1, 0, 20, 0, -1, 100], "grid"),
             ("capabilities", {**manifest["capabilities"], "routing": True}, "capability"),
         ]:

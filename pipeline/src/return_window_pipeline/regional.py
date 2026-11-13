@@ -182,8 +182,8 @@ def build_preview(job: RegionalJob, workspace: Path, output: Path) -> dict:
                     "valid_elevation_cells": int(terrain.elevation_valid.sum()),
                     "full_gradient_support_cells": int(terrain.gradient_valid.sum()),
                 },
-                "capabilities": PREVIEW_CAPABILITIES,
-                "gate_results": PREVIEW_GATES,
+                "capabilities": PREVIEW_CAPABILITIES.copy(),
+                "gate_results": PREVIEW_GATES.copy(),
                 "layers": {
                     "elevation_preview": {"available": True, "bounds_m": bounds, "asset": asset,
                                           "attribution": job.source.attribution},
@@ -239,6 +239,8 @@ def verify_preview(directory: Path) -> dict:
             if (
                 dataset.driver != "GTiff" or dataset.count != 1 or dataset.dtypes != ("float32",)
                 or dataset.units != ("m",) or dataset.nodata is None or not math.isnan(dataset.nodata)
+                or manifest["vertical_unit"] != dataset.units[0]
+                or manifest["output_posting_m"] != [transform.a, -transform.e]
                 or not actual_crs.equals(declared_crs)
                 or list(dataset.shape) != manifest["shape"]
                 or list(transform)[:6] != manifest["affine"]
