@@ -16,6 +16,8 @@ Add a primary entry to the registry only after approval.
 
 ## First screens
 
+Screens 1–3 are implemented in `src/mission/`. Screen 4 is not started. Evidence is accepted only when its `package_id@package_version` matches the selected site's registry entry. The simulation discards superseded or mismatched plan responses and stores closures and remaining time under `return-window-mission/scenario/v1/<pack_id>@<pack_version>`.
+
 1. **Site evidence.** Site header from config plus the evidence panel from `GET /api/v1/evidence`: product, native sampling, usable support, missing requirement, supported fallback and the `provenance_unverified` label. Show distinct states for an unset site, an invalid site, evidence not configured (503) and service unavailable.
 2. **Simulation switch.** One explicit action, "Enter simulated Marswalk". From that point the `SIMULATION` tag stays visible. The real-site view and the simulation never share a map.
 3. **Simulated Marswalk.** The fixture's 3×5 grid in its own SVG panel, placed with the `/site` shape, `row_col` order and pixel-centre affine. Includes checkpoint and shelter, closure toggles (`mid`, `north`), remaining-time control, return-margin card, travel / dwell / reserve timeline and the task list with `survey-done` retained. Show the recommendation, or the refusal `RETURN_OVER_RESERVE` or `NO_RETURN_ROUTE` with no recommendation.

@@ -1,34 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getHealth } from './api'
 import type { Health } from './api'
-import { configuredSite } from './site'
+import { SiteInvestigation } from './SiteInvestigation'
+import { Simulation } from './Simulation'
 import './mission.css'
 
-function SiteStatus() {
-  const selection = configuredSite
-  if (selection.state === 'unset') return (
-    <section className="mission-card" aria-labelledby="mission-site">
-      <p className="mission-kicker" id="mission-site">Site · unset</p>
-      <h2>No site selected</h2>
-      <p className="mission-muted">Primary site awaiting qualification and approval.</p>
-    </section>
-  )
-  if (selection.state === 'invalid') return (
-    <section className="mission-card mission-warn" aria-labelledby="mission-site">
-      <p className="mission-kicker" id="mission-site">Site · invalid</p>
-      <h2>Unknown site “{selection.value}”</h2>
-      <p className="mission-muted">VITE_RW_SITE does not match a registered site.</p>
-    </section>
-  )
-  const { site } = selection
-  const control = site.role === 'engineering_control'
-  return (
-    <section className="mission-card" aria-labelledby="mission-site">
-      <p className="mission-kicker" id="mission-site">Site · {control ? 'engineering control' : 'primary'}</p>
-      <h2>{site.label}</h2>
-      {control && <p className="mission-muted">Engineering control only. Not the primary demo site.</p>}
-    </section>
-  )
+type View = 'site' | 'simulation'
+const readView = (): View => new URLSearchParams(location.search).get('view') === 'simulation' ? 'simulation' : 'site'
+
+function useView() {
+  const [view, setViewState] = useState<View>(readView)
+  useEffect(() => {
+    const sync = () => setViewState(readView())
+    window.addEventListener('popstate', sync)
+    return () => window.removeEventListener('popstate', sync)
+  }, [])
+  const setView = useCallback((next: View) => {
+    const url = new URL(location.href)
+    if (next === 'simulation') url.searchParams.set('view', 'simulation')
+    else url.searchParams.delete('view')
+    history.pushState(null, '', url)
+    setViewState(next)
+    window.scrollTo(0, 0)
+  }, [])
+  return [view, setView] as const
 }
 
 function ServiceStatus() {
@@ -38,31 +33,47 @@ function ServiceStatus() {
     getHealth(controller.signal).then(setHealth, () => {})
     return () => controller.abort()
   }, [])
-  const label = health === null ? 'Checking…' : health.state === 'ready' ? 'Ready' : 'Unavailable'
+  const state = health?.state ?? 'checking'
+  const label = health === null ? 'Checking service' : health.state === 'ready' ? 'Service ready' : 'Service unavailable'
   return (
-    <section className="mission-card" aria-labelledby="mission-service">
-      <p className="mission-kicker" id="mission-service">Planning service</p>
-      <h2 role="status" data-state={health?.state ?? 'checking'}>{label}</h2>
-      {health?.state === 'unavailable' && <p className="mission-muted">{health.reason}</p>}
-    </section>
+    <span className="mission-health" data-state={state} role="status" title={health?.state === 'unavailable' ? health.reason : undefined}>
+      <i aria-hidden="true"/>{label}
+    </span>
   )
 }
 
 export default function Mission() {
+  const [view, setView] = useView()
+  const simulation = view === 'simulation'
+  useEffect(() => {
+    document.title = `${simulation ? 'Simulated Marswalk' : 'Site investigation'} · Return Window`
+  }, [simulation])
   return (
-    <main className="mission-app">
+    <main className="mission-app" data-view={view}>
       <header className="mission-masthead">
-        <p className="mission-brand">Return Window</p>
+        <a className="mission-brand" href="/mission">Return Window</a>
+        <div className="mission-crumbs">
+          {simulation ? (
+            <>
+              <button className="mission-link" onClick={() => setView('site')}>Site investigation</button>
+              <span aria-hidden="true">/</span>
+              <span>Simulated Marswalk</span>
+              <span className="mission-sim-tag" data-testid="simulation-tag">Simulation</span>
+            </>
+          ) : <span>Site investigation</span>}
+        </div>
         <nav className="mission-nav" aria-label="Workspaces">
+          <ServiceStatus/>
           <a href="/atlas">Mars Atlas</a>
           <a href="/">Architecture</a>
         </nav>
       </header>
-      <div className="mission-body">
-        <h1>Mission</h1>
-        <SiteStatus/>
-        <ServiceStatus/>
-      </div>
+      {simulation && (
+        <p className="mission-sim-banner" role="note">
+          <strong>Simulation.</strong> Synthetic fixture with test travel values on its own grid. Not real-site routing, not a safety or navigation prediction.
+        </p>
+      )}
+      {simulation ? <Simulation/> : <SiteInvestigation onEnterSimulation={() => setView('simulation')}/>}
     </main>
   )
 }
