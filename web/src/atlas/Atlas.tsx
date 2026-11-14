@@ -10,9 +10,10 @@ import type { MapMode, Mode, Profile, RasterAsset, Rating } from './data'
 import './atlas.css'
 
 const ResearchViewer=lazy(()=>import('./ResearchViewer').then(module=>({default:module.ResearchViewer})))
+const RankedAreas=lazy(()=>import('./RankedAreas'))
 const Comparison=lazy(()=>import('./Comparison').then(module=>({default:module.Comparison})))
 const storageKey='return-window-atlas/v1'
-const panels=['map','research','compare'] as const
+const panels=['map','research','compare','ranking'] as const
 const stateSchema=z.object({
   region:z.string().nullable().catch('06'),panel:z.enum(panels).catch('map'),
   compare:z.array(z.string()).catch([]),mode:z.enum(mapModes).catch('feature'),profile:z.enum(profiles).catch('rover'),
@@ -150,6 +151,7 @@ export default function Atlas() {
       </nav>
       <nav aria-label="Atlas tools" className="atlas-toolnav">
         <button className="button" aria-pressed={state.panel==='research'} onClick={()=>openResearch()}><BookOpen size={15}/> Research</button>
+        <button className="button" aria-pressed={state.panel==='ranking'} onClick={()=>change({panel:'ranking'})}>Ranked areas</button>
         <button className="button" aria-pressed={state.panel==='compare'} onClick={()=>change({panel:'compare'})}>Compare <span className="atlas-count">{compare.length}</span></button>
       </nav>
     </header>
@@ -230,6 +232,7 @@ export default function Atlas() {
     </>:<Suspense fallback={<p className="atlas-loading" role="status">Opening research…</p>}>
       {state.panel==='research'?<ResearchViewer region={selected ?? byRegion.get('06')!}
         select={id=>change({region:id})} back={returnToMap}/>:
+        state.panel==='ranking'?<RankedAreas/>:
         <div className="atlas-compare-shell"><div className="atlas-compare-top"><button className="button" onClick={returnToMap}><ArrowLeft size={14}/> Back to map</button>
           <label>Mission profile <select value={state.profile} onChange={e=>change({profile:e.target.value as Profile},true)}>{profiles.map(profile=><option key={profile} value={profile}>{profileLabels[profile]}</option>)}</select></label></div>
           <Comparison profile={state.profile} ids={compare} toggle={toggleCompare} openMap={id=>select(id,true)} openResearch={openResearch}/></div>}

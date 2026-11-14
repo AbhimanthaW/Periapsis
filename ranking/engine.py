@@ -15,6 +15,7 @@ from .inputs import N
 from .ledger import load
 from .lexicon import Parser, effective_negations
 from .pack import Pack
+from .risk import TerrainRisk
 
 
 SWIM_CONCEPTS = {"ice", "ice-shallow", "ice-deep"}
@@ -119,6 +120,7 @@ class Engine:
         self.neighbours = np.asarray(pack["neighbours"])
         self.records = np.asarray(pack["records"])
         self.real_support = np.asarray(pack["support"])
+        self.terrain_risk = TerrainRisk(self)
         self.cross_edges = tile_cross_edges(self.neighbours)
         self.database = (pack.directory / "cells.sqlite").resolve().as_uri() + "?mode=ro"
 
@@ -279,6 +281,7 @@ class Engine:
             areas.append({"rank": rank, "tile": int(cells[0]) >> 4, "cells": [f"HPX128:{i}" for i in cells],
                 "best_cell": f"HPX128:{best}", "tier": tier,
                 "match_mean": int(values.sum(dtype=np.uint64) // len(values)), "match_best": int(values[best_offset]),
+                "safety_risk": self.terrain_risk.assess(cells),
                 "concepts": per_concept, "records": dict(zip(("ctx", "hirise", "dtm", "crism"), map(int, count))),
                 "method": "compatible" if method_mask is None or bool(method_mask[cells].any()) else "not established",
                 "sparse": bool(sparse[cells].any()), "label": label,
