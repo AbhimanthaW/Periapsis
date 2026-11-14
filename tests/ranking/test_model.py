@@ -136,16 +136,28 @@ def test_filters_and_response_stability(service):
 
 
 DEMO_OBJECTIVES = ("alluvial fans", "valley networks", "clays", "sulfates", "carbonates",
-                   "silica", "glacial landforms", "magnetism", "olivine")
+                   "silica", "glacial landforms", "magnetism", "olivine", "stratigraphy",
+                   "hydrothermal", "climate", "ocean", "groundwater", "periglacial",
+                   "layered deposits")
+
+
+def test_no_concept_left_unsupported():
+    assert not [item["id"] for item in load() if item["status"] == "unsupported"]
 
 
 def test_demo_layers_fill_top_twenty(service, demo_service):
-    receipt = demo_service.engine.pack.manifest["synthetic_layers"][0]
+    engine = demo_service.engine
+    receipt = engine.pack.manifest["synthetic_layers"][0]
     assert receipt["synthetic"] is True and receipt["seed"] == 20261114
     controls = receipt["seeded_controls"]
-    assert sorted(controls) == sorted(item["id"] for item in load() if item["status"] == "demo")
+    demo_ids = sorted(item["id"] for item in load() if item["status"] == "demo")
+    assert sorted(controls) == [cid for cid in demo_ids if cid != "magnetism"]
     assert all(len(points) == 8 for points in controls.values())
     assert controls["delta"] == receipt["delta_controls"]
+    assert all(30 <= abs(lat) <= 50 for _, lat in controls["glacial-landform"])
+    assert len(receipt["magnetism_sources"]) == 16
+    magnetism = engine.ids["magnetism"]
+    assert np.unpackbits(engine.pack["covered_demo"][magnetism], count=196608).all()
     for objective in DEMO_OBJECTIVES:
         request = RankRequest(schema_version=1, request_id="demo-density", objective=objective,
                               include_demo=True, limit=20)

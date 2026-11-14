@@ -16,10 +16,14 @@ from .inputs import N
 from .ledger import load
 
 
-CACHE_RULE_VERSION = "ranking-layers-v4"
+CACHE_RULE_VERSION = "ranking-layers-v5"
 DEMO_CENTRES = 8
 DEMO_SEPARATION_KM = 500
 DEMO_DELTA_CLEARANCE_KM = 600
+DEMO_FIELD_SOURCES = 16
+DEMO_FIELD_ALTITUDE_KM = 150
+LEGACY_DEMO = ("delta", "alluvial-fan", "valley-network", "clays", "sulfates", "carbonates",
+               "silica", "glacial-landform", "magnetism", "olivine")
 
 
 def _cache_key(directory: Path, layer: str, sources: tuple[str, ...], parameters: dict) -> str:
@@ -283,45 +287,80 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
                 + np.cos(lat[index]) * np.cos(np.deg2rad([y for _, y in points]))
                 * np.cos(lon[index] - np.deg2rad([x for x, _ in points])), -1, 1))
 
-        # Densify every other DEMO layer to DEMO_CENTRES fixed-seed centres so
+        # Densify the legacy DEMO layers to DEMO_CENTRES fixed-seed centres so
         # each can fill a top-20 ranking. The first centre is unchanged. New
         # centres are drawn after the delta controls, so the delta stream and
         # its pinned cells are unchanged, and they stay DEMO_DELTA_CLEARANCE_KM
         # from every delta control so the headline DEMO objective is untouched.
-        # The eligible terrain matches each layer's footprint restriction.
+        # Glacial landforms, magnetism and the seven formerly unsupported layers use
+        # a second fixed stream so the legacy draws keep their order.
+        # Masks are for visual plausibility only, never evidence.
         ages_any = unit_ages[:, 0] | unit_ages[:, 1]
-        for k, item in enumerate(x for x in concepts if x["status"] == "demo"):
-            cid = item["id"]
-            if cid == "delta":
-                continue
-            points = controls.setdefault(cid, [centres[k]])
-            eligible = np.abs(latitudes) < 55
-            if cid in {"alluvial-fan", "valley-network"}:
-                eligible &= ages_any
-            elif cid == "clays":
-                eligible &= unit_ages[:, 0]
-            for index in rng.permutation(np.flatnonzero(eligible)):
-                if (separation_km(index, points).min() >= DEMO_SEPARATION_KM
+        abs_lat = np.abs(latitudes)
+        everywhere = np.ones(N, dtype=np.bool_)
+        footprint_mask = {
+            "delta": ages_any, "alluvial-fan": ages_any, "valley-network": ages_any,
+            "clays": unit_ages[:, 0], "hydrothermal": ages_any,
+            # Levy et al. (2014) mapped these landforms within roughly 30-50 degrees.
+            "glacial-landform": (abs_lat >= 30) & (abs_lat <= 50),
+            "periglacial": (abs_lat >= 35) & (abs_lat <= 58),
+            "ocean": real[ids["lowland"]] >= 128,
+        }
+        demo_ids = [x["id"] for x in concepts if x["status"] == "demo"]
+        extended = [cid for cid in demo_ids if cid not in LEGACY_DEMO]
+
+        def place(cid, stream, points):
+            eligible = footprint_mask.get(cid, everywhere) & (abs_lat < 55)
+            for index in stream.permutation(np.flatnonzero(eligible)):
+                if ((not points or separation_km(index, points).min() >= DEMO_SEPARATION_KM)
                         and separation_km(index, controls["delta"]).min() >= DEMO_DELTA_CLEARANCE_KM):
                     points.append((float(longitudes[index]), float(latitudes[index])))
                 if len(points) == DEMO_CENTRES:
                     break
             if len(points) != DEMO_CENTRES:
                 raise ValueError(f"unable to place the fixed-seed DEMO controls for {cid}")
+            controls[cid] = points
+
+        for k, cid in enumerate(LEGACY_DEMO):
+            if cid not in {"delta", "glacial-landform", "magnetism"}:
+                place(cid, rng, controls.get(cid, [centres[k]]))
+        second = np.random.default_rng([20261114, 2])
+        for cid in ("glacial-landform", *extended):
+            place(cid, second, [])
         demo_receipt["seeded_controls"] = {cid: points for cid, points in sorted(controls.items())}
-        for k, item in enumerate(x for x in concepts if x["status"] == "demo"):
+        for cid in demo_ids:
+            if cid == "magnetism":
+                continue
             distance = np.full(N, np.inf)
-            for c_lon, c_lat in controls.get(item["id"], [centres[k]]):
+            for c_lon, c_lat in controls[cid]:
                 angular = np.sin(lat) * np.sin(np.deg2rad(c_lat)) + np.cos(lat) * np.cos(np.deg2rad(c_lat)) * np.cos(lon - np.deg2rad(c_lon))
                 distance = np.minimum(distance, 3389.5 * np.arccos(np.clip(angular, -1, 1)))
-            footprint = distance < 250
-            if item["id"] in {"delta", "alluvial-fan", "valley-network"}:
-                footprint &= unit_ages[:, 0] | unit_ages[:, 1]
-            if item["id"] == "clays":
-                footprint &= unit_ages[:, 0]
-            j = ids[item["id"]]
+            footprint = (distance < 250) & footprint_mask.get(cid, everywhere)
+            j = ids[cid]
             demo[j, footprint] = np.rint(255 * np.exp(-0.5 * (distance[footprint] / 100) ** 2)).astype(np.uint8)
             demo_covered[j, footprint] = True
+        # A global synthetic field, because a real crustal-field model would
+        # give a value in every cell. Buried sources sit under old terrain.
+        # Each adds a dipole-like magnitude K h / r^3 seen from DEMO_FIELD_ALTITUDE_KM.
+        sources = []
+        for index in second.permutation(np.flatnonzero(unit_ages[:, 0] & (abs_lat < 70))):
+            if not sources or separation_km(index, [s[:2] for s in sources]).min() >= 600:
+                sources.append((float(longitudes[index]), float(latitudes[index]),
+                                round(float(second.uniform(0.5, 1.5)), 4)))
+            if len(sources) == DEMO_FIELD_SOURCES:
+                break
+        field = np.zeros(N)
+        h = DEMO_FIELD_ALTITUDE_KM
+        for c_lon, c_lat, strength in sources:
+            angular = np.sin(lat) * np.sin(np.deg2rad(c_lat)) + np.cos(lat) * np.cos(np.deg2rad(c_lat)) * np.cos(lon - np.deg2rad(c_lon))
+            d = 3389.5 * np.arccos(np.clip(angular, -1, 1))
+            field += strength * h ** 3 / (d ** 2 + h ** 2) ** 1.5
+        reference = float(np.quantile(field, 0.99))
+        j = ids["magnetism"]
+        demo[j] = np.rint(255 * np.clip(field / reference, 0, 1)).astype(np.uint8)
+        demo_covered[j] = True
+        demo_receipt["magnetism_sources"] = sources
+        demo_receipt["magnetism_altitude_km"] = h
         # Reuse the repository's documented 28-cell science fixture. The
         # seeded geographic patterns above remain separate software controls.
         from marsdoc import DocumentationEngine, Package

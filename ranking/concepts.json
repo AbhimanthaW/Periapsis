@@ -65,14 +65,14 @@
     {"id":"carbonates","status":"demo","facet":"material","broader":["aqueous-alteration"],"source":"synthetic","support":"seeded-spatial","coverage":"demo-footprint"},
     {"id":"silica","status":"demo","facet":"material","broader":["hydrated-minerals"],"source":"synthetic","support":"seeded-spatial","coverage":"demo-footprint"},
     {"id":"glacial-landform","status":"demo","facet":"landform","broader":["ice"],"source":"synthetic","support":"seeded-spatial","coverage":"demo-footprint"},
-    {"id":"magnetism","status":"demo","facet":"process","broader":[],"source":"synthetic","support":"seeded-spatial","coverage":"demo-footprint"},
+    {"id":"magnetism","status":"demo","facet":"process","broader":[],"source":"synthetic","support":"seeded-spatial","coverage":"demo-global"},
     {"id":"olivine","status":"demo","facet":"material","broader":[],"source":"synthetic","support":"seeded-spatial","coverage":"demo-footprint"},
-    {"id":"stratigraphy","status":"unsupported","facet":"process","broader":[],"source":"none","support":"none","coverage":"none"},
-    {"id":"hydrothermal","status":"unsupported","facet":"process","broader":[],"source":"none","support":"none","coverage":"none"},
-    {"id":"climate","status":"unsupported","facet":"process","broader":[],"source":"none","support":"none","coverage":"none"},
-    {"id":"ocean","status":"unsupported","facet":"process","broader":[],"source":"none","support":"none","coverage":"none"},
-    {"id":"groundwater","status":"unsupported","facet":"process","broader":[],"source":"none","support":"none","coverage":"none"},
-    {"id":"periglacial","status":"unsupported","facet":"process","broader":[],"source":"none","support":"none","coverage":"none"},
-    {"id":"layered-deposits","status":"unsupported","facet":"landform","broader":[],"source":"none","support":"none","coverage":"none"}
+    {"id":"stratigraphy","status":"demo","facet":"process","broader":[],"source":"synthetic","support":"seeded-spatial","coverage":"demo-footprint"},
+    {"id":"hydrothermal","status":"demo","facet":"process","broader":[],"source":"synthetic","support":"seeded-spatial","coverage":"demo-footprint"},
+    {"id":"climate","status":"demo","facet":"process","broader":[],"source":"synthetic","support":"seeded-spatial","coverage":"demo-footprint"},
+    {"id":"ocean","status":"demo","facet":"process","broader":[],"source":"synthetic","support":"seeded-spatial","coverage":"demo-footprint"},
+    {"id":"groundwater","status":"demo","facet":"process","broader":[],"source":"synthetic","support":"seeded-spatial","coverage":"demo-footprint"},
+    {"id":"periglacial","status":"demo","facet":"process","broader":[],"source":"synthetic","support":"seeded-spatial","coverage":"demo-footprint"},
+    {"id":"layered-deposits","status":"demo","facet":"landform","broader":[],"source":"synthetic","support":"seeded-spatial","coverage":"demo-footprint"}
   ]
 }

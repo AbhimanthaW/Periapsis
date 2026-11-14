@@ -36,8 +36,10 @@ boundary cells have two unit records; counting both group associations gives
 different totals. The input gate reports the number of two-unit cells so this
 choice stays explicit.
 
-`concepts.json` lists 72 concepts: 25 live, 2 flagged live, 28 catalogue,
-10 demo and 7 unsupported. The parser uses `lexicon.json` forms and reports
+`concepts.json` lists 72 concepts: 25 live, 2 flagged live, 28 catalogue
+and 17 demo. No concept is left unsupported; the seven without any source
+(stratigraphy, hydrothermal, climate, ocean, groundwater, periglacial and
+layered deposits) are DEMO-only until a real layer is pinned. The parser uses `lexicon.json` forms and reports
 negated, unsupported, demo and unknown words. Catalogues without survey masks
 report missing detections as `Not reported`. MOLA, measured TES and SWIM each
 keep their own coverage. Records and method compatibility stay separate from
@@ -54,7 +56,15 @@ drawn after the delta controls. Each centre is at least 500 km from the
 layer's other centres and 600 km from every delta control, on the same terrain
 restriction as its footprint, so every DEMO concept can fill a top-20 ranking
 and the delta objective is unchanged. `seeded_controls` in the manifest lists
-all centres. Its manifest records the fixture digest, seed and `synthetic: true`.
+all centres. Glacial landforms and the seven formerly unsupported layers
+draw 8 centres from a second fixed stream, `[20261114, 2]`. Glacial centres
+stay within 30-50 degrees, the band Levy et al. (2014) mapped; ocean stays on
+lowland units, hydrothermal on Noachian or Hesperian units and periglacial
+within 35-58 degrees. Magnetism is a global synthetic field instead of
+footprints, because a crustal-field model gives a value in every cell: 16
+seeded sources under Noachian terrain, each adding `K h^3 / (d^2 + h^2)^1.5`
+at h = 150 km, scaled so the 99th percentile is full support. These masks are
+visual plausibility only. Its manifest records the fixture digest, seed and `synthetic: true`.
 Demo support is separate from real
 support, including propagated and derived concepts; the API requires
 `include_demo: true` to use it. `--release --with-demo` fails.
