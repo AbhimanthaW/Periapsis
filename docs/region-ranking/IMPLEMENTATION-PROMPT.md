@@ -266,9 +266,9 @@ Reuse and adapt `docs/region-ranking/prototype/rank_regions.py`:
 4. A negation cue (`not`, `no`, `without`, `excluding`, `except`) binds to the **next** concept only.
 5. Classify each token: concept (by status), stop word, generic word, or unknown.
 6. Output: `concepts[]` (id, status, weight, idf), `negated[]`, `demo[]`, `unsupported[]`, `unknown[]`, `confidence` (recognised content tokens over all content tokens).
-7. **Abstain** when no `live`, `live-flagged`, `catalogue` or `demo` concept is recognised: return the parse report and no ranking.
+7. **Abstain** when no scoring concept remains after applying the DEMO policy: return the parse report and no ranking. DEMO concepts, including negations, can affect ranking only when `include_demo` is true.
 
-The canonical query key is the sorted concept IDs, sorted negations, method, sorted exclusions and the pack digest. Two objectives that parse identically share one cache entry.
+Key the ranking cache by the sorted effective scoring concept IDs, sorted effective negations, method, sorted exclusions, `include_demo`, and pack digest. Objectives with the same ranking inputs can share an entry even when their parse reports differ.
 </parser>
 
 <scoring>
@@ -365,6 +365,8 @@ Add to `runtime/planning_api.py`, matching its validation and error style.
 
 Validation: `objective` 1–300 characters; `method` one of the three or null; `exclude` subset of `polar`, `volcanic`; `limit` 1–500. `include_demo` must be true for any DEMO concept to contribute to the score. When false, DEMO concepts are listed in the parse report as *demo data excluded*.
 
+Cache the ordered areas up to the API maximum of 500, together with counts and the heat layer computed from the full eligible cell set. On every request, build the parse report from the submitted objective, apply `limit` to the ordered areas, and echo that request's `request_id`. Apply the same response assembly on cache hits and misses.
+
 Response:
 
 ```json
@@ -415,10 +417,10 @@ Required techniques:
 4. Hierarchy and derived concepts folded at build time.
 5. Packed bitsets for coverage, filters and gates.
 6. Tile aggregation by `reshape(-1, 16)`.
-7. Max-pyramid upper bounds to skip tiles that cannot enter the top `limit` (measured 0.06 ms against 0.28 ms).
+7. Consider max-pyramid pruning only if it preserves grouping, counts, the heat layer, and the first 500 ordered areas. Benchmark it against the unpruned result.
 8. Grouping only over Direct cells with the stored neighbour table.
 9. `argpartition` for top-k, then a stable sort of the survivors.
-10. LRU cache keyed by the canonical query key, including the pack digest.
+10. LRU cache of ranking data keyed by the effective scoring inputs, DEMO policy, and pack digest.
 11. Areas and a 12 KB heat layer in the response, never per-cell arrays.
 12. One streaming pass over each NDJSON input at build time.
 13. Content-addressed per-layer cache keyed by input digest and rule version.
@@ -448,6 +450,7 @@ All must pass in CI before the PR is ready.
 | 13 | Sensitivity | Moving each ramp threshold by ±20 % keeps ≥ 80 % of the top-20 areas for each golden objective |
 | 14 | Performance | Every budget in `<performance>` |
 | 15 | API contract | Strict validation, the three error codes, and schema tests for both endpoints |
+| 16 | Cache isolation | Warm the cache with a DEMO-backed query and repeat it with `include_demo: false`. Compare both results with cold runs and confirm the disabled response has no DEMO-backed areas. Repeat a query with the same scoring inputs and different unsupported terms, limits and request IDs. Each response has its own parse report, limit and ID, and the area order matches a cold run. |
 
 Golden objectives (store expected top-20 area IDs after the first reviewed build):
 `ancient lakes`, `shallow ice`, `young volcanism and lava flows`, `tectonic grabens`, `chloride deposits in Noachian terrain`, `cave candidates`, `ancient water and delta deposits` (with `include_demo: true`, labelled DEMO).
@@ -461,7 +464,7 @@ Stop and report after each phase. Do not start the next until the report is post
 3. **Layers.** One function per layer in `layers.py`, each returning `(support: uint8[N], covered: bool[N], reported: bool[N] | None, receipt: dict)`. Demo layers last, behind a `--with-demo` flag.
 4. **Pack.** `build.py` and `pack.py`. Tests 1–4, 6, 12.
 5. **Engine.** Score, states, tiers, filters, gates, grouping, ordering. Tests 9–11, 13. Benchmark.
-6. **Service.** Endpoints, cache, detail store. Tests 5, 14, 15.
+6. **Service.** Endpoints, cache, detail store. Tests 5, 14–16.
 7. **Report.** Final PR description in the format in `<report>`.
 </work_order>
 

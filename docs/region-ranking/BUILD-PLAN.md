@@ -172,9 +172,9 @@ Climate, ocean, stratigraphy and hydrothermal stay unsupported. No defensible ru
 ```mermaid
 flowchart TD
   A[Objective text + chips] --> B[Normalise · stem · phrase match]
-  B --> C{Any supported<br/>concept?}
+  B --> C{Any scoring concept<br/>after DEMO policy?}
   C -->|no| Z[Abstain<br/>return parse report only]
-  C -->|yes| D[Canonical query key<br/>sorted concept IDs + chips + pack version]
+  C -->|yes| D[Ranking cache key<br/>effective concepts and negations, method,<br/>exclusions, DEMO policy, pack digest]
   D --> E{In cache?}
   E -->|yes| O
   E -->|no| F[Score = Σ weight × idf × support<br/>integer fixed point]
@@ -184,7 +184,8 @@ flowchart TD
   I --> J[Group Direct cells<br/>8-neighbour, split at Nside-32]
   J --> K[Order areas<br/>tier · mean score · size · lowest cell ID]
   K --> L[Attach best cell, per-concept support,<br/>records counts, point targets]
-  L --> O[Response + cache store]
+  L --> M[Cache ordered areas up to 500,<br/>counts and heat layer]
+  M --> O[Assemble response<br/>current request ID, parse report and limit]
 ```
 
 ```mermaid
@@ -193,7 +194,7 @@ sequenceDiagram
   participant S as Rank service
   participant P as Ranking pack
   participant D as cells.sqlite
-  U->>S: POST /api/v1/rank {objective, method, exclude}
+  U->>S: POST /api/v1/rank {request_id, objective, method, exclude, include_demo, limit}
   S->>S: parse → concepts, unsupported, unknown
   S->>P: read 2–5 support rows (memory map)
   S->>S: score, tier, filter, group
@@ -247,10 +248,10 @@ Timings are from `cell-profile/bench.py` on the real records, one core, NumPy.
 | 5 | Hierarchy folded in at build time | Build | A parent concept costs one row, not a tree walk |
 | 6 | Bitsets for filters, gates and coverage | Filter | 24.6 KB each. An AND takes about 1 µs |
 | 7 | Tile aggregation by reshape | Group | Nested order makes a tile 16 consecutive cells. 0.57 ms for all 12,288 tiles |
-| 8 | Max-pyramid upper bounds | Score | Score only tiles that can reach the top. 0.06 ms against 0.28 ms. Use when top-k is small |
+| 8 | Max-pyramid upper bounds | Score | Explore only if pruning preserves grouping, counts, the heat layer, and the cached top 500 areas |
 | 9 | Grouping only over Direct cells with the stored neighbour table | Group | 6.5 ms for 19,482 cells into 3,573 areas |
 | 10 | Partial sort for top-k | Rank | Avoids a full sort of 196,608 scores |
-| 11 | Canonical query key and LRU cache | Service | Different wordings of one objective hit the same entry |
+| 11 | Ranking cache key and LRU cache | Service | Share ranking data for equivalent scoring inputs. Apply the current parse report, request ID and result limit when building each response |
 | 12 | Phrase trie compiled once | Parse | Linear in objective length |
 | 13 | Areas and a 12 KB heat layer in the response, not cells | Response | Small payload. Cell detail is fetched on click |
 | 14 | Detail by primary key from the existing `cells.sqlite` | Service | No record parsing at query time |
