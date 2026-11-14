@@ -7,6 +7,7 @@ import gzip
 from hashlib import file_digest
 from io import BytesIO, StringIO
 import json
+import re
 from pathlib import Path
 from urllib.request import Request, urlopen
 from zipfile import ZipFile
@@ -26,7 +27,8 @@ SUBGRID = Grid(1024)
 CHILDREN = (SUBGRID.nside // GRID.nside) ** 2
 SPHERE = Geod(a=RADIUS_M, f=0)
 GAZETTEER_EXTENT_TYPES = {"CH", "CM", "FO", "LB", "UN"}
-POINT_LAYERS = ("paleolakes", "chlorides", "gazetteer", "dunes", "cave_candidates", "marsquakes")
+POINT_LAYERS = ("paleolakes", "chlorides", "gazetteer", "dunes", "cave_candidates", "marsquakes",
+                "hydrated_mineral_sites")
 
 
 def digest(path):
@@ -82,6 +84,31 @@ def lake_points(root):
 def chloride_points(root):
     for row in csv_rows((root / "chlorides.csv").read_bytes()):
         yield point(row["FID_OsterlooEtAl2010Set"], row["Lon2"], row["Lat2"], label=row["Label"])
+
+
+def hydrated_mineral_points(root):
+    label = (root / "hydrous_sites_geo_map.lbl").read_text()
+    if (not re.search(r"^TARGET_NAME\s*=\s*MARS\s*$", label, re.MULTILINE)
+            or "given by its planetocentric coordinates" not in label):
+        raise ValueError("unexpected PDS hydrated mineral target or coordinates")
+    declared = re.search(r"^FILE_RECORDS\s*=\s*(\d+)\s*$", label, re.MULTILINE)
+    if not declared:
+        raise ValueError("missing PDS hydrated mineral record count")
+    seen = set()
+    with (root / "hydrous_sites_geo_map.csv").open(newline="", encoding="ascii") as stream:
+        count = 0
+        for count, (lon, lat, omega, crism) in enumerate(csv.reader(stream), start=1):
+            if not (omega or crism):
+                raise ValueError(f"missing observation identifier on hydrated mineral row {count}")
+            feature = point(f"HYDROUS_SITES_GEO_MAP:{count}", lon, lat,
+                            omega_edr=omega or None, crism_edr=crism or None,
+                            label=crism or omega)
+            key = (feature["lon_deg_east"], feature["lat_deg_planetocentric"], omega, crism)
+            if key not in seen:
+                seen.add(key)
+                yield feature
+        if count != int(declared[1]):
+            raise ValueError("PDS hydrated mineral row count differs from the label")
 
 
 def cave_points(root):
@@ -259,7 +286,7 @@ def join_sources(root):
     cells = defaultdict(dict)
     catalogue = {}
     for key, load in zip(POINT_LAYERS, (lake_points, chloride_points, named_points,
-                                       dune_points, cave_points, quake_points), strict=True):
+                                       dune_points, cave_points, quake_points, hydrated_mineral_points), strict=True):
         features = sorted(load(root), key=lambda item: item["id"])
         if not features or len({f["id"] for f in features}) != len(features):
             raise ValueError(f"empty catalogue or duplicate IDs: {key}")
@@ -314,7 +341,7 @@ def build(root, fetch=False, merge=False):
         stream.write(encode(catalogue))
     files = [supplement, features]
     manifest = {
-        "version": "ranking-layers-v1", "rows": GRID.count, "grid": "HPX128 NESTED",
+        "version": "ranking-layers-v2", "rows": GRID.count, "grid": "HPX128 NESTED",
         "source_lock_sha256": digest(LOCK),
         "sources": lock["datasets"],
         "source_features": {key: len(records) for key, records in catalogue.items()},

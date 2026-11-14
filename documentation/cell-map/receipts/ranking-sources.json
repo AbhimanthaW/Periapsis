@@ -1,5 +1,5 @@
 {
-  "version": "ranking-sources-v1",
+  "version": "ranking-sources-v2",
   "datasets": {
     "paleolakes": {
       "publication": "https://www.jsg.utexas.edu/goudge/shared-data/",
@@ -90,6 +90,22 @@
           "url": "https://service.earthscope.org/irisws/mars-event/1/query?locationquality=A,B&format=text",
           "bytes": 23975,
           "sha256": "4aa2d15a35df41f271daa1cd00808316e9ec4ecdfd74084f1dab70f9bca2232b"
+        }
+      }
+    },
+    "hydrated_mineral_sites": {
+      "publication": "https://pds-geosciences.wustl.edu/mex/mex-m-omega-5-ddr-global-maps-v1/mexomg_2000/data/hydrous/",
+      "scope": "NASA PDS MEX-M-OMEGA-5-DDR-GLOBAL-MAPS-V1.0, Carter et al. 2013 OMEGA and CRISM hydrated-mineral detections, with no per-site mineral classes or survey mask",
+      "files": {
+        "hydrous_sites_geo_map.csv": {
+          "url": "https://pds-geosciences.wustl.edu/mex/mex-m-omega-5-ddr-global-maps-v1/mexomg_2000/data/hydrous/hydrous_sites_geo_map.csv",
+          "bytes": 55500,
+          "sha256": "e1ca76b883057f2dbc0fcc8b5d51da541834cdb8b45dbc9d83d2bcfd42c5f797"
+        },
+        "hydrous_sites_geo_map.lbl": {
+          "url": "https://pds-geosciences.wustl.edu/mex/mex-m-omega-5-ddr-global-maps-v1/mexomg_2000/data/hydrous/hydrous_sites_geo_map.lbl",
+          "bytes": 5378,
+          "sha256": "927e9f65b93c4894f365983f132957d5ba7e56ada0837ac666492f0c2c0d8dee"
         }
       }
     }

@@ -50,13 +50,14 @@ Open `mars-cell-map-sourced.html` for the additional offline layers. The map hig
 |---|---:|---:|---|
 | [Goudge et al. paleolakes](https://www.jsg.utexas.edu/goudge/shared-data/) | 425 | 423 | Published open- and closed-basin locations |
 | [Leask and Ehlmann chloride sites](https://data.caltech.edu/records/kasms-vp209) | 642 | 500 | Published Osterloo site points as cross-referenced in the 2021 archive |
+| [NASA PDS hydrated-mineral sites](https://pds-geosciences.wustl.edu/mex/mex-m-omega-5-ddr-global-maps-v1/mexomg_2000/data/hydrous/) | 1,851 | 1,676 | Carter et al. 2013 OMEGA and CRISM detection points with source product IDs |
 | [USGS SIM 3292 structures](https://pubs.usgs.gov/sim/3292/) | 3,588 | 35,338 | Approximate line length in each cell, with the source interpretation |
 | [IAU/USGS Gazetteer](https://planetarynames.wr.usgs.gov/GIS_Downloads) | 2,054 | 1,974 centres and 40,914 approximate bounds | Published centres and selected adopted feature bounds for chaos, chasmata, fossae, labyrinthi and undae |
 | [USGS dune database](https://pubs.usgs.gov/publication/ofr20181164) | 1,462 | 1,351 | Equatorial and south polar Stability Index worksheet locations |
 | [USGS Cushing cave candidates](https://astrogeology.usgs.gov/search/map/mars_global_cave_candidate_catalog_v1_cushing) | 1,062 | 513 | Candidate entrances and published candidate type |
 | [InSight Marsquake Service](https://www.insight.ethz.ch/en/seismicity/catalog/v14/) | 189 | 25 | Estimated event locations from the EarthScope A/B location-quality query |
 
-[MOCAAS](https://www.ias.universite-paris-saclay.fr/moccas/) describes the aqueous mineral product. Its linked data ZIP returned HTTP 410 during retrieval, so this snapshot has no MOCAAS mineral-class values. The datasets marked Dummy in the workstream request are outside this build.
+[MOCAAS](https://www.ias.universite-paris-saclay.fr/moccas/) describes the aqueous mineral product. Its linked data ZIP returned HTTP 410 during retrieval, so this snapshot has no MOCAAS mineral-class values. The older NASA PDS point catalogue includes four duplicate rows that are collapsed. It records hydrated-mineral detections and supplies neither individual mineral classes nor the area surveyed. The datasets marked Dummy in the workstream request are outside this build.
 
 The loader maps catalogue coordinates to Nside 128 NESTED. It normalizes signed east longitude into [0, 360). The Goudge table labels longitude as east and latitude as north. The table leaves the latitude type unspecified, so the point join assumes the Mars planetocentric convention at this grid scale. Point rows establish a cell association at the supplied location. A candidate entrance, dune site or estimated event origin carries its original observational meaning. The Gazetteer export contains an identical duplicate feature ID that is collapsed. Dune worksheet row numbers disambiguate a published ID repeated at different coordinates.
 

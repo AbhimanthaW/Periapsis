@@ -30,6 +30,7 @@ if os.environ.get("RW_EXPANDED_VIEW") == "1":
 ranking_layers = {
     "paleolakes": "Published paleolake basins",
     "chlorides": "Published chloride sites",
+    "hydrated_mineral_sites": "NASA PDS hydrated-mineral detections",
     "structures": "USGS mapped structures · approximate km",
     "gazetteer": "IAU/USGS named feature centres",
     "gazetteer_approximate_bounds": "IAU/USGS named feature bounds · approximate",

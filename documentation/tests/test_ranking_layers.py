@@ -99,3 +99,18 @@ def test_source_digest_rejects_tampering(layers, tmp_path):
     snapshot.write_bytes(b"new")
     with pytest.raises(ValueError, match="does not match lock"):
         layers.verify(snapshot, receipt)
+
+
+def test_hydrated_points_preserve_products_and_deduplicate_exact_rows(layers, tmp_path):
+    label = tmp_path / "hydrous_sites_geo_map.lbl"
+    label.write_text("TARGET_NAME = MARS\nFILE_RECORDS = 3\ngiven by its planetocentric coordinates\n")
+    (tmp_path / "hydrous_sites_geo_map.csv").write_text(
+        "-5,14,,FRT001\n-5,14,,FRT001\n-5,14,ORB001,\n")
+    a, b = layers.hydrated_mineral_points(tmp_path)
+    assert a["crism_edr"] == "FRT001"
+    assert b["omega_edr"] == "ORB001"
+    assert a["lon_deg_east"] == b["lon_deg_east"] == 355
+    assert "mineral_class" not in a
+    label.write_text(label.read_text().replace("FILE_RECORDS = 3", "FILE_RECORDS = 4"))
+    with pytest.raises(ValueError, match="row count"):
+        list(layers.hydrated_mineral_points(tmp_path))
