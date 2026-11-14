@@ -64,6 +64,8 @@ synthetic_layers = {}
 synthetic_rows = {}
 example_id = "HPX128:96848"
 synthetic_bounds = None
+fixture_shapes = {}
+eva_examples = {}
 if synthetic_mode:
     from marsdoc.synthetic_science import FIELDS, METHODS, PREVIEW_BOUNDS, RECIPE
 
@@ -88,6 +90,33 @@ if synthetic_mode:
         synthetic_rows[index] = record["fields"]
     if grid.parse_id(example_id) not in synthetic_rows:
         raise ValueError("synthetic fixture lacks its example cell")
+
+    from marsdoc import DocumentationEngine, Package
+    from marsdoc.eva_context import CASES, read_data
+    from marsdoc.science_context import OLIVINE_THRESHOLD
+    from marsdoc.synthetic_science import DEPOSITS, SPECTRAL_TILES, SURVEY_PART, VALLEYS
+
+    def display_path(vertices):
+        x, y, z = vertices.T
+        return np.column_stack((np.rad2deg(np.arctan2(y, x)),
+                                np.rad2deg(np.arctan2(z, np.hypot(x, y))))).tolist()
+
+    fixture_shapes = {
+        "survey": [display_path(SURVEY_PART.rings[0])],
+        "deltas": [display_path(f.part.rings[0]) for f in DEPOSITS if f.kind == "scarp_fronted_deposit"],
+        "alluvial_fans": [display_path(f.part.rings[0]) for f in DEPOSITS if f.kind == "alluvial_fan"],
+        "glacial_landforms": [display_path(f.part.rings[0]) for f in DEPOSITS
+                              if f.kind in {"lobate_debris_apron", "lineated_valley_fill", "concentric_crater_fill"}],
+        "valley_networks": [display_path(f.vertices) for f in VALLEYS],
+        "olivine": [display_path(tile.part.rings[0]) for tile in SPECTRAL_TILES
+                    if tile.indices is not None and max(tile.indices) > OLIVINE_THRESHOLD],
+    }
+    package = Package(schema_version=1, package_id="offline-eva-preview", version="1",
+                      datasets=(), products=(), footprints=())
+    engine = DocumentationEngine(package)
+    anchors = {"synthetic": read_data("scenario-v1.json")["site_lon_lat"]}
+    anchors.update({key: item["anchor_lon_lat"] for key, item in read_data("historical-v1.json").items()})
+    eva_examples = {case: engine.eva_context(engine.grid.cell_at(anchors[case]).id, case=case) for case in CASES}
 
 
 def layer_label(key, identifier):
@@ -169,6 +198,7 @@ html = """<!doctype html>
 body{background:#161a21;color:#edf0f4;margin:0 auto;max-width:1180px;padding:1.5rem;font:16px system-ui}
 p{color:#b5bdc8;line-height:1.5}select,input,button{font:inherit;padding:.35rem;margin:.3rem 0}
 canvas{display:block;width:100%;height:auto;background:#252d39;cursor:crosshair;margin-top:1rem}
+#eva{margin:1rem 0}#eva table{width:100%;border-collapse:collapse}#eva td,#eva th{text-align:left;padding:.45rem;border-bottom:1px solid #465162}#eva p{margin:.4rem 0}
 #details{white-space:pre-wrap;line-height:1.6;padding:1rem;background:#222935}
 </style>
 <h1>__MAP_TITLE__</h1>
@@ -181,6 +211,7 @@ __SYNTHETIC_NOTE__
 __SCIENCE_OPTIONS__
 </select></label>
 <form id="search"><label>Cell ID <input id="cell" value="__EXAMPLE_ID__"></label> <button>Inspect</button></form>
+__PREVIEW_CONTROLS__
 <canvas width="1440" height="720" id="map" aria-label="Mars evidence map. Use the cell ID input for keyboard inspection."></canvas>
 <p id="legend"></p><section id="details" aria-live="polite">Loading local evidence…</section>
 <p>MOLA values sample the native pixel at the cell centre. Catalogue coverage reflects imported outlines.
@@ -209,6 +240,9 @@ albedo:[20,0,.5,[38,42,55],[252,219,157],'TES Lambert albedo · dimensionless; d
 const sourcedLayers = __RANKING_LAYERS__;
 const syntheticLayers = __SYNTHETIC_LAYERS__;
 const syntheticRows = __SYNTHETIC_ROWS__;
+const fixtureShapes = __FIXTURE_SHAPES__;
+const evaExamples = __EVA_EXAMPLES__;
+const cellColors = document.querySelector('#cell-colors');
 const syntheticStyle = (key,id) => {
   const record = syntheticRows[id]?.[key];
   if (record == null) return [34,42,55];
@@ -228,15 +262,19 @@ Promise.all([unpack('__PIXELS__'),unpack('__DATA__'),localRaster]).then(([bytes,
   let selected = Number(field.value.split(':')[1]), background, displayedIds = ids;
   function renderLayer() {
     const syntheticLayer = Object.hasOwn(syntheticLayers, layer.value);
+    const shapeMode = syntheticLayer && Object.hasOwn(fixtureShapes, layer.value) && !cellColors.checked;
+    if (cellColors) cellColors.disabled = !syntheticLayer || !Object.hasOwn(fixtureShapes, layer.value);
     const sourcedLayer = Object.hasOwn(sourcedLayers, layer.value);
     const sourcedPalette = [21,0,1,[34,42,55],[126,227,194],
       sourcedLayers[layer.value] + ' · bright cells contain imported records'];
     const [index,low,high,start,end,label] = sourcedLayer ? sourcedPalette : palettes[layer.value] ?? [];
     legend.textContent = syntheticLayer
-      ? syntheticLayers[layer.value][0] + ' · fixture area near 0° E · bright is positive, dim is zero, grey has no fixture value'
+      ? syntheticLayers[layer.value][0] + (shapeMode
+        ? ' · synthetic input geometry near 0° E · dashed line is the fixture survey boundary'
+        : ' · HEALPix cell summaries · bright is positive, dim is zero, grey has no fixture value')
       : label;
     const colors = data.map((row,id) => {
-      if (syntheticLayer) return syntheticStyle(layer.value,id);
+      if (syntheticLayer) return shapeMode ? [34,42,55] : syntheticStyle(layer.value,id);
       if (sourcedLayer) return Object.hasOwn(row[index], layer.value) ? end : start;
       if (layer.value === 'geology') {
         const code = row[9][0]?.[0];
@@ -257,6 +295,28 @@ Promise.all([unpack('__PIXELS__'),unpack('__DATA__'),localRaster]).then(([bytes,
     for (let i=0;i<displayedIds.length;i++) {
       background.data.set(colors[displayedIds[i]],i*4);
       background.data[i*4+3] = 255;
+    }
+    if (shapeMode) {
+      ctx.putImageData(background,0,0);
+      const [west,south,east,north] = syntheticBounds;
+      function draw(paths, color, fill, dash) {
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 3;
+        ctx.setLineDash(dash);
+        for (const path of paths) {
+          ctx.beginPath();
+          for (const [lon,lat] of path) {
+            ctx.lineTo((lon-west)*view.width/(east-west),(north-lat)*view.height/(north-south));
+          }
+          if (fill) ctx.fill();
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+      }
+      draw(fixtureShapes.survey,'#aeb9c9',false,[8,6]);
+      draw(fixtureShapes[layer.value],'#e89aff',layer.value !== 'valley_networks',[]);
+      background = ctx.getImageData(0,0,view.width,view.height);
     }
     if (sparse.has(layer.value)) {
       for (const row of data) {
@@ -327,6 +387,45 @@ Promise.all([unpack('__PIXELS__'),unpack('__DATA__'),localRaster]).then(([bytes,
     ].filter(Boolean).join('\\n');
   }
   layer.addEventListener('change',renderLayer);
+  cellColors?.addEventListener('change',renderLayer);
+  const evaCase = document.querySelector('#eva-case');
+  if (evaCase) {
+    const names = {
+      co2_accumulation_removal_load:'CO₂ accumulation / removal load',
+      remaining_eva_duration:'Remaining EVA duration',
+    };
+    const section = document.querySelector('#eva-fields');
+    const scope = document.querySelector('#eva-scope');
+    function showEva() {
+      const example = evaExamples[evaCase.value];
+      scope.textContent = example.cell_id + ' · ' + (example.source_scope || 'Synthetic EVA scenario')
+        + ' Crew and suit values are synthetic. The example is independent of the selected map cell.';
+      section.replaceChildren();
+      for (const [key,item] of Object.entries(example.fields)) {
+        const tr = section.insertRow();
+        const name = names[key] || key.replaceAll('_',' ').replace(/^./, c => c.toUpperCase());
+        const value = item.value == null ? 'Unavailable' : typeof item.value === 'number'
+          ? item.value.toLocaleString(undefined,{maximumFractionDigits:5}) + ' ' + item.unit
+          : item.value.replaceAll('_',' ');
+        for (const text of [name,value,item.data_status.replaceAll('_',' ')]) tr.insertCell().textContent = text;
+        if (item.source) {
+          const link = document.createElement('a');
+          link.href = item.source;
+          link.textContent = 'Source';
+          link.style.color = '#a8d4ff';
+          tr.cells[2].append(' · ', link);
+        }
+        if (item.scope) tr.cells[2].title = item.scope;
+      }
+    }
+    evaCase.addEventListener('change',showEva);
+    document.querySelector('#eva-locate').addEventListener('click',() => {
+      layer.value = 'elevation';
+      selected = Number(evaExamples[evaCase.value].cell_id.split(':')[1]);
+      renderLayer();
+    });
+    showEva();
+  }
   view.addEventListener('click',event => {
     const rect=view.getBoundingClientRect();
     const x=Math.min(1439,Math.max(0,Math.floor((event.clientX-rect.left)*1440/rect.width)));
@@ -372,11 +471,23 @@ if ranking_mode:
              "InSight locations are estimates. Empty cells indicate unknown survey coverage.")
 title = "Mars HEALPix evidence map"
 banner = ""
+controls = ""
 if synthetic_mode:
     options += '<optgroup label="Synthetic test layers">' + "".join(
         f'<option value="{key}">{escape(title)}</option>' for key, (title, _) in synthetic_layers.items()
     ) + "</optgroup>"
     title = "Mars HEALPix synthetic science preview"
+    controls = """
+<details id="eva"><summary>EVA context · 28 fields</summary>
+<label>Example <select id="eva-case"><option value="synthetic">Synthetic EVA</option>
+<option value="jezero-sol36">Jezero sol 36</option><option value="gale-rad">Gale radiation</option>
+</select></label>
+<button type="button" id="eva-locate">Locate example</button>
+<p id="eva-scope"></p><table><thead><tr><th>Field</th><th>Value</th><th>Data status</th></tr></thead>
+<tbody id="eva-fields"></tbody></table>
+</details>
+<label><input type="checkbox" id="cell-colors"> Show HEALPix cell summaries</label>
+"""
     banner = ('<p><strong>Synthetic test layers contain invented values.</strong> '
               'They are for software demonstration. Source catalogue layers retain their published data.</p>')
 name = ("mars-cell-map-synthetic-science.html" if synthetic_mode else
@@ -390,4 +501,6 @@ name = ("mars-cell-map-synthetic-science.html" if synthetic_mode else
     "__SYNTHETIC_ROWS__", json.dumps(synthetic_rows, separators=(",", ":"), allow_nan=False)).replace(
     "__SYNTHETIC_BOUNDS__", json.dumps(synthetic_bounds)).replace(
     "__LOCAL_PIXELS__", pack(local_pixels.tobytes()) if synthetic_mode else "").replace(
-    "__EXAMPLE_ID__", example_id).replace("__MAP_TITLE__", title).replace("__SYNTHETIC_NOTE__", banner))
+    "__FIXTURE_SHAPES__", json.dumps(fixture_shapes)).replace(
+    "__EVA_EXAMPLES__", json.dumps(eva_examples, allow_nan=False)).replace(
+    "__PREVIEW_CONTROLS__", controls).replace("__EXAMPLE_ID__", example_id).replace("__MAP_TITLE__", title).replace("__SYNTHETIC_NOTE__", banner))

@@ -49,3 +49,5 @@ The first command creates `synthetic-science/synthetic-science-context.json` wit
 ## Verified fixture results
 
 At Nside 128, cell `HPX128:81858` contains 50.45 km of synthetic valley linework and 16.45% synthetic putative-delta overlap. Cell `HPX128:81856` has 72.94% synthetic olivine candidate overlap. The exported fixture reproduced byte for byte on this checkout. The offline preview was exercised in Chromium with networking disabled. The rebuilt default map retained the existing embedded source data and offered only its source layers.
+
+The preview draws the fixture geometry for polygon, valley and olivine layers by default. **Show HEALPix cell summaries** switches to the cell fills used for aggregation inspection. The magnetic field remains a cell-centre sample and uses the grid view.
