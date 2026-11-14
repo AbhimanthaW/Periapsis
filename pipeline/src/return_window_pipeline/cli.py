@@ -56,6 +56,9 @@ def main(argv=None) -> int:
         release.add_argument("--regions", type=Path, required=True)
         release.add_argument("--registry", type=Path, required=True)
         release.add_argument("--version", required=True)
+        if command == "verify-atlas-release":
+            release.add_argument("--expected-manifest-sha256",
+                                 help="Check the exact release manifest against a trusted handoff receipt")
     args = parser.parse_args(argv)
     try:
         if args.command == "ingest":
@@ -81,9 +84,11 @@ def main(argv=None) -> int:
         elif args.command == "validate-global-atlas":
             result = validate_global_atlas(SourceSpec.load(args.configuration), args.workspace, args.directory,
                                            regions=args.regions)
-        elif args.command in {"build-atlas-release", "verify-atlas-release"}:
-            release_command = build_atlas_release if args.command == "build-atlas-release" else verify_atlas_release
-            result = release_command(args.configuration, args.regions, args.workspace, args.registry, args.version)
+        elif args.command == "build-atlas-release":
+            result = build_atlas_release(args.configuration, args.regions, args.workspace, args.registry, args.version)
+        elif args.command == "verify-atlas-release":
+            result = verify_atlas_release(args.configuration, args.regions, args.workspace, args.registry, args.version,
+                                          expected_manifest_sha256=args.expected_manifest_sha256)
         else:
             reference = SourceSpec.load(args.configuration).reference
             lon, lat = normalize_position(args.longitude, args.latitude, reference)

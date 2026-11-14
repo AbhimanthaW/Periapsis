@@ -1,9 +1,11 @@
 """Create and verify versioned offline atlas candidates in a local registry."""
 
+from hashlib import sha256 as hash_bytes
 from importlib.metadata import version
 import json
 from pathlib import Path
 import platform
+import re
 from tempfile import TemporaryDirectory
 
 import pyproj
@@ -64,7 +66,7 @@ def build_atlas_release(
     if destination.exists():
         raise ConfigurationError(f"Atlas release version already exists: {release_version}")
     source_bytes = configuration.read_bytes()
-    spec = SourceSpec.from_dict(json.loads(source_bytes), configuration.resolve().parent)
+    spec = SourceSpec.from_json(source_bytes, configuration)
     software = {
         "return_window_pipeline": __version__,
         "python": platform.python_version(),
@@ -94,7 +96,10 @@ def build_atlas_release(
 
 def verify_atlas_release(
     configuration: Path, regions: Path, workspace: Path, registry: Path, release_version: str,
+    *, expected_manifest_sha256: str | None = None,
 ) -> dict:
+    if expected_manifest_sha256 is not None and not re.fullmatch(r"[0-9a-f]{64}", expected_manifest_sha256):
+        raise ConfigurationError("The trusted manifest receipt requires a lowercase SHA-256")
     directory = _destination(registry, release_version)
     expected_files = {RELEASE_MANIFEST, SOURCE_CONFIG, REGION_CATALOG, "atlas"}
     if {entry.name for entry in directory.iterdir()} != expected_files:
@@ -108,9 +113,13 @@ def verify_atlas_release(
             raise IntegrityError(f"Release input differs from the trusted checkout: {name}")
 
     path = directory / RELEASE_MANIFEST
-    _receipt(path, RELEASE_MANIFEST)
+    if path.is_symlink() or not path.is_file():
+        raise IntegrityError(f"Missing or invalid release file: {RELEASE_MANIFEST}")
+    raw_manifest = path.read_bytes()
+    if expected_manifest_sha256 is not None and hash_bytes(raw_manifest).hexdigest() != expected_manifest_sha256:
+        raise IntegrityError("Release manifest does not match the trusted handoff receipt")
     try:
-        manifest = json.loads(path.read_bytes())
+        manifest = json.loads(raw_manifest)
         software = keys(
             manifest["software"],
             {"return_window_pipeline", "python", "numpy", "rasterio", "rasterio_gdal",

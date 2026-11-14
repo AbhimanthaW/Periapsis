@@ -80,10 +80,10 @@ class GlobalAtlasTests(unittest.TestCase):
             release_version = "0.1.0-rc.1"
             args = [str(CONFIG), "--workspace", str(WORKSPACE), "--regions", str(REGIONS), "--version", release_version]
 
-            def run_release(command, destination, expected_exit=0):
+            def run_release(command, destination, expected_exit=0, *, extra=()):
                 output, errors = StringIO(), StringIO()
                 with redirect_stdout(output), redirect_stderr(errors):
-                    status = main([command, *args, "--registry", str(destination)])
+                    status = main([command, *args, "--registry", str(destination), *extra])
                 self.assertEqual(status, expected_exit, errors.getvalue())
                 return json.loads(output.getvalue() if status == 0 else errors.getvalue())
 
@@ -100,14 +100,52 @@ class GlobalAtlasTests(unittest.TestCase):
 
             error = run_release("build-atlas-release", registry, expected_exit=2)
             self.assertIn("version already exists", error["message"])
+            manifest_path = release / "release-manifest.json"
+            trusted_manifest = manifest_path.read_bytes()
+            receipt_args = ("--expected-manifest-sha256", sha256(trusted_manifest).hexdigest())
+            self.assertEqual(manifest, run_release("verify-atlas-release", registry, extra=receipt_args))
+            altered_manifest = json.loads(trusted_manifest)
+            altered_manifest["software"]["python"] = "9.9.9"
+            manifest_path.write_text(json.dumps(altered_manifest), encoding="utf-8")
+            self.assertEqual(altered_manifest, run_release("verify-atlas-release", registry))
+            error = run_release("verify-atlas-release", registry, expected_exit=2, extra=receipt_args)
+            self.assertIn("does not match the trusted handoff receipt", error["message"])
+            error = run_release("verify-atlas-release", registry, expected_exit=2,
+                                extra=("--expected-manifest-sha256", "invalid"))
+            self.assertIn("requires a lowercase SHA-256", error["message"])
+            manifest_path.write_bytes(trusted_manifest)
+
             catalog = release / "region-catalog.json"
             raw = catalog.read_bytes()
             changed = raw + b" "
             catalog.write_bytes(changed)
             manifest["inputs"]["region_catalog"].update(bytes=len(changed), sha256=sha256(changed).hexdigest())
-            (release / "release-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             error = run_release("verify-atlas-release", registry, expected_exit=2)
             self.assertIn("differs from the trusted checkout", error["message"])
+
+    def test_release_configuration_encodings_round_trip(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            configuration = root / "source.json"
+            registry = root / "registry"
+            source = CONFIG.read_text(encoding="utf-8")
+            for encoding in ("utf-8-sig", "utf-16", "utf-32"):
+                with self.subTest(encoding=encoding):
+                    source_bytes = source.encode(encoding)
+                    configuration.write_bytes(source_bytes)
+                    args = [str(configuration), "--workspace", str(WORKSPACE), "--regions", str(REGIONS),
+                            "--registry", str(registry), "--version", encoding]
+                    manifests = []
+                    for command in ("build-atlas-release", "verify-atlas-release"):
+                        output, errors = StringIO(), StringIO()
+                        with redirect_stdout(output), redirect_stderr(errors):
+                            status = main([command, *args])
+                        self.assertEqual(status, 0, errors.getvalue())
+                        manifests.append(json.loads(output.getvalue()))
+                    self.assertEqual(manifests[0], manifests[1])
+                    packaged = registry / "mars-mola-meg004" / encoding / "source-config.json"
+                    self.assertEqual(packaged.read_bytes(), source_bytes)
 
     def test_build_validate_and_reject_rehashed_global_raster(self):
         with TemporaryDirectory() as temp:
