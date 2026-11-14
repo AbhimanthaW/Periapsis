@@ -40,15 +40,12 @@ def groups(cells: np.ndarray, neighbours: np.ndarray, scores: np.ndarray | None 
     source, target = source[valid], target[valid]
     while source.size:
         left, right = parent[source], parent[target]
+        linked = left == right
+        if linked.all():
+            break
         np.minimum.at(parent, np.maximum(left, right), np.minimum(left, right))
         parent = parent[parent]
-        # A joined edge cannot become disconnected during subsequent unions.
-        pending = parent[source] != parent[target]
-        source, target = source[pending], target[pending]
-    roots = parent[members]
-    while np.any(roots != parent[roots]):
-        roots = parent[roots]
-    key = roots.astype(np.int64) * 12288 + (members >> 4)
+    key = parent[members].astype(np.int64) * 12288 + (members >> 4)
     if scores is not None and limit is not None:
         _, inverse = np.unique(key, return_inverse=True)
         count = np.bincount(inverse)

@@ -208,20 +208,17 @@ def test_pack_rejects_missing_or_changed_detail_store(service, tmp_path):
         Pack(tmp_path)
 
 
-def test_vector_components_match_reference(service):
-    # Compare the vectorized union with a direct graph walk on a sparse slice.
+@pytest.mark.parametrize("density", [0.01, 0.15, 0.50, 0.85, 1.0])
+def test_vector_components_match_reference(service, density):
     neighbours = service.engine.pack["neighbours"]
-    selected = np.zeros(196608, dtype=bool)
-    selected[np.arange(9000, 11000, 3)] = True
-    selected[np.arange(9600, 9700)] = True
+    selected = np.random.default_rng(18).random(196608) < density
     actual = {frozenset(map(int, group)) for group in groups(selected, neighbours)}
     remaining = set(map(int, np.flatnonzero(selected)))
     expected = set()
     while remaining:
-        start = min(remaining)
+        start = remaining.pop()
         component = {start}
         pending = [start]
-        remaining.remove(start)
         while pending:
             for neighbour in neighbours[pending.pop()]:
                 index = int(neighbour)
