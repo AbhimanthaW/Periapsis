@@ -42,7 +42,7 @@ def load_profile(source):
     """Build a validated HumanProfile or RoverProfile from a path or a dict."""
     data = _read(source)
     platform = data.get("platform")
-    if platform not in CLASSES:
+    if not isinstance(platform, str) or platform not in CLASSES:
         raise MarswalkError("INVALID_PROFILE", "profile platform must be 'human' or 'rover'")
     cls = CLASSES[platform]
     for alias, target in KWH_ALIASES.items():
@@ -54,7 +54,15 @@ def load_profile(source):
             value = data.pop(alias)
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 raise MarswalkError("INVALID_PROFILE", f"{alias} must be a number")
-            data[target] = float(value) * KWH_J
+            try:
+                data[target] = float(value) * KWH_J
+            except OverflowError as error:
+                raise MarswalkError("INVALID_PROFILE", f"{alias} is outside the supported range") from error
+    for key in ("profile_id", "pace_model", "pace_scenario", "source_type", "power_source", "provenance", "source"):
+        if key in data and not isinstance(data[key], str):
+            raise MarswalkError("INVALID_PROFILE", f"{key} must be a string")
+    if "neighbours" in data and type(data["neighbours"]) is not int:
+        raise MarswalkError("INVALID_PROFILE", "neighbours must be an integer")
     allowed = {f.name for f in fields(cls)}
     unknown = sorted(set(data) - allowed)
     if unknown:

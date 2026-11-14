@@ -9,6 +9,7 @@ jobs:
       web: ${{ steps.scope.outputs.web }}
       science: ${{ steps.scope.outputs.science }}
       pipeline: ${{ steps.scope.outputs.pipeline }}
+      ranking: ${{ steps.scope.outputs.ranking }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,6 +41,7 @@ jobs:
               print(f"web={str(changed('web/')).lower()}", file=out)
               print(f"science={str(changed('documentation/', 'evidence/jezero/', 'web/src/atlas/regions.json', 'contracts/', 'runtime/', 'pipeline/scripts/', 'pipeline/evidence/arcadia-planitia/')).lower()}", file=out)
               print(f"pipeline={str(changed('pipeline/', 'evidence/mola/', 'contracts/', 'web/src/atlas/regions.json')).lower()}", file=out)
+              print(f"ranking={str(changed('ranking/', 'tests/', 'runtime/', 'documentation/', 'contracts/', 'docs/region-ranking/')).lower()}", file=out)
           PY
 
   web:
@@ -80,6 +82,34 @@ jobs:
       - run: uv run --project documentation --locked --offline python -m pytest documentation/tests contracts/tests runtime/tests -q -rs
       - run: uv run --project documentation --locked --offline python pipeline/evidence/arcadia-planitia/verify_handoff.py pipeline/evidence/arcadia-planitia --repo .
       - run: uv run --project documentation --locked --offline python -m runtime.mission simulate contracts/fixtures/synthetic-v1 --closure mid
+
+  ranking:
+    needs: scope
+    if: needs.scope.outputs.ranking == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --project documentation --locked --python 3.12
+      - name: Download pinned cell-map releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release download mars-cell-map-v0.1.0 --dir data/ranking-inputs \
+            --pattern cells-enriched.ndjson.gz
+          gh release download mars-cell-map-v0.2.0 --dir data/ranking-inputs \
+            --pattern cell-ranking.ndjson.gz \
+            --pattern ranking-features.json.gz \
+            --pattern cells-enriched-sourced.ndjson.gz \
+            --pattern sourced-catalogue-manifest.json
+      - name: Build release and demo ranking packs
+        run: |
+          uv run --project documentation --locked --offline python -m ranking.build --release
+          uv run --project documentation --locked --offline python -m ranking.build --with-demo --output data/ranking-demo
+      - run: uv run --project documentation --locked --offline python -m pytest tests/ranking -q -rs
 
   pipeline:
     needs: scope
@@ -125,17 +155,18 @@ jobs:
 
   required:
     if: always()
-    needs: [scope, web, science, pipeline, preview]
+    needs: [scope, web, science, pipeline, ranking, preview]
     runs-on: ubuntu-latest
     env:
       SCOPE: ${{ needs.scope.result }}
       WEB: ${{ needs.web.result }}
       SCIENCE: ${{ needs.science.result }}
       PIPELINE: ${{ needs.pipeline.result }}
+      RANKING: ${{ needs.ranking.result }}
       PREVIEW: ${{ needs.preview.result }}
     steps:
       - run: |
           test "$SCOPE" = success
-          for result in "$WEB" "$SCIENCE" "$PIPELINE" "$PREVIEW"; do
+          for result in "$WEB" "$SCIENCE" "$PIPELINE" "$RANKING" "$PREVIEW"; do
             case "$result" in success|skipped) ;; *) exit 1 ;; esac
           done

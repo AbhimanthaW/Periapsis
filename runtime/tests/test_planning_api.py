@@ -253,3 +253,10 @@ def test_weather_over_http(call):
     assert status == 200 and body["recommendation"] == "direct_return"
     status, body = call("/api/v1/plan", plan_request(site, remaining_s=100, weather=_feed(_wind(5), now_utc=None)))
     assert status == 400 and body["error"] == "INVALID_WEATHER"
+
+
+@pytest.mark.parametrize("call", [{"engine": "marswalk"}], indirect=True)
+def test_invalid_profile_shape_returns_http_error(call):
+    _, site = call("/api/v1/site")
+    status, result = call("/api/v1/plan", plan_request(site, profile={"platform": []}))
+    assert status == 400 and result["error"] == "INVALID_PROFILE"

@@ -6,15 +6,15 @@ local terrain evidence, and refuses grids that cannot support a Marswalk:
 
   1. Evidence gate     the documentation engine's capability result for the
                        requested ``local_elevation_20m`` calculation
-  2. Resolution gate   analytical cell <= MAX_ROUTING_CELL_M (20 m, the same
+  2. Resolution gate   analytical and native spacing <= MAX_ROUTING_CELL_M (20 m, the same
                        ceiling the repo evidence queries use)
   3. Size gate         analytical cells <= MAX_ROUTING_CELLS (1,000,000, the
                        pipeline's MAX_NATIVE_CELLS processing limit)
   4. Availability      a routable analytical terrain payload is present
 
-It also reports obstacle visibility. A DTM resolves features of roughly three
-posts, so a rover clearance below that is never observed by elevation data.
-That is reported as a limitation like traction, not used as a hard rule.
+It also reports an assumed horizontal feature scale of three DTM posts.
+Rover rock clearance remains unverified because obstacle width and vertical
+accuracy are needed to assess detection.
 
 Loaders cover every terrain-like dataset committed on main: the Arcadia MOLA
 handoff, the Jezero CTX control descriptor (and an optional local copy of the
@@ -174,12 +174,11 @@ def obstacle_visibility(dimensions, clearance_m):
     if clearance_m is None:
         return None
     feature = dimensions.smallest_resolved_feature_m
-    observable = feature <= clearance_m
-    return {"status": "observable" if observable else "not_observable",
+    return {"status": "not_observable",
             "clearance_m": clearance_m, "smallest_resolved_feature_m": feature,
-            "detail": ("obstacles at the clearance height are resolved by the DTM" if observable else
-                       f"the DTM resolves features of about {feature:,.0f} m; obstacles near the "
-                       f"{clearance_m:g} m clearance are not observed, so rock clearance is unverified")}
+            "detail": (f"rock clearance is unverified at {clearance_m:g} m. "
+                       f"The assumed horizontal feature scale is {feature:g} m. "
+                       "Obstacle widths and vertical accuracy are required to assess detection.")}
 
 
 def check_site(site_id, dimensions, *, evidence=None, clearance_m=None, terrain_available=True,
@@ -187,25 +186,29 @@ def check_site(site_id, dimensions, *, evidence=None, clearance_m=None, terrain_
     """Evaluate every Phase 0 check, then refuse on the first failure in order:
     evidence, resolution, size, availability."""
     checks, failures = [], []
+    if evidence is not None and evidence.requested_id != "local_elevation_20m":
+        raise MarswalkError("INVALID_EVIDENCE", "Phase 0 requires a local_elevation_20m capability result")
     if evidence is None:
         checks.append(("evidence", NOT_SUPPLIED, "no documentation engine result supplied"))
-    elif evidence.eligible:
+    elif (evidence.eligible and evidence.native_spacing_m is not None
+          and 0 < evidence.native_spacing_m <= max_cell_m):
         checks.append(("evidence", PASS, f"{evidence.requested_id} eligible at "
                                          f"{evidence.native_spacing_m:g} m native spacing"))
     else:
         fallback = ("" if not evidence.fallback_ids else
                     f"; only {', '.join(evidence.fallback_ids)} is supported"
                     + ("" if evidence.fallback_spacing_m is None else f" at {evidence.fallback_spacing_m:,.0f} m"))
-        detail = f"{evidence.requested_id} not eligible ({evidence.reason}){fallback}"
+        detail = f"{evidence.requested_id} not eligible ({evidence.reason or 'missing or excessive native spacing'}){fallback}"
         checks.append(("evidence", FAIL, detail))
         failures.append((NO_TERRAIN_EVIDENCE, detail))
 
     cell = dimensions.cell_m
-    if cell <= max_cell_m:
-        checks.append(("resolution", PASS, f"cell {cell:g} m <= {max_cell_m:g} m"))
+    native = dimensions.native_spacing_m
+    if max(cell, native) <= max_cell_m:
+        checks.append(("resolution", PASS, f"cell {cell:g} m and native spacing {native:g} m <= {max_cell_m:g} m"))
     else:
-        detail = (f"cell {dimensions.cell_dx_m:,.0f} x {dimensions.cell_dy_m:,.0f} m exceeds the "
-                  f"{max_cell_m:g} m routing ceiling; one step would cross {cell / 1000:,.1f} km")
+        detail = (f"grid spacing {cell:g} m or native spacing {native:g} m exceeds "
+                  f"the {max_cell_m:g} m routing ceiling")
         checks.append(("resolution", FAIL, detail))
         failures.append((TERRAIN_TOO_COARSE, detail))
 
@@ -234,6 +237,8 @@ def check_site(site_id, dimensions, *, evidence=None, clearance_m=None, terrain_
 
 def gate_for_support(support, *, site_id=None, evidence=None, clearance_m=None, **limits):
     """Phase 0 for an analytical grid that is already in memory."""
+    if support.classification != "synthetic":
+        limits["terrain_available"] = "contract v1 permits analytical routing only for synthetic terrain"
     return check_site(site_id or support.pack_id, site_dimensions(support), evidence=evidence,
                       clearance_m=clearance_m, **limits)
 

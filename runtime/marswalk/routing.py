@@ -24,7 +24,7 @@ from math import inf
 
 import numpy as np
 
-from .errors import (LEG_ENDPOINT_EXCLUDED, LEG_NO_EVIDENCE, LEG_NO_PATH, LEG_OK, LEG_OUT_OF_BOUNDS,
+from .errors import (LEG_ENDPOINT_EXCLUDED, LEG_NO_EVIDENCE, LEG_SEARCH_LIMIT, LEG_NO_PATH, LEG_OK, LEG_OUT_OF_BOUNDS,
                      MarswalkError)
 from .mobility import TAG_UNSUPPORTED, EdgeTimes, human_traversal_time
 
@@ -275,7 +275,10 @@ class Router:
         dist, pred = self.outbound_field(start)
         s, g = self.node(start), self.node(goal)
         if not np.isfinite(dist[g]):
-            return self._diagnose(start, goal, limit_s=self.outbound_limit_s)
+            if self.outbound_limit_s < self.limit_s:
+                return Leg(LEG_SEARCH_LIMIT, tuple(start), tuple(goal),
+                           f"no supported path found within the {self.outbound_limit_s:g} s outbound search horizon")
+            return self._diagnose(start, goal)
         nodes = [g]
         while nodes[-1] != s:
             nodes.append(int(pred[nodes[-1]]))
@@ -340,7 +343,7 @@ class Router:
                 return Leg(LEG_NO_EVIDENCE, a, b, f"cell {list(c)} has insufficient terrain evidence")
         return None
 
-    def _diagnose(self, a, b, *, limit_s=None):
+    def _diagnose(self, a, b):
         """Relax unknown cells and mobility edges while preserving known
         exclusions and closures. The diagnostic connection is never drawn."""
         a, b = tuple(map(int, a)), tuple(map(int, b))
@@ -366,8 +369,7 @@ class Router:
                     continue
                 seen.add((nr, nc))
                 queue.append((nr, nc))
-        limit = self.limit_s if limit_s is None else limit_s
-        suffix = "" if limit == inf else f" within the {limit:.0f} s search horizon"
+        suffix = "" if self.limit_s == inf else f" within the {self.limit_s:.0f} s search horizon"
         return Leg(LEG_NO_PATH, a, b, "no admissible connection in the modelled area" + suffix)
 
     def _leg(self, a, b, nodes):

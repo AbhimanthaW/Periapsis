@@ -15,8 +15,8 @@ There are two missions. In **Mode A** the crew walks. In **Mode B** the crew dri
 | 0.1 | 🟫 | Load the sealed pack with `contracts.pack.check_pack`. |
 | 0.2 | 📐 | Read dimensions from `site.json`: shape, affine `[a,b,c0,d,e,f0]`, cell Δx = a, Δy = −e, native spacing. Step lengths are Δx, Δy and √(Δx² + Δy²). |
 | 0.3 | 🟫 | **Evidence gate.** Read the documentation engine's `local_elevation_20m` result. Not eligible → `NO_TERRAIN_EVIDENCE`. |
-| 0.4 | 📐 | **Resolution gate.** Cell > 20 m → `TERRAIN_TOO_COARSE`. **Size gate.** More than 1,000,000 cells → `GRID_TOO_LARGE` (the pipeline's `MAX_NATIVE_CELLS`). No analytical payload → `TERRAIN_NOT_AVAILABLE`. |
-| 0.5 | 📐🟧 | **Obstacle visibility.** A DTM resolves features of about 3 posts. When that exceeds the rover clearance, rock clearance is reported as unverified, like traction. |
+| 0.4 | 📐 | **Resolution gate.** Grid or native spacing > 20 m → `TERRAIN_TOO_COARSE`. **Size gate.** More than 1,000,000 cells → `GRID_TOO_LARGE` (the pipeline's `MAX_NATIVE_CELLS`). No analytical payload → `TERRAIN_NOT_AVAILABLE`. |
+| 0.5 | 📐🟧 | **Obstacle visibility.** Report an assumed horizontal feature scale of 3 posts. Rock clearance remains unverified without obstacle footprint and vertical accuracy. |
 | 0.6 | 🟦🟧 | Mission snapshot and mode. Human and rover profiles are fed as JSON (`profiles.py`). A human profile whose fastest speed exceeds the 1.16 m/s walk-to-run limit is rejected, not clamped. |
 
 `plan_marswalk` runs 0.2–0.5 before routing and refuses with the first failing code.
@@ -38,17 +38,17 @@ There are two missions. In **Mode A** the crew walks. In **Mode B** the crew dri
 | 2.1 | 🟩📐 | 8 moves, no corner cutting, one-way edges, g = Δz / L. |
 | 2.2 | 🟦 | Mode A: $v = v_\text{flat}\, e^{-3.5(\lvert g + 0.05\rvert - 0.05)}$, $t = L / v$. $v_\text{flat}$ comes from the profile (0.50 m/s default). An optional `max_slope_deg` refuses steeper edges and cells. |
 | 2.3 | 🟧 | Mode B: incline, clearance, time and energy from the RoverProfile, with no regeneration. |
-| 2.4 | 🟧🟦 | Mode B walkback pricing: human rules at **0.75 m/s** (Apollo planners' emergency walkback average, loads abandoned, *assumed*) with a **15°** limit on edges and cells. Unverified slopes are refused. |
+| 2.4 | 🟧🟦 | Mode B walkback pricing: human rules at **0.75 m/s** (Apollo planners' lunar traverse average for walkbacks over an hour, applied as a synthetic flat-speed input, *assumed*) with a **15°** limit on edges and cells. Unverified slopes are refused. |
 
 ## Phase 3 · Graph
 
 | Step | | Rule |
 | --- | --- | --- |
 | 3.1 | 🟩 | Keep usable edges; build CSR and its transpose. |
-| 3.2 | 🟩📐 | **Search horizon.** On grids of at least 250,000 cells (`search_horizon="auto"`), the outbound Dijkstra stops at B − R. The home field stays exact so the gate can tell "over reserve" from "no route". |
+| 3.2 | 🟩📐 | **Search horizon.** On grids of at least 250,000 cells (`search_horizon="auto"`), the outbound Dijkstra stops at B − R. A miss reports `outbound_search_limit`. The home field stays exact so the gate can tell "over reserve" from "no route". |
 | 3.3 | 🟩🟨 | Closures from field reports and active rules apply to a copy. |
 
-## Phase 4 · Environment and live weather (`weather.py`)
+## Phase 4 · Environment and scenario weather (`weather.py`)
 
 | Step | | Rule |
 | --- | --- | --- |
@@ -81,7 +81,7 @@ Default limits (*assumed*, for Isath): wind caution 15 / warning 20 m/s; dust op
 | Step | | Rule |
 | --- | --- | --- |
 | 7.1 | 🟦🟧🟩 | A closure, new position, less time or weather warning → redo 3.3 → 5 → 6 on the same baseline. |
-| 7.2 | 🟧→🟦 | **Rover failure** (`breakdown_snapshot`): switch to Mode A at the failure cell, subtract the elapsed time, drop science and power, walk at the walkback pace and limit. |
+| 7.2 | 🟧→🟦 | **Rover failure** (`breakdown_snapshot`): switch to Mode A at the failure cell, subtract the elapsed time, advance the scenario clock, retain completed tasks, drop pending science and power, and walk at the walkback pace and limit. |
 
 ## Data on main
 
@@ -121,3 +121,11 @@ python -m runtime.marswalk demo --platform rover --rover-fails-at-min 12
 python -m runtime.marswalk demo --weather runtime/examples/weather-wind-warning.json
 python -m runtime.marswalk demo --platform rover --profile runtime/examples/profile-rover-hypothetical.json
 ```
+
+## Scientific basis for the prototype
+
+NASA's [Apollo Lunar Surface Journal](https://nasa.gov/wp-content/uploads/static/history/alsj/a11/a11.gaits.html) gives 2.7 km/h as the lunar planning average for walkbacks longer than an hour. Marswalk uses the equivalent 0.75 m/s as the flat-speed parameter of a directional pace model. The 15° edge and cell limit is scenario policy. The route check evaluates discrete cells under declared conditions.
+
+The [USGS Jezero DTM quality study](https://pubs.usgs.gov/publication/70212659) distinguishes post spacing from effective horizontal resolution. The 20 m ceiling screens data eligibility. Terrain mechanics and obstacle detection need independently supported measurements.
+
+NASA documents the effect of [Mars dust on solar generation and atmospheric density on wind loads](https://www.nasa.gov/wp-content/uploads/2024/01/mars-surface-power-generation-challenges-and-considerations.pdf). Setting solar credit to zero at a chosen threshold is a scenario rule. The wind limits and the supplied SEP flag exercise return logic. Crew risk depends on atmospheric conditions, equipment, terrain and exposure, including [radiation spectrum and shielding](https://www.nasa.gov/science-research/heliophysics/real-martians-how-to-protect-astronauts-from-space-radiation-on-mars/). The MEDA replay demonstrates how a historical sample enters a simulated feed.
