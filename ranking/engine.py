@@ -227,14 +227,22 @@ class Engine:
             direct &= ~mask
             partial &= ~mask
             thematic &= ~mask
+        # Compare eligible cells using only real support for objective
+        # negations, so synthetic exclusions carry provenance even when all
+        # positive scoring concepts are source-backed.
+        real_selection = direct | partial | thematic
         for cid in effective_negations(parsed, demo):
             j = self.ids[cid]
             mask = (support[j] >= 128) & self._coverage(j, demo)
             excluded[f"not {cid}"] = int((mask & eligible).sum())
+            if demo:
+                real_selection &= ~((real_support[j] >= 128) & self._coverage(j))
             direct &= ~mask
             partial &= ~mask
             thematic &= ~mask
-        scores[~(direct | partial | thematic)] = 0
+        selected_cells = direct | partial | thematic
+        demo_exclusion = demo and bool(np.any(real_selection & ~selected_cells))
+        scores[~selected_cells] = 0
         base["counts"] = {"direct_cells": int(direct.sum()), "partial_cells": int(partial.sum()),
                           "thematic_cells": int(thematic.sum()), "excluded": excluded}
         selected = direct if direct.any() else partial if partial.any() else thematic
@@ -283,6 +291,6 @@ class Engine:
                 "method": "compatible" if method_mask is None or bool(method_mask[cells].any()) else "not established",
                 "sparse": bool(sparse[cells].any()), "label": label,
                 "point_features": {k: sorted(v) for k, v in sorted(evidence.items()) if k not in {"structures", "gazetteer_approximate_bounds"}},
-                "demo": any(x["status"] == "DEMO" for x in per_concept.values())})
+                "demo": demo_exclusion or any(x["status"] == "DEMO" for x in per_concept.values())})
         base["areas"] = areas
         return base

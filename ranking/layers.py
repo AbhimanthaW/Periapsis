@@ -16,14 +16,16 @@ from .inputs import N
 from .ledger import load
 
 
-CACHE_RULE_VERSION = "ranking-layers-v4"
+CACHE_RULE_VERSION = "ranking-layers-v3"
+DEMO_CACHE_RULE_VERSION = "ranking-layers-v4"
 DEMO_CENTRES = 8
 DEMO_SEPARATION_KM = 500
 DEMO_DELTA_CLEARANCE_KM = 600
 
 
 def _cache_key(directory: Path, layer: str, sources: tuple[str, ...], parameters: dict) -> str:
-    receipt = {"layer": layer, "rules": CACHE_RULE_VERSION,
+    version = DEMO_CACHE_RULE_VERSION if layer == "demo" else CACHE_RULE_VERSION
+    receipt = {"layer": layer, "rules": version,
                "ledger": hashlib.sha256(Path(__file__).with_name("concepts.json").read_bytes()).hexdigest(),
                "sources": {name: hashlib.sha256((directory / name).read_bytes()).hexdigest() for name in sources},
                "parameters": parameters}
@@ -286,8 +288,9 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
         # Densify every other DEMO layer to DEMO_CENTRES fixed-seed centres so
         # each can fill a top-20 ranking. The first centre is unchanged. New
         # centres are drawn after the delta controls, so the delta stream and
-        # its pinned cells are unchanged, and they stay DEMO_DELTA_CLEARANCE_KM
-        # from every delta control so the headline DEMO objective is untouched.
+        # its pinned cells are unchanged. The clearance from delta keeps the
+        # new footprints away from those controls. Propagation can still
+        # change water scores and heat across the map.
         # The eligible terrain matches each layer's footprint restriction.
         ages_any = unit_ages[:, 0] | unit_ages[:, 1]
         for k, item in enumerate(x for x in concepts if x["status"] == "demo"):

@@ -157,6 +157,22 @@ def test_demo_layers_fill_top_twenty(service, demo_service):
                    for area in service.rank(request)["areas"]), objective
 
 
+@pytest.mark.parametrize(("objective", "negation"), [
+    ("cave candidates not carbonates", "carbonates"),
+    ("highlands not sedimentary", "sedimentary"),
+])
+def test_demo_negation_labels_ranking(demo_service, objective, negation):
+    request = RankRequest(schema_version=1, request_id="negation", objective=objective, limit=20)
+    ordinary = demo_service.rank(request)
+    enabled = demo_service.rank(request.model_copy(update={"include_demo": True}))
+    assert enabled["counts"]["excluded"][f"not {negation}"] > ordinary["counts"]["excluded"].get(
+        f"not {negation}", 0)
+    assert enabled["heat_nside32"] != ordinary["heat_nside32"]
+    assert len(enabled["areas"]) == 20
+    assert all(area["demo"] for area in enabled["areas"])
+    assert all(not area["demo"] for area in ordinary["areas"])
+
+
 def test_broader_is_not_direct(demo_service):
     # Query a real hydrated-mineral site with no synthetic clay coverage.
     engine = demo_service.engine
