@@ -53,7 +53,7 @@ for name,nb in (('4-conn',edge),('8-conn',n8)):
 # correlation length: correlation vs ring distance for elev, ti, albedo
 rng=np.random.default_rng(1); samp=rng.choice(N,20000,replace=False)
 for mult in (1,2,4,8,16,32):
-    dd,ii=t.query(xyz[samp],k=1,distance_upper_bound=np.inf) 
+    dd,ii=t.query(xyz[samp],k=1,distance_upper_bound=np.inf)
     # pick a point at approx mult*h: query ball shell via k large is costly; use k=(2*mult+1)^2 and take the farthest
     k=min((2*mult+1)**2,1200); dd,ii=t.query(xyz[samp],k=k); j=ii[:,-1]
     out=[]

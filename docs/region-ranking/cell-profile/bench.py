@@ -9,7 +9,7 @@ sw=np.fmax(np.fmax(A['swim01'],A['swim15']),A['swim5'])
 ice=np.nan_to_num(np.clip(sw/0.5,0,1)); noach=np.array([1.0 if u.lstrip('elm')[:1]=='N' else 0.0 for u in unit]); rocky=np.nan_to_num(np.clip((A['ti']-350)/150,0,1))
 M=np.zeros((32,N),np.uint8); M[0]=ice*255; M[1]=noach*255; M[2]=rocky*255
 for i in range(3,32): M[i]=(rng.random(N)<rng.uniform(0.005,0.3))*255
-np.save('/tmp/M.npy',M); 
+np.save('/tmp/M.npy',M);
 def T(f,n=200):
     t=time.perf_counter()
     for _ in range(n): r=f()
@@ -24,13 +24,13 @@ ms,si=T(score_i); print('score integer fixed-point  %.3f ms'%ms)
 def score8(): return (np.ones(8,np.float32)[:,None]*Mm[:8]).sum(0,dtype=np.float32)
 ms,_=T(score8,50); print('score 8 concepts          %.3f ms'%ms)
 direct=(Mm[0]>=128)&(Mm[1]>=128)
-def topk(): 
+def topk():
     k=np.argpartition(-si,1000)[:1000]; return k[np.lexsort((k,-si[k].astype(np.int64)))]
 ms,_=T(topk); print('top-1000 cells             %.3f ms'%ms)
 def tiles():
     t=si.reshape(-1,16); return t.max(1), t.sum(1), direct.reshape(-1,16).sum(1)
 ms,(tmax,tsum,tcnt)=T(tiles); print('Nside-32 tile aggregates   %.3f ms (%d tiles)'%(ms,len(tmax)))
-def tile_top(): 
+def tile_top():
     k=np.argpartition(-tmax.astype(np.int64),50)[:50]; return k
 ms,_=T(tile_top); print('top-50 tiles               %.3f ms'%ms)
 # pruned scoring: only cells in tiles whose per-concept max bound can reach top
