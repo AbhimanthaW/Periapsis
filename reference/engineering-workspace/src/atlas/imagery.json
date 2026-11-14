@@ -46,29 +46,5 @@
     "limits": "Rendered topographic context. The color and lighting represent the relief product, and no elevation values are read from it.",
     "crs": "Mars geographic, planetocentric latitude, east-positive longitude",
     "capabilitiesSha256": "2fb4722b5af0417980052354eab806cb9bdea003617548433cec8d8813d8d125"
-  },
-  {
-    "id": "jezero",
-    "title": "Jezero CTX detail",
-    "source": "https://astrogeology.usgs.gov/search/map/Mars/Mars2020/JEZ_ctx_B_soc_008_orthoMosaic_6m_Eqc_latTs0_lon0",
-    "service": "https://trek.nasa.gov/tiles/Mars/EQ/JEZ_ctx_B_soc_008_orthoMosaic_6m_Eqc_latTs0_lon0/1.0.0/WMTSCapabilities.xml",
-    "layer": "JEZ_ctx_B_soc_008_orthoMosaic_6m_Eqc_latTs0_lon0",
-    "matrix": "default028mm",
-    "level": 11,
-    "extent": [
-      77.16796875,
-      18.193359375,
-      77.783203125,
-      18.6328125
-    ],
-    "width": 1792,
-    "height": 1280,
-    "sampleDegrees": 0.00034332275390625,
-    "nativeMeters": 6,
-    "credit": "NASA / JPL-Caltech / MSSS / USGS",
-    "era": "Mars 2020 TRN archive mosaic, cataloged in 2020.",
-    "limits": "Bounded optical display subset. No elevation, slope, validated pack, or route readiness implied.",
-    "crs": "Mars geographic, planetocentric latitude, east-positive longitude",
-    "capabilitiesSha256": "bb58f640da78bcc404a9109f613f2b3f0e3e683ff6625e8f48dcb23e602813b8"
   }
 ]

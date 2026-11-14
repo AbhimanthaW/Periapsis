@@ -11,7 +11,9 @@ import xml.etree.ElementTree as ET
 
 from PIL import Image
 
-ROOT = Path(__file__).resolve().parents[1] / 'public' / 'atlas'
+WORKSPACE = Path(__file__).resolve().parents[1]
+ROOT = WORKSPACE / 'public' / 'atlas'
+MISSION_ASSETS = WORKSPACE.parents[1] / 'web' / 'src' / 'mission' / 'assets'
 TREK = 'https://trek.nasa.gov/tiles/Mars/EQ'
 WORLD = [-180, -90, 180, 90]
 PRODUCTS = [
@@ -64,7 +66,7 @@ def prepare(record):
             image.paste(asset,((x-x0)*tw,(y-y0)*th))
     if key == 'jezero':
         assert image.getbbox(), 'regional imagery must contain data'
-        image.save(ROOT / 'jezero.webp','WEBP',quality=88,method=6)
+        image.save(MISSION_ASSETS / 'jezero.webp','WEBP',quality=88,method=6)
     else:
         for zoom in range(level+1):
             scaled = image.resize((tw*2**(zoom+1),th*2**zoom),Image.Resampling.LANCZOS)
@@ -81,5 +83,8 @@ if __name__ == '__main__':
     ROOT.mkdir(exist_ok=True,parents=True)
     with ThreadPoolExecutor(max_workers=3) as pool:
         assets = list(pool.map(prepare,PRODUCTS))
-    (ROOT.parent.parent/'src'/'atlas'/'imagery.json').write_text(json.dumps(assets,indent=2)+'\n')
+    global_assets = [asset for asset in assets if asset['id'] != 'jezero']
+    jezero = next(asset for asset in assets if asset['id'] == 'jezero')
+    (WORKSPACE / 'src' / 'atlas' / 'imagery.json').write_text(json.dumps(global_assets, indent=2) + '\n')
+    (MISSION_ASSETS / 'jezero.json').write_text(json.dumps(jezero, indent=2) + '\n')
     print('Prepared',[(asset['id'],asset['width'],asset['height']) for asset in assets])

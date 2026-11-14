@@ -32,7 +32,7 @@ def test_real_jezero_package_and_route_end_to_end():
     wire("evidence-package", evidence)
     wire("capability-query", query)
     engine = DocumentationEngine(Package.model_validate(evidence))
-    atlas = json.loads((ROOT.parent / "web/src/atlas/regions.json").read_text())
+    atlas = json.loads((ROOT.parent / "reference/engineering-workspace/src/atlas/regions.json").read_text())
     jezero = next(item for item in atlas["regions"] if item["id"] == "43")
     center = jezero["geography"]["center"]
     assert engine.grid.cell_at(center).id == engine.grid.cell_at((center[0] + 360, center[1])).id

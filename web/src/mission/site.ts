@@ -1,7 +1,8 @@
 import { z } from 'zod'
-import imagery from '../atlas/imagery.json'
+import jezero from './assets/jezero.json'
+import jezeroUrl from './assets/jezero.webp'
 
-// Local display assets that can provide map context for a site (from the Atlas manifest).
+// Local display assets that can provide map context for a site.
 const contextAssetSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -14,8 +15,9 @@ const contextAssetSchema = z.object({
   source: z.url(),
 })
 export type ContextAsset = z.infer<typeof contextAssetSchema> & { url: string }
-const contextAssets = new Map(z.array(contextAssetSchema).parse(imagery)
-  .map(asset => [asset.id, { ...asset, url: `${import.meta.env.BASE_URL}atlas/${asset.id}.webp` } as ContextAsset]))
+const contextAssets = new Map<string, ContextAsset>([
+  [jezero.id, { ...contextAssetSchema.parse(jezero), url: jezeroUrl }],
+])
 
 // The primary demo site is a qualified, less-documented area. Add its entry here only after
 // it passes site qualification and is approved. Jezero is the engineering control only.

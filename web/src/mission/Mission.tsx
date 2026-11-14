@@ -51,7 +51,7 @@ export default function Mission() {
   return (
     <main className="mission-app" data-view={view}>
       <header className="mission-masthead">
-        <a className="mission-brand" href="/mission">Return Window</a>
+        <a className="mission-brand" href="/">Return Window</a>
         <div className="mission-crumbs">
           {simulation ? (
             <>
@@ -62,11 +62,7 @@ export default function Mission() {
             </>
           ) : <span>Site investigation</span>}
         </div>
-        <nav className="mission-nav" aria-label="Workspaces">
-          <ServiceStatus/>
-          <a href="/atlas">Mars Atlas</a>
-          <a href="/">Architecture</a>
-        </nav>
+        <ServiceStatus/>
       </header>
       {simulation && (
         <p className="mission-sim-banner" role="note">

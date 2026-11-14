@@ -24,6 +24,7 @@ import Fill from 'ol/style/Fill.js'
 import Stroke from 'ol/style/Stroke.js'
 import Text from 'ol/style/Text.js'
 import 'ol/ol.css'
+import jezeroUrl from '../../../../web/src/mission/assets/jezero.webp'
 import { assets, assessmentFor, atlasAsset, coordinatesLabel, featureColor, globalExtent, normalizeLongitude, ratingColor } from './data'
 import type { MapMode, Profile, Region } from './data'
 
@@ -84,7 +85,7 @@ export function MarsMap({ref,...props}:Props) {
     const viking=new TileLayer({source:tileSource('viking'),visible:current.basemap==='viking'})
     const mola=new TileLayer({source:tileSource('mola'),visible:current.basemap==='mola'})
     const detail=new ImageLayer({
-      source:new ImageStatic({url:atlasAsset('jezero.webp'),projection,imageExtent:assets.jezero.extent}),
+      source:new ImageStatic({url:jezeroUrl,projection,imageExtent:assets.jezero.extent}),
       visible:current.showDetail,maxResolution:.012,
     })
     const gridLayer=new VectorLayer({source:new VectorSource({features:gridFeatures(),wrapX:true}),style:drawGrid,visible:current.showGrid})

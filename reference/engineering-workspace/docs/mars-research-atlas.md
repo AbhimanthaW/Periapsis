@@ -1,6 +1,6 @@
 # Mars Research Atlas
 
-Open `/atlas` on the local Return Window server. The root and `/architecture` open the existing architecture editor. From the Atlas, choose **Research** to read the complete selected section or **Compare** to sort and inspect regions side by side. The traversal and science modes and the geographic feature type mode share the same location registry. Region IDs, research panel, profile and comparison choices have shareable URLs. Camera, layers and the last view persist on the browser origin.
+Open `/atlas` on the local [engineering workspace server](../README.md). The root and `/architecture` open the existing architecture editor. From the Atlas, choose **Research** to read the complete selected section or **Compare** to sort and inspect regions side by side. The traversal and science modes and the geographic feature type mode share the same location registry. Region IDs, research panel, profile and comparison choices have shareable URLs. Camera, layers and the last view persist on the browser origin.
 
 ## Geographic products
 
@@ -27,6 +27,8 @@ The local map, research and comparison work with internet access disabled and th
 - **Readiness.** The Jezero display subset and the global maps are packaged. No region has a validated site pack connected to this Atlas. The planning handoff type records selected region and profile, with site pack, start, objective, target and constraint fields pending. Atlas links resolve to the current canonical Architecture Workspace components.
 
 ## Regeneration and checks
+
+Run these commands from `reference/engineering-workspace/`. The imagery script updates the local global tiles and the shared Jezero image and metadata in `web/src/mission/assets/`.
 
 ```sh
 python3 scripts/extract-atlas-research.py "/path/to/Regions Nasa Space Apps.md" "/path/to/MARS_nomenclature_center_pts.kmz"

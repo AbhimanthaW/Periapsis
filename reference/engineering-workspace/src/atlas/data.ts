@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import registry from './regions.json'
-import rasterManifest from './imagery.json'
+import globalImagery from './imagery.json'
+import jezero from '../../../../web/src/mission/assets/jezero.json'
 
 export const modes = ['traversal','science'] as const
 export const mapModes = [...modes,'feature'] as const
@@ -59,7 +60,7 @@ const rasterSchema = z.object({ id:z.enum(assetIds), title:text,source:z.url(),s
   sampleDegrees:z.number(),nativeMeters:z.number(),credit:text,era:text,limits:text,crs:text,capabilitiesSha256:text,
 })
 export type RasterAsset = z.infer<typeof rasterSchema>
-export const assets = Object.fromEntries(z.array(rasterSchema).parse(rasterManifest).map(asset=>[asset.id,asset])) as Record<typeof assetIds[number],RasterAsset>
+export const assets = Object.fromEntries(z.array(rasterSchema).parse([...globalImagery, jezero]).map(asset=>[asset.id,asset])) as Record<typeof assetIds[number],RasterAsset>
 export const globalExtent = assets.viking.extent
 export const atlasAsset = (name: string) => import.meta.env.BASE_URL + 'atlas/' + name
 

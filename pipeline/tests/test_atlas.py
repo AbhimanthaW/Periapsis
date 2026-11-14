@@ -18,7 +18,7 @@ from return_window_pipeline.models import SourceSpec
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "configs" / "mola-global-4ppd-topography.json"
-REGIONS = ROOT.parent / "web" / "src" / "atlas" / "regions.json"
+REGIONS = ROOT.parent / "reference/engineering-workspace/src/atlas/regions.json"
 WORKSPACE = Path(os.environ.get("RW_MOLA_WORKSPACE", ROOT / "data"))
 
 

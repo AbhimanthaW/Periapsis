@@ -27,9 +27,6 @@
 .mission-crumbs { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; color: var(--mission-muted); font-size: 13px; }
 .mission-crumbs > span:not(.mission-sim-tag) { color: var(--mission-ink); }
 .mission-link { padding: 0; border: 0; background: none; color: var(--mission-muted); text-decoration: underline; text-underline-offset: 3px; }
-.mission-nav { display: flex; align-items: center; gap: 14px; font-size: 13px; }
-.mission-nav a { color: var(--mission-muted); text-decoration: none; }
-.mission-nav a:hover { color: var(--mission-ink); }
 .mission-health { display: inline-flex; align-items: center; gap: 6px; color: var(--mission-muted); font: 11px var(--mono); }
 .mission-health i { width: 7px; height: 7px; border-radius: 50%; background: var(--mission-muted); }
 .mission-health[data-state=ready] i { background: var(--mission-pass); }
@@ -144,6 +141,5 @@
   .mission-results { position: static; }
 }
 @media (max-width: 560px) {
-  .mission-nav a { display: none; }
   .mission-big { font-size: 32px; }
 }

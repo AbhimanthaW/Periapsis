@@ -1,8 +1,6 @@
 # Navigation and local pack runtime
 
-`python_engine/` and its six original tests are byte-preserved from the delivered Senula routing source. Its A* uses dimensionless synthetic cell costs, eight neighbours and diagonal corner checks. It does not use elevation differences or directed travel seconds. Its plotting demo requires Matplotlib in a separate environment. The original server file is empty.
-
-`mission.py` is a separate bounded consumer for pack v1. It uses the shared structural and semantic checks, including the external site hash when supplied. It loads source-backed Jezero as an elevation preview and runs the audited closure and reserve calculations in explicitly enabled fixture simulation. The fixture's four-neighbour edge model uses a fixed base of one second per metre plus two seconds per metre of ascent. These are software control values. This runtime keeps the legacy algorithm intact and leaves physical mobility and tactical routing unsupported.
+`mission.py` is a separate bounded consumer for pack v1. It uses the shared structural and semantic checks, including the external site hash when supplied. It loads source-backed Jezero as an elevation preview and runs the audited closure and reserve calculations in explicitly enabled fixture simulation. The fixture's four-neighbour edge model uses a fixed base of one second per metre plus two seconds per metre of ascent. These are software control values. The bounded simulator models fixture travel only. The [legacy A* prototype](../reference/legacy-routing/README.md) has its own source and regression tests.
 
 From the repository root run:
 
@@ -84,10 +82,9 @@ request IDs, clear stale recommendations and key session state by pack version.
   site and remains unqualified. Jezero is used as an explicit test control.
   Site qualification remains a scientific review. Changes to routing pack capabilities require producer/consumer
   review under [mission pack v1](../contracts/README.md).
-- **Isath:** Use `site`, `plan` and `evidence` responses as inputs to the UI
-  design. The service is ready for local contract checks. Same-origin web
-  wiring, rendering, browser replay and second-machine offline rehearsal
-  remain release work.
+- **Isath:** The [Mission UI](../web/README.md) uses `site`, `plan` and `evidence`
+  responses over the local Vite proxy. Verify those flows during the
+  second-machine offline rehearsal.
 
 Run the headless acceptance checks with
 `uv run --project documentation --locked --offline python -m pytest runtime/tests/test_planning_api.py -q`.

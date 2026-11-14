@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       web: ${{ steps.scope.outputs.web }}
+      reference: ${{ steps.scope.outputs.reference }}
       science: ${{ steps.scope.outputs.science }}
       pipeline: ${{ steps.scope.outputs.pipeline }}
     steps:
@@ -36,10 +37,12 @@ jobs:
               ["git", "diff", "--name-only", "-z", base, "HEAD"]
           ).decode().split("\0")
           changed = lambda *prefix: not base or any(path.startswith((".github/", *prefix)) for path in paths)
+          region_catalog = "reference/engineering-workspace/src/atlas/regions.json"
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               print(f"web={str(changed('web/')).lower()}", file=out)
-              print(f"science={str(changed('documentation/', 'evidence/jezero/', 'web/src/atlas/regions.json', 'contracts/', 'runtime/', 'pipeline/scripts/')).lower()}", file=out)
-              print(f"pipeline={str(changed('pipeline/', 'evidence/mola/', 'contracts/', 'web/src/atlas/regions.json')).lower()}", file=out)
+              print(f"reference={str(changed('reference/engineering-workspace/', 'web/src/mission/assets/')).lower()}", file=out)
+              print(f"science={str(changed('documentation/', 'evidence/jezero/', region_catalog, 'contracts/', 'runtime/', 'pipeline/scripts/', 'reference/legacy-routing/')).lower()}", file=out)
+              print(f"pipeline={str(changed('pipeline/', 'evidence/mola/', 'contracts/', region_catalog)).lower()}", file=out)
           PY
 
   web:
@@ -59,6 +62,25 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      - run: npm run build
+
+  reference:
+    needs: scope
+    if: needs.scope.outputs.reference == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reference/engineering-workspace
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: reference/engineering-workspace/package-lock.json
+      - run: npm ci
       - run: npm run check:data && npm run check:atlas && npm run build
 
   science:
@@ -71,7 +93,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --project documentation --locked --python 3.12
-      - run: uv run --project documentation --locked --offline python -m pytest documentation/tests contracts/tests runtime/tests -q -rs
+      - run: uv run --project documentation --locked --offline python -m pytest documentation/tests contracts/tests runtime/tests reference/legacy-routing/tests -q -rs
       - run: uv run --project documentation --locked --offline python -m runtime.mission simulate contracts/fixtures/synthetic-v1 --closure mid
 
   pipeline:
@@ -118,17 +140,18 @@ jobs:
 
   required:
     if: always()
-    needs: [scope, web, science, pipeline, preview]
+    needs: [scope, web, reference, science, pipeline, preview]
     runs-on: ubuntu-latest
     env:
       SCOPE: ${{ needs.scope.result }}
       WEB: ${{ needs.web.result }}
+      REFERENCE: ${{ needs.reference.result }}
       SCIENCE: ${{ needs.science.result }}
       PIPELINE: ${{ needs.pipeline.result }}
       PREVIEW: ${{ needs.preview.result }}
     steps:
       - run: |
           test "$SCOPE" = success
-          for result in "$WEB" "$SCIENCE" "$PIPELINE" "$PREVIEW"; do
+          for result in "$WEB" "$REFERENCE" "$SCIENCE" "$PIPELINE" "$PREVIEW"; do
             case "$result" in success|skipped) ;; *) exit 1 ;; esac
           done

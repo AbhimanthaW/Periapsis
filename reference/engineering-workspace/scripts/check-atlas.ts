@@ -48,7 +48,7 @@ for (const id of assetIds) {
   assert.equal((layer.extent[3]-layer.extent[1])/layer.sampleDegrees,layer.height)
   assert.match(layer.service,/^https:\/\/trek\.nasa\.gov/)
   if (id==='jezero') {
-    assert.ok(existsSync(path('jezero.webp')))
+    assert.ok(existsSync(new URL('../../../web/src/mission/assets/jezero.webp', import.meta.url)))
     const [lon,lat]=byRegion.get('43')!.geography.center
     assert.ok(lon>layer.extent[0]&&lon<layer.extent[2]&&lat>layer.extent[1]&&lat<layer.extent[3])
   } else {

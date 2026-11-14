@@ -1,14 +1,16 @@
 # Development
 
-Clone the shared repository when the owner provides its URL. For a local review use `git clone --no-local "/path/to/return-window" return-window-review`. Start a change from the accepted baseline with `git switch -c topic/descriptive-name`. Run the affected checks, inspect `git diff --cached`, and make scoped commits. Open a PR once the owner has set up remote collaboration. Include evidence and remaining limits in the PR template.
+Start from the shared repository's `main` with `git switch -c topic/descriptive-name`. Run the affected checks, inspect `git diff --cached`, and make scoped commits. Include evidence and remaining limits in the PR template.
 
 Integrated changes need an independent reviewer. Yumeth reviews data and producer changes. Senula reviews runtime and consumer changes. Changes crossing the pack boundary need both. Isath reviews scientific assumptions, reference frames and evidence. Abhimantha resolves architecture and integration decisions. Record each required sign-off in the PR. GitHub code-owner assignment alone does not enforce that both producer and consumer approve.
 
-The CODEOWNERS file records the intended mapping in comments. Replace the placeholders with confirmed accounts or teams with write access before relying on automated reviewer requests. Configure branch protection and required checks once the remote exists.
+The CODEOWNERS file records the intended mapping in comments. Replace the placeholders with confirmed accounts or teams with write access before relying on automated reviewer requests. The [Verify workflow](../.github/workflows/verify.yml) provides the aggregate `required` check.
 
-## Editor and Atlas
+## Mission web app
 
-Use Node 22. From `web/` run `npm ci`, `npm run check:data`, `npm run check:atlas`, and `npm run build`. Run `npm run dev` and visit the printed local URL or its `/atlas` route.
+From `web/`, run `npm ci` and `npm run build` with Node 22. The [Mission setup](../web/README.md) covers the planning service, browser preview, and optional Jezero control.
+
+The [System Architecture editor and Atlas](../reference/engineering-workspace/README.md) have their own Node package under `reference/engineering-workspace/`. Run `npm ci`, `npm run check:data`, `npm run check:atlas`, and `npm run build` there when editing those references.
 
 ## Documentation engine
 
@@ -33,7 +35,7 @@ The ingest command obtains eight pinned archive members, approximately 4.2 MB in
 
 ## Mission pack and routing
 
-Start from the integrated `main` baseline. From the root run `uv run --project documentation --locked python -m pytest contracts/tests runtime/tests -q -rs`. The source-backed test requires the external Float32 input described in [Jezero evidence](../evidence/jezero/README.md). The CI workflow runs that full test on manual dispatch. Ordinary PR checks are path-sensitive, and affected MOLA jobs obtain the approximately 4.2 MB pinned test input. The `required` job reports the aggregate result.
+From the repository root, run `uv run --project documentation --locked python -m pytest documentation/tests contracts/tests runtime/tests reference/legacy-routing/tests -q -rs` to match the CI science suite. The source-backed test requires the external Float32 input described in [Jezero evidence](../evidence/jezero/README.md). The CI workflow runs that full test on manual dispatch. Ordinary PR checks are path-sensitive, and affected MOLA jobs obtain the approximately 4.2 MB pinned test input. The `required` job reports the aggregate result.
 
 Yumeth and Senula should start separate topic branches from the accepted contract baseline. Yumeth emits a pack into a new external directory and records the site checksum. Senula runs the same contract tests and the loader against the emitted directory. Review the schema diff, independent coordinates, mask and refusal outcomes, and record both approvals before advancing the baseline.
 

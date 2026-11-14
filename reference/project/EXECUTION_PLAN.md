@@ -4,7 +4,7 @@
 
 Build one demo that makes the evidence affect a crew decision. The release target is a **real, less-documented site with a live evidence-based decision** followed by a **clearly labeled offline mission simulation** that shows what a closure does to the return route and science task. Real tactical routing requires separate scientific and software qualification. Protect the last work block for validation, recording, rehearsal and submission.
 
-[Project framework](PROJECT_FRAMEWORK.md) · [Current state and verification](CURRENT_STATE.md)
+[Project framework](PROJECT_FRAMEWORK.md) · [12 November implementation snapshot](CURRENT_STATE.md)
 
 ## Competition and eligibility
 

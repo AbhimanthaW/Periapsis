@@ -26,7 +26,7 @@ This checklist describes the handoff at the time of delivery. See the [offline r
 
 Monorepo references:
 
-- [Pipeline and gate definitions](../web/src/pipeline-data.ts)
-- [Mission pack and API blueprint](../web/src/initial.ts)
+- [Pipeline and gate definitions](../reference/engineering-workspace/src/pipeline-data.ts)
+- [Mission pack and API blueprint](../reference/engineering-workspace/src/initial.ts)
 - [Evidence sidecar contract](../documentation/CONTRACT.md)
 - [Jezero evidence fixture validation and limits](../documentation/VALIDATION.md)
