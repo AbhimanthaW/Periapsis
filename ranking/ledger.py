@@ -8,8 +8,8 @@ PATH = Path(__file__).with_name("concepts.json")
 STATUSES = {"live", "live-flagged", "catalogue", "demo", "unsupported"}
 
 
-def load() -> list[dict]:
-    data = json.loads(PATH.read_text(encoding="utf-8"))
+def load(path: Path = PATH) -> list[dict]:
+    data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("version") != "cell-concepts-v2":
         raise ValueError("unexpected concept ledger version")
     concepts = data["concepts"]

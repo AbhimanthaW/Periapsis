@@ -21,7 +21,9 @@ def ramp(value: float | None, lo: float, hi: float) -> float:
     return 0.0 if value is None or value <= lo else min(1.0, (value - lo) / (hi - lo))
 
 
-def compile_layers(directory: Path, with_demo: bool = False):
+def compile_layers(directory: Path, with_demo: bool = False, *,
+                   ice_max: float = 0.5, rocky_lo: float = 350, rocky_hi: float = 500,
+                   structure_max: float = 10, bounds_max: float = 0.5):
     concepts = load()
     ids = {item["id"]: i for i, item in enumerate(concepts)}
     shape = (len(ids), N)
@@ -82,7 +84,7 @@ def compile_layers(directory: Path, with_demo: bool = False):
             ti = science["tes_night_thermal_inertia"] if measured else None
             albedo = extra["tes_lambert_albedo"]
             if measured and ti is not None:
-                put("rocky-surface", i, ramp(ti, 350, 500))
+                put("rocky-surface", i, ramp(ti, rocky_lo, rocky_hi))
                 put("dust-mantled", i, float(ti < 100 and albedo is not None and albedo >= 0.23))
                 put("dark-coarse-surface", i, float(ti >= 200 and albedo is not None and albedo < 0.15))
             elevation = row["mola_elevation_m"]
@@ -95,11 +97,11 @@ def compile_layers(directory: Path, with_demo: bool = False):
             valid_deep = [value for value in deep if value is not None]
             valid_all = [value for value in (shallow, *deep) if value is not None]
             if valid_all:
-                put("ice", i, ramp(max(valid_all), 0, 0.5))
+                put("ice", i, ramp(max(valid_all), 0, ice_max))
             if shallow is not None:
-                put("ice-shallow", i, ramp(shallow, 0, 0.5))
+                put("ice-shallow", i, ramp(shallow, 0, ice_max))
             if valid_deep:
-                put("ice-deep", i, ramp(max(valid_deep), 0, 0.5))
+                put("ice-deep", i, ramp(max(valid_deep), 0, ice_max))
             filters["sparse"][i] = not units or (not measured and not valid_all)
             filters["sample-rock"][i] = bool(real[ids["rocky-surface"], i] or
                 (measured and ti is not None and not real[ids["dust-mantled"], i]))
@@ -111,6 +113,8 @@ def compile_layers(directory: Path, with_demo: bool = False):
                     len(extra["hirise_dtm_centroid_product_ids"]),
                     len(science["crism_mtrdr_product_ids"]))):
                 records[i, k] = min(65535, int(value or 0))
+
+    record_counts = dict(zip(ids, ((real >= 128) & covered).sum(axis=1).tolist()))
 
     point_map = {"lake": "paleolakes", "chlorides": "chlorides",
                  "hydrated-minerals": "hydrated_mineral_sites", "dunes": "dunes",
@@ -140,12 +144,12 @@ def compile_layers(directory: Path, with_demo: bool = False):
                          if (feature_ids["structures"][fid]["origin"],
                              feature_ids["structures"][fid]["interpretation"]) in matches)
                 if km:
-                    put(cid, i, ramp(km, 0, 10))
+                    put(cid, i, ramp(km, 0, structure_max))
             for fid, fraction in evidence.get("gazetteer_approximate_bounds", {}).items():
                 feature = feature_ids["gazetteer"][fid]
                 cid = bounds.get(feature["type_code"])
                 if cid:
-                    put(cid, i, ramp(float(fraction), 0, 0.5))
+                    put(cid, i, ramp(float(fraction), 0, bounds_max))
 
     if with_demo:
         # Fixed seed and fixed geographic centres. These are software fixtures,
@@ -206,4 +210,4 @@ def compile_layers(directory: Path, with_demo: bool = False):
                 j = ids[cid]
                 demo[j, index] = max(int(demo[j, index]), quant(value))
                 demo_covered[j, index] = True
-    return concepts, real, covered, reported, demo, demo_covered, filters, records, feature_ids, demo_receipt
+    return concepts, real, covered, reported, demo, demo_covered, filters, records, record_counts, demo_receipt

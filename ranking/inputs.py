@@ -43,6 +43,9 @@ def inspect(directory: Path) -> dict:
     manifest = json.loads((directory / "sourced-catalogue-manifest.json").read_text())
     if manifest["baseline_enriched_sha256"] != SHA256["cells-enriched.ndjson.gz"]:
         raise ValueError("sourced manifest points to a different baseline")
+    for name, receipt in manifest["files"].items():
+        if receipt["sha256"] != SHA256.get(name):
+            raise ValueError(f"sourced manifest points to a different {name}")
 
     counts = Counter()
     groups = Counter()
