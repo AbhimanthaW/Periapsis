@@ -42,6 +42,7 @@ test('reviews Arcadia and its method constraints through Science Tasks with loop
   const advisory = page.getByRole('main', { name: 'Arcadia Science Tasks' })
   await expect(advisory.getByRole('heading', { name: 'Arcadia Planitia Science Tasks' })).toBeVisible()
   await expect(advisory.locator('[data-method-id="review-mola-context"]')).toContainText('Suggested')
+  await expect(page.getByRole('group', { name: 'Mission profile', exact: true })).toHaveCount(0)
   await expect(advisory.getByRole('button', { name: 'Run with tasks' })).toHaveCount(0)
   await expect(page.locator('.mission-map')).toHaveCount(0)
   await advisory.getByRole('link', { name: 'Return to Explore' }).click()
