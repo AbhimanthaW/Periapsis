@@ -16,7 +16,10 @@ from .inputs import N
 from .ledger import load
 
 
-CACHE_RULE_VERSION = "ranking-layers-v3"
+CACHE_RULE_VERSION = "ranking-layers-v4"
+DEMO_CENTRES = 8
+DEMO_SEPARATION_KM = 500
+DEMO_DELTA_CLEARANCE_KM = 600
 
 
 def _cache_key(directory: Path, layer: str, sources: tuple[str, ...], parameters: dict) -> str:
@@ -273,6 +276,39 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
         if len(controls["delta"]) != 8:
             raise ValueError("unable to place the fixed-seed DEMO delta controls")
         demo_receipt["delta_controls"] = controls["delta"]
+
+        def separation_km(index, points):
+            return 3389.5 * np.arccos(np.clip(
+                np.sin(lat[index]) * np.sin(np.deg2rad([y for _, y in points]))
+                + np.cos(lat[index]) * np.cos(np.deg2rad([y for _, y in points]))
+                * np.cos(lon[index] - np.deg2rad([x for x, _ in points])), -1, 1))
+
+        # Densify every other DEMO layer to DEMO_CENTRES fixed-seed centres so
+        # each can fill a top-20 ranking. The first centre is unchanged. New
+        # centres are drawn after the delta controls, so the delta stream and
+        # its pinned cells are unchanged, and they stay DEMO_DELTA_CLEARANCE_KM
+        # from every delta control so the headline DEMO objective is untouched.
+        # The eligible terrain matches each layer's footprint restriction.
+        ages_any = unit_ages[:, 0] | unit_ages[:, 1]
+        for k, item in enumerate(x for x in concepts if x["status"] == "demo"):
+            cid = item["id"]
+            if cid == "delta":
+                continue
+            points = controls.setdefault(cid, [centres[k]])
+            eligible = np.abs(latitudes) < 55
+            if cid in {"alluvial-fan", "valley-network"}:
+                eligible &= ages_any
+            elif cid == "clays":
+                eligible &= unit_ages[:, 0]
+            for index in rng.permutation(np.flatnonzero(eligible)):
+                if (separation_km(index, points).min() >= DEMO_SEPARATION_KM
+                        and separation_km(index, controls["delta"]).min() >= DEMO_DELTA_CLEARANCE_KM):
+                    points.append((float(longitudes[index]), float(latitudes[index])))
+                if len(points) == DEMO_CENTRES:
+                    break
+            if len(points) != DEMO_CENTRES:
+                raise ValueError(f"unable to place the fixed-seed DEMO controls for {cid}")
+        demo_receipt["seeded_controls"] = {cid: points for cid, points in sorted(controls.items())}
         for k, item in enumerate(x for x in concepts if x["status"] == "demo"):
             distance = np.full(N, np.inf)
             for c_lon, c_lat in controls.get(item["id"], [centres[k]]):

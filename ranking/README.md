@@ -47,7 +47,14 @@ The demo pack reuses the repository's 28-cell `synthetic-science-v1` fixture
 and adds fixed-seed spatial software controls. Six extra synthetic delta
 centres on mapped old terrain make the headline objective large enough to
 exercise a top-20 ranking; all eight delta control coordinates are in the
-manifest. Its manifest records the fixture digest, seed and `synthetic: true`.
+manifest. The other nine DEMO layers (alluvial fan, valley network, clays,
+sulfates, carbonates, silica, glacial landform, magnetism and olivine) keep
+their original seeded centre and gain seven more from the same seed stream,
+drawn after the delta controls. Each centre is at least 500 km from the
+layer's other centres and 600 km from every delta control, on the same terrain
+restriction as its footprint, so every DEMO concept can fill a top-20 ranking
+and the delta objective is unchanged. `seeded_controls` in the manifest lists
+all centres. Its manifest records the fixture digest, seed and `synthetic: true`.
 Demo support is separate from real
 support, including propagated and derived concepts; the API requires
 `include_demo: true` to use it. `--release --with-demo` fails.
