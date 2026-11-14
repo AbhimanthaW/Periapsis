@@ -1,0 +1,95 @@
+{
+  "meda": {
+    "ats": {
+      "data": {
+        "url": "https://atmos.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/data_calibrated_env/sol_0000_0089/sol_0036/WE__0036___________CAL_ATS_________________P01.CSV",
+        "sha256": "553991e16b66b9afb8e4edf12e7ea5cea665254232fef144cd51cdb7cb4e3064",
+        "bytes": 8825216
+      },
+      "label": {
+        "url": "https://atmos.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/data_calibrated_env/sol_0000_0089/sol_0036/WE__0036___________CAL_ATS_________________P01.xml",
+        "sha256": "a347a815e36a72cc65a54069e8275d550358bfa686027aeed943cdcfed8df337",
+        "bytes": 9810
+      },
+      "lid": "urn:nasa:pds:mars2020_meda:data_calibrated_env:we__0036___________cal_ats_________________p",
+      "version": "1.0",
+      "archive_md5": "6bd76c688d15290cc52fea7ede3dcb1a"
+    },
+    "ps": {
+      "data": {
+        "url": "https://atmos.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/data_derived_env/sol_0000_0089/sol_0036/WE__0036___________DER_PS__________________P01.CSV",
+        "sha256": "b2904ca18014f5950382cd8340e5e8876a072781bd6219e3166aa5bba21539e9",
+        "bytes": 2967735
+      },
+      "label": {
+        "url": "https://atmos.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/data_derived_env/sol_0000_0089/sol_0036/WE__0036___________DER_PS__________________P01.xml",
+        "sha256": "36790f36789f404fc6db3dbc11bd7917c8ebfa78f0250f89b542c6b57f6398be",
+        "bytes": 9096
+      },
+      "lid": "urn:nasa:pds:mars2020_meda:data_derived_env:we__0036___________der_ps__________________p",
+      "version": "1.0",
+      "archive_md5": "e4700f53d3d01874ddf479c7a58f3093"
+    },
+    "ws": {
+      "data": {
+        "url": "https://atmos.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/data_derived_env/sol_0000_0089/sol_0036/WE__0036___________DER_WS__________________P02.CSV",
+        "sha256": "cad6cf9c2fb2918c4047d254f682663d241eceaea20ae60cd3fa3e07ffd3c426",
+        "bytes": 2657575
+      },
+      "label": {
+        "url": "https://atmos.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/data_derived_env/sol_0000_0089/sol_0036/WE__0036___________DER_WS__________________P02.xml",
+        "sha256": "ca9a6770fd831f4c121ae7f63e25c180a4e09b899f062edebaf16ddd848abaa3",
+        "bytes": 10671
+      },
+      "lid": "urn:nasa:pds:mars2020_meda:data_derived_env:we__0036___________der_ws__________________p",
+      "version": "2.0",
+      "archive_md5": "d835ee326f8869375190a4449ee58d79"
+    },
+    "ancillary": {
+      "data": {
+        "url": "https://atmos.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/data_derived_env/sol_0000_0089/sol_0036/WE__0036___________DER_ANCILLARY___________P03.CSV",
+        "sha256": "f09f3e35b0b1d95b3b21d32cc62ba67ac8a25e30eb962902f41dfef326b18bd7",
+        "bytes": 10940419
+      },
+      "label": {
+        "url": "https://atmos.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/data_derived_env/sol_0000_0089/sol_0036/WE__0036___________DER_ANCILLARY___________P03.xml",
+        "sha256": "91af97927b60874dd00494c113f9b39b35308f9a62fc6567b01125b7639e6a8b",
+        "bytes": 16184
+      },
+      "lid": "urn:nasa:pds:mars2020_meda:data_derived_env:we__0036___________der_ancillary___________p",
+      "version": "3.0",
+      "archive_md5": "2f9ffe8ea90a605af82ca1cceb637ee5"
+    }
+  },
+  "meda_clock": {
+    "sclk": "1/670144481:00000",
+    "utc": "2021-03-27T19:16:36.423Z",
+    "utc_rounded_to_second": "2021-03-27T19:16:36Z",
+    "spacecraft_id": -168,
+    "spiceypy_version": "8.4.0",
+    "kernels": [
+      {
+        "url": "https://naif.jpl.nasa.gov/pub/naif/MARS2020/kernels/sclk/M2020_168_SCLKSCET.00009.tsc",
+        "sha256": "7ef1232059aa113e7e4d7ccc1f51dce9866c631e74ebb27356e7100cd3161e59",
+        "bytes": 37341
+      },
+      {
+        "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/lsk/naif0012.tls",
+        "sha256": "678e32bdb5a744117a467cd9601cd6b373f0e9bc9bbde1371d5eee39600a039b",
+        "bytes": 5257
+      }
+    ]
+  },
+  "horizons": {
+    "url": "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&COMMAND=%27499%27&CENTER=%27500%40399%27&EPHEM_TYPE=%27OBSERVER%27&TLIST=%272021-03-27+19%3A16%3A36%27&QUANTITIES=%2721%27&CSV_FORMAT=%27YES%27",
+    "sha256": "54ce84e7c61390fba392f44ea4fba28c987b601fa171f45e859bc1abccfd04c7",
+    "bytes": 6725,
+    "canonical_sha256": "9c9d9e48712c4aa4244010fbdf4d34238fa6478752e32e7a2a4876705639ea47"
+  },
+  "rad_reference": {
+    "publication": "https://doi.org/10.1126/science.1244797",
+    "nasa_record": "https://ntrs.nasa.gov/citations/20180007641",
+    "table": 1,
+    "anchor_reference": "https://doi.org/10.1002/2014JE004622"
+  }
+}

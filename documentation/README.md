@@ -61,3 +61,7 @@ Yumeth's production sidecars, a full catalogue run, and application wiring are p
 ## Synthetic science demonstration
 
 The opt-in fixture exercises deposit polygons, valley linework, glacial landforms, equivalent magnetic dipoles and olivine spectra through the cell query. It has a separately labeled offline map. See the [research, calculations and run instructions](SYNTHETIC-SCIENCE.md).
+
+## EVA documentation examples
+
+[The EVA context methods and run commands](EVA-CONTEXT.md) cover 28 environment, mobility and suit fields. The opt-in query uses scoped Jezero and Gale historical examples where available and a labeled synthetic scenario for the remaining inputs.

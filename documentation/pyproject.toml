@@ -25,4 +25,4 @@ build-backend = "setuptools.build_meta"
 include = ["marsdoc*"]
 
 [tool.setuptools.package-data]
-marsdoc = ["scoring-v1.json"]
+marsdoc = ["scoring-v1.json", "eva/*.json"]
