@@ -1,5 +1,5 @@
 {
-  "version": "science-lexicon-v0-draft",
+  "version": "science-lexicon-v0.1-draft",
   "status": "Draft for science review. Concepts, forms and weights are proposals, not reviewed values.",
   "facets": {
     "process": "What happened: the scientific process or theme.",
@@ -969,19 +969,22 @@
         "stratigraphy",
         "lava"
       ],
-      "requires_profile_access": true
+      "requires_profile_access": true,
+      "requires_imagery": false
     },
     "investigate-ice": {
       "label": "Investigate ice",
       "requires_any": [
         "ice"
       ],
-      "requires_profile_access": true
+      "requires_profile_access": true,
+      "requires_imagery": false
     },
     "remote-survey": {
       "label": "Remote survey",
       "requires_any": [],
-      "requires_profile_access": false
+      "requires_profile_access": false,
+      "requires_imagery": true
     }
   },
   "exclusions": {

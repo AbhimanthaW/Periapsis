@@ -78,6 +78,53 @@ class RankingTests(unittest.TestCase):
         row = next(r for r in run("lava flows")["rows"] if r["name"] == "Jezero Crater")
         self.assertTrue(row["science"].startswith("Not rated for this objective") or row["rank"] is None)
 
+    def test_method_requires_applicable_evidence_for_the_same_region(self):
+        region = next(r for r in REGIONS if r["name"] == "Jezero Crater")
+        region_id = region["id"]
+        index = {region_id: [rr.Piece("science_prose", "Fixture", "Delta",
+                                     rr.annotate("Delta", LEX)[0])]}
+        verified = frozenset({region_id})
+        for method, evidence in (
+            ("sample-rock", {"profile_access_regions": verified}),
+            ("remote-survey", {"imagery_regions": verified}),
+        ):
+            with self.subTest(method=method):
+                absent = rr.rank([region], LEX, "delta", [], method, index)["rows"][0]
+                present = rr.rank([region], LEX, "delta", [], method, index, **evidence)["rows"][0]
+                self.assertFalse(absent["method_compatible"])
+                self.assertTrue(present["method_compatible"])
+                self.assertEqual(absent["match"], present["match"])
+
+        with_access = rr.rank([region], LEX, "delta", [], "investigate-ice", index,
+                              profile_access_regions=verified)["rows"][0]
+        self.assertFalse(with_access["method_compatible"])
+
+    def test_method_does_not_use_hedged_or_neighbouring_concepts(self):
+        region = REGIONS[0]
+        region_id = region["id"]
+        for mention in (
+            rr.Mention("ice", 0, 3, False, True),
+            rr.Mention("ice", 0, 3, False, False, via="another region"),
+        ):
+            with self.subTest(mention=mention):
+                index = {region_id: [rr.Piece("science_prose", "Fixture", "ice", [mention])]}
+                row = rr.rank([region], LEX, "ice", [], "investigate-ice", index,
+                              profile_access_regions=frozenset({region_id}))["rows"][0]
+                self.assertFalse(row["method_compatible"])
+
+    def test_weak_mentions_can_score_higher_without_changing_evidence_tier(self):
+        direct, related = REGIONS[:2]
+        index = {
+            direct["id"]: [rr.Piece("documentation", "Fixture", "delta",
+                                    [rr.Mention("delta", 0, 5, False, False)])],
+            related["id"]: [rr.Piece("context_prose", "Fixture", "fans fans",
+                                     [rr.Mention("alluvial-fan", 0, 4, False, False),
+                                      rr.Mention("alluvial-fan", 5, 9, False, False)])],
+        }
+        first, second = rr.rank([direct, related], LEX, "delta", [], None, index)["rows"]
+        self.assertEqual((first["tier"], second["tier"]), ("Direct", "Thematic"))
+        self.assertGreater(second["match"], first["match"])
+
     def test_deterministic_across_input_order(self):
         a = rr.rank(REGIONS, LEX, "clay and sulfate minerals", [], None)
         b = rr.rank(list(reversed(REGIONS)), LEX, "clay and sulfate minerals", [], None)

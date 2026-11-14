@@ -122,7 +122,7 @@ Match(r) = Σ_q  w_facet(q) · idf(q) · S_q(r)
 ```
 
 - `ρ` is 1 for exact, 0.8 per level for narrower (*delta* supports *water*), 0.35 per level for broader (*sedimentology* weakly supports *delta*) and 0.5 for related (*fans* for *delta*).
-- Saturating each group before applying `ρ`, and taking the maximum rather than the sum, means many weak mentions can never outweigh one direct mention. This is BM25F-style saturation applied to concepts instead of words.
+- Saturating each group limits the contribution of repeated mentions, and taking the maximum prevents relation groups from stacking. Repeated mentions in a weaker relation can still outscore a direct mention in a low-weight field. Direct coverage determines the evidence tier independently of Match. This is BM25F-style saturation applied to concepts instead of words.
 - `df_q` counts regions with exact or narrower, non-negated, own evidence for *q*. Over the 56 regions this gives `idf(delta) = 2.54` and `idf(water) = 0.25`, so the specific term dominates.
 - Length normalisation is off (`b = 0`) because every region follows the same survey template. The evaluation includes this choice in its sensitivity sweep through `k1` and the role weights.
 
@@ -143,7 +143,7 @@ Match(r) = Σ_q  w_facet(q) · idf(q) · S_q(r)
 No column is ever added to another. A later option is a **nondominated** badge for the regions no other region beats on every criterion. It follows the finite-set Pareto comparison already adopted in the model review.
 
 - **Exclude chips are filters.** Excluded regions stay visible, greyed, with the reason, as in the current view. *Polar*: footprint fraction poleward of a reviewed latitude. The prototype uses the centre at |lat| ≥ 65° until AOIs exist, or a primary theme of polar deposits. *Volcanic*: volcanism is the primary theme, meaning the first domain of the science assessment or the dominant-terrain field. This keeps Gusev, whose first domain is aqueous alteration. A negated objective concept acts the same way.
-- **Method chips are gates, not weights.** *Sample rock* requires an exposed rock, sedimentary, mineral, stratigraphic or lava concept and profile access. *Investigate ice* requires an ice concept. *Remote survey* requires only imagery availability. The result is *compatible* or *not established*. It never re-scores Match.
+- **Method chips are gates, not weights.** *Sample rock* requires an exposed rock, sedimentary, mineral, stratigraphic or lava concept and profile access. *Investigate ice* requires an ice concept and profile access. *Remote survey* requires only imagery availability. The result is *compatible* or *not established*. It never re-scores Match. Local, unhedged concept evidence can satisfy the concept check. The prototype accepts verified region IDs for profile access and imagery through its Python API. The command-line prototype only reads the text registry, so method compatibility is not established there.
 
 ## Scaling to 196,608 cells
 
@@ -157,13 +157,13 @@ Cells carry no text, so they cannot be ranked by text. The same lexicon still ap
 | SWIM ice consistency maps | ice | Northern mid-latitudes only. Cells outside the mapped domain are unknown. |
 | Registry text evidence | Any concept | Propagated to cells inside a region AOI at reduced weight and labelled as regional context. Needs AOIs. |
 
-Cell scoring mirrors the region formula. `S_q(c)` is the maximum over layers of reliability × support, `idf` is computed over cells (equal area, so the count is an area), and the number of agreeing layers is reported beside the score instead of inflating it. A cell where no layer covers any query concept is **not evaluated**, never zero.
+Cell scoring mirrors the region formula. `S_q(c)` is the maximum over layers of reliability × support, `idf` is computed over cells (equal area, so the count is an area), and the number of agreeing layers is reported beside the score instead of inflating it. A concept is evaluated only where an eligible layer covers the cell. Covered cells with no support score zero for that concept. Cells with partial query coverage show the unknown concepts and stay outside the full-coverage ranking. A cell with no covered query concept is **not evaluated**.
 
-**Data structure.** Concept-major posting lists over the nested index: `uint32` cell plus `uint8` quantised support, with a separate coverage mask per layer for unknown. With a synthetic six concepts per cell, the 1.18 M postings take 8.3 MB, and a three-concept query plus a stable top-100 takes under 1 ms in NumPy. The same layout fits typed arrays in the browser. These are timing figures only. The support values are random.
+**Data structure.** Concept-major posting lists over the nested index: `uint32` cell plus `uint8` quantised support, with separate coverage masks per layer and concept. With a synthetic six concepts per cell, the 1.18 M postings take 8.3 MB, and a three-concept query plus a stable top-100 takes under 1 ms in NumPy. The same layout fits typed arrays in the browser. These are timing figures only. The support values are random.
 
 **Hierarchy.** In nested order the four children of a cell are consecutive, so Nside-64 and coarser zoom levels are linear max or mean reductions. Region AOIs and product footprints should be stored as HEALPix Multi-Order Coverage maps (IVOA MOC). Region ↔ cell membership and region-level documentation aggregation then become sorted-range intersections.
 
-**Use for the demo site.** The framework's open P0 decision is a genuinely less-documented site with a real science objective. With cell scoring, the query is *cells with Direct match for the objective whose documentation tier is Low or Very Low*, ordered by Match. This produces a reproducible candidate list with the evidence for each cell.
+**Use for the demo site.** The framework's open P0 decision is a genuinely less-documented site with a real science objective. With cell scoring, the query is *cells with Direct match for the objective whose documentation tier is Low or Very Low*, ordered by Match. These hits supply screening evidence for candidate-region assessment. See the [cell plan](PLAN-200K.md) for the registry handoff and shortlist review.
 
 ## Determinism and reproducibility
 

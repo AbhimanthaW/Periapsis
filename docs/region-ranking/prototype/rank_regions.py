@@ -385,7 +385,10 @@ def build_index(regions: list[dict], lex: Lexicon) -> dict[str, list[Piece]]:
 
 
 def rank(regions: list[dict], lex: Lexicon, objective: str, exclude: list[str], method: str | None,
-         index: dict[str, list[Piece]] | None = None) -> dict:
+         index: dict[str, list[Piece]] | None = None, *,
+         profile_access_regions: frozenset[str] = frozenset(),
+         imagery_regions: frozenset[str] = frozenset()) -> dict:
+    """Rank text matches. The evidence sets contain region IDs with verified method inputs."""
     q_mentions, unknown = annotate(objective, lex)
     content = len(q_mentions) + len(unknown)
     parse_confidence = round(len(q_mentions) / content, 3) if content else 0.0
@@ -412,8 +415,7 @@ def rank(regions: list[dict], lex: Lexicon, objective: str, exclude: list[str], 
         match, covered, evidence = 0.0, 0.0, []
         for q in query:
             # Accumulate per relation class, saturate, then apply the relation weight.
-            # Many broad mentions (for example "lake" for a delta query) can never
-            # outweigh one exact mention.
+            # The best weighted class contributes, so weak classes cannot stack.
             classes: dict[float, float] = {}
             kinds: set[str] = set()
             best = None
@@ -455,10 +457,17 @@ def rank(regions: list[dict], lex: Lexicon, objective: str, exclude: list[str], 
 
         method_ok = None
         if method:
-            need = set(lex.raw["methods"][method]["requires_any"])
-            have = {m.concept for p in pieces if lex.roles[p.role] > 0 for m in p.mentions if not m.negated}
+            requirements = lex.raw["methods"][method]
+            need = set(requirements["requires_any"])
+            have = {m.concept for p in pieces if lex.roles[p.role] > 0
+                    for m in p.mentions if not (m.negated or m.via or m.hedged)}
             have |= {a for c in have for a in lex._anc[c]}
-            method_ok = (not need) or bool(need & have)
+            requires_imagery = requirements.get("requires_imagery", method == "remote-survey")
+            method_ok = (
+                (not need or bool(need & have))
+                and (not requirements["requires_profile_access"] or region["id"] in profile_access_regions)
+                and (not requires_imagery or region["id"] in imagery_regions)
+            )
 
         results.append(Result(region, match, covered / denom, evidence, excluded, method_ok, headline))
 
