@@ -144,8 +144,8 @@ def _route_seconds(route):
     return None if route is None else route["seconds"]
 
 
-@pytest.mark.parametrize("closures", [[], ["mid"], ["north"], ["mid", "north"]])
-@pytest.mark.parametrize("remaining", [0, 60, 70, 100, 200])
+@pytest.mark.parametrize("closures", [[], ["mid"], ["north"], ["mid", "north"], ["north", "mid"]])
+@pytest.mark.parametrize("remaining", [0, 54, 55, 60, 70, 74, 75, 89, 90, 100, 109, 110, 200, 86_400])
 def test_marswalk_engine_matches_mission_contract(closures, remaining):
     pack = load_pack(FIXTURE, simulation=True)
     mission, marswalk = PlanningService(pack, None), PlanningService(pack, None, engine="marswalk")
@@ -154,15 +154,23 @@ def test_marswalk_engine_matches_mission_contract(closures, remaining):
     expected, result = mission.plan(request), marswalk.plan(request)
     for key in V1_FIELDS + ("schema_version", "request_id", "route_index_order"):
         assert result[key] == expected[key], key
-    for key in ("direct_return", "reverse_control"):
+    scenario = pack.scenario
+    checkpoint = scenario["checkpoint"]["cell"]
+    shelter = scenario["shelter"]["cell"]
+    closed = {tuple(cell) for closure in scenario["closures"] if closure["id"] in closures
+              for cell in closure["cells"]}
+    for key, start, end in (("direct_return", checkpoint, shelter), ("reverse_control", shelter, checkpoint)):
         assert _route_seconds(result[key]) == _route_seconds(expected[key]), key
-        if result[key] is not None:    # equal-time ties may pick different cells; the route must still be valid
-            cells = result[key]["cells"]
-            assert all(abs(a[0] - b[0]) + abs(a[1] - b[1]) == 1 for a, b in zip(cells, cells[1:]))
-    direct = result["direct_return"]
-    if direct is not None:
-        assert direct["cells"][0] == list(pack.scenario["checkpoint"]["cell"])
-        assert direct["cells"][-1] == list(pack.scenario["shelter"]["cell"])
+        if result[key] is None:
+            continue
+        # Equal-time ties may pick different cells. Both routes must avoid closures and screened terrain.
+        cells = [tuple(cell) for cell in result[key]["cells"]]
+        assert cells[0] == tuple(start) and cells[-1] == tuple(end)
+        rows, cols = pack.terrain["valid_mask"].shape
+        assert all(0 <= row < rows and 0 <= col < cols for row, col in cells)
+        assert all(pack.terrain["valid_mask"][cell] and not pack.terrain["screen_excluded_mask"][cell]
+                   and cell not in closed for cell in cells)
+        assert all(abs(a[0] - b[0]) + abs(a[1] - b[1]) == 1 for a, b in zip(cells, cells[1:]))
     assert result["engine"] == "marswalk"
     assert result["marswalk"]["schema"] == "marswalk-plan-v1"
     assert result["marswalk"]["status"] == result["status"]
