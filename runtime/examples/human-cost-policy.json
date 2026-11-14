@@ -1,0 +1,26 @@
+{
+  "schema": "human-cost-policy-v1",
+  "parameters": {
+    "mars_gravity_m_s2": {"value": 3.71, "status": "assumed"},
+    "net_external_heat_w": {"value": 25, "status": "assumed"},
+    "cooling_water_heat_j_kg": {"value": 2400000, "status": "assumed"},
+    "electrical_base_w": {"value": 115, "status": "assumed"},
+    "cooling_electrical_w_per_thermal_w": {"value": 0.12, "status": "assumed"},
+    "oxygen_reserve_fraction": {"value": 0.30, "status": "assumed"},
+    "oxygen_raised_fraction": {"value": 0.35, "status": "assumed"},
+    "cooling_water_reserve_fraction": {"value": 0.15, "status": "assumed"},
+    "cooling_water_raised_fraction": {"value": 0.20, "status": "assumed"},
+    "battery_reserve_fraction": {"value": 0.20, "status": "assumed"},
+    "battery_raised_fraction": {"value": 0.25, "status": "assumed"},
+    "drinking_water_reserve_l": {"value": 0.30, "status": "assumed"},
+    "drinking_water_raised_l": {"value": 0.40, "status": "assumed"},
+    "utilisation_caution": {"value": 0.70, "status": "assumed"},
+    "utilisation_warning": {"value": 0.85, "status": "assumed"},
+    "utilisation_fail": {"value": 1.00, "status": "assumed"},
+    "demand_elevated": {"value": 1.10, "status": "assumed"},
+    "demand_high": {"value": 1.25, "status": "assumed"},
+    "slope_candidates_deg": {"value": [15, 12, 10], "status": "assumed"},
+    "time_reserve_s": {"value": 900, "status": "assumed"}
+  },
+  "base_profile": {"v_flat_mps": 0.5, "pace_model": "tobler_scaled", "neighbours": 8}
+}
