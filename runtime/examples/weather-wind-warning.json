@@ -1,0 +1,36 @@
+{
+  "provenance": "simulated",
+  "required": false,
+  "max_age_s": 600,
+  "stations": [
+    {
+      "id": "base-1",
+      "cell": [
+        80,
+        40
+      ],
+      "provenance": "simulated"
+    }
+  ],
+  "messages": [
+    {
+      "station_id": "base-1",
+      "variable": "wind_speed",
+      "value": 22.0,
+      "unit": "m/s",
+      "kind": "observed",
+      "time_utc": "2021-02-18T20:40:00Z",
+      "provenance": "simulated",
+      "note": "SIMULATED gust front for the demo"
+    },
+    {
+      "station_id": "base-1",
+      "variable": "dust_optical_depth",
+      "value": 0.6,
+      "unit": "1",
+      "kind": "observed",
+      "time_utc": "2021-02-18T20:40:00Z",
+      "provenance": "simulated"
+    }
+  ]
+}
