@@ -1,0 +1,37 @@
+{
+  "provenance": "simulated",
+  "required": false,
+  "max_age_s": 600,
+  "stations": [
+    {
+      "id": "base-1",
+      "cell": [
+        80,
+        40
+      ],
+      "provenance": "simulated"
+    }
+  ],
+  "messages": [
+    {
+      "station_id": "base-1",
+      "variable": "wind_speed",
+      "value": 8.0,
+      "unit": "m/s",
+      "kind": "observed",
+      "time_utc": "2021-02-18T20:41:00Z",
+      "provenance": "simulated"
+    },
+    {
+      "station_id": "base-1",
+      "variable": "wind_speed",
+      "value": 25.0,
+      "unit": "m/s",
+      "kind": "forecast",
+      "time_utc": "2021-02-18T20:30:00Z",
+      "valid_to_utc": "2021-02-18T23:00:00Z",
+      "provenance": "simulated",
+      "note": "SIMULATED forecast: advisory only, never changes the plan"
+    }
+  ]
+}
