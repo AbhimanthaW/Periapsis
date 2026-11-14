@@ -71,3 +71,5 @@ Rebuild from the repo root after preparing the baseline workspace above. `--fetc
 uv run --project documentation --locked --with openpyxl==3.1.5 --with pyshp==3.0.3 python documentation/cell-map/build_ranking_layers.py --fetch --merge
 RW_SCIENCE_VIEW=1 RW_EXPANDED_VIEW=1 RW_RANKING_VIEW=1 uv run --project documentation --locked python documentation/cell-map/build_viewer.py
 ```
+
+The [synthetic science demonstration](../SYNTHETIC-SCIENCE.md) adds a separate offline preview with invented inputs and visibly labeled test layers.

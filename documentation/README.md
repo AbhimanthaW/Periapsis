@@ -57,3 +57,7 @@ Yumeth's production sidecars, a full catalogue run, and application wiring are p
 | `examples/` | Jezero package and query, bounded archive verification, benchmark script and measured results |
 | `tests/` | Unit, integration and scientific controls |
 | Parent `README.md` | Link from the isolated copy of the existing architecture |
+
+## Synthetic science demonstration
+
+The opt-in fixture exercises deposit polygons, valley linework, glacial landforms, equivalent magnetic dipoles and olivine spectra through the cell query. It has a separately labeled offline map. See the [research, calculations and run instructions](SYNTHETIC-SCIENCE.md).

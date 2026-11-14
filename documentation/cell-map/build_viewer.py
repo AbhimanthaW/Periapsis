@@ -59,6 +59,37 @@ if ranking_mode:
                          for layer, items in json.load(stream).items()}
 
 
+synthetic_mode = os.environ.get("RW_SYNTHETIC_SCIENCE_VIEW") == "1"
+synthetic_layers = {}
+synthetic_rows = {}
+example_id = "HPX128:96848"
+synthetic_bounds = None
+if synthetic_mode:
+    from marsdoc.synthetic_science import FIELDS, METHODS, PREVIEW_BOUNDS, RECIPE
+
+    if not ranking_mode:
+        raise ValueError("RW_SYNTHETIC_SCIENCE_VIEW requires the sourced map layers")
+    fixture_path = root / "synthetic-science/synthetic-science-context.json"
+    fixture = json.loads(fixture_path.read_bytes())
+    grid = Grid()
+    if (fixture["schema_version"], fixture["data_status"], fixture["recipe_id"], fixture["grid"],
+        fixture["grid_cell_count"]) != (1, "synthetic", RECIPE, "HPX128 NESTED", grid.count):
+        raise ValueError("unexpected synthetic science fixture identity")
+    if fixture["methods"] != METHODS:
+        raise ValueError("unexpected synthetic fixture methods")
+    example_id = fixture["example_cell_id"]
+    synthetic_layers = FIELDS
+    synthetic_bounds = PREVIEW_BOUNDS
+    for record in fixture["cells"]:
+        index = grid.parse_id(record["cell_id"])
+        if (index in synthetic_rows or record["data_status"] != "synthetic" or record["recipe_id"] != RECIPE
+                or record["fields"].keys() != FIELDS.keys()):
+            raise ValueError(f"invalid synthetic fixture cell {index}")
+        synthetic_rows[index] = record["fields"]
+    if grid.parse_id(example_id) not in synthetic_rows:
+        raise ValueError("synthetic fixture lacks its example cell")
+
+
 def layer_label(key, identifier):
     feature = feature_index["gazetteer" if key == "gazetteer_approximate_bounds" else key][identifier]
     if key == "structures":
@@ -90,9 +121,15 @@ def ranking_display(evidence):
 
 
 width, height = 1440, 720
-lon, lat = np.meshgrid((np.arange(width) + .5) / width * 360 - 180,
-                       90 - (np.arange(height) + .5) / height * 180)
-pixels = Grid().indices(np.stack((lon, lat), axis=-1)).astype("<u4")
+def map_pixels(bounds):
+    west, south, east, north = bounds
+    lon, lat = np.meshgrid(west + (np.arange(width) + .5) / width * (east - west),
+                           north - (np.arange(height) + .5) / height * (north - south))
+    return Grid().indices(np.stack((lon, lat), axis=-1)).astype("<u4")
+
+
+pixels = map_pixels((-180, -90, 180, 90))
+local_pixels = map_pixels(synthetic_bounds) if synthetic_bounds else None
 with sqlite3.connect(f"file:{root / 'map/cells.sqlite'}?mode=ro", uri=True) as db:
     data = []
     for i, x, y, z, n, encoded in db.execute(
@@ -127,14 +164,15 @@ def pack(data):
 
 html = """<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mars HEALPix evidence map</title>
+<title>__MAP_TITLE__</title>
 <style>
 body{background:#161a21;color:#edf0f4;margin:0 auto;max-width:1180px;padding:1.5rem;font:16px system-ui}
 p{color:#b5bdc8;line-height:1.5}select,input,button{font:inherit;padding:.35rem;margin:.3rem 0}
 canvas{display:block;width:100%;height:auto;background:#252d39;cursor:crosshair;margin-top:1rem}
 #details{white-space:pre-wrap;line-height:1.6;padding:1rem;background:#222935}
 </style>
-<h1>Mars HEALPix evidence map</h1>
+<h1>__MAP_TITLE__</h1>
+__SYNTHETIC_NOTE__
 <p>196,608 cells · Nside 128 · Return Window · East-positive Mars coordinates</p>
 <label>Layer <select id="layer">
 <option value="elevation">MOLA elevation</option><option value="counts">MOLA observation count</option>
@@ -142,7 +180,7 @@ canvas{display:block;width:100%;height:auto;background:#252d39;cursor:crosshair;
 <option value="imagery">HiRISE imagery · local catalogue search</option>
 __SCIENCE_OPTIONS__
 </select></label>
-<form id="search"><label>Cell ID <input id="cell" value="HPX128:96848"></label> <button>Inspect</button></form>
+<form id="search"><label>Cell ID <input id="cell" value="__EXAMPLE_ID__"></label> <button>Inspect</button></form>
 <canvas width="1440" height="720" id="map" aria-label="Mars evidence map. Use the cell ID input for keyboard inspection."></canvas>
 <p id="legend"></p><section id="details" aria-live="polite">Loading local evidence…</section>
 <p>MOLA values sample the native pixel at the cell centre. Catalogue coverage reflects imported outlines.
@@ -169,21 +207,36 @@ ice5:[18,-1,1,[211,132,84],[117,211,246],'SWIM >5 m ice consistency · −1 to +
 dust:[19,0,1,[33,56,101],[252,170,84],'TES historical column dust optical depth · MY25 sol 001 · 9.3 µm'],
 albedo:[20,0,.5,[38,42,55],[252,219,157],'TES Lambert albedo · dimensionless; display range 0–0.5']};
 const sourcedLayers = __RANKING_LAYERS__;
+const syntheticLayers = __SYNTHETIC_LAYERS__;
+const syntheticRows = __SYNTHETIC_ROWS__;
+const syntheticStyle = (key,id) => {
+  const record = syntheticRows[id]?.[key];
+  if (record == null) return [34,42,55];
+  const value = record[syntheticLayers[key][1]];
+  return value > 0 ? [232,154,255] : [95,65,110];
+};
 const sparse = new Set(['stereo','usable','imagery','crism','hirisecat','hirstereo']);
 async function unpack(value) {
   const bytes = Uint8Array.from(atob(value), char => char.charCodeAt(0));
   return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
 }
-Promise.all([unpack('__PIXELS__'),unpack('__DATA__')]).then(([bytes, records]) => {
+const syntheticBounds = __SYNTHETIC_BOUNDS__;
+const localRaster = syntheticBounds ? unpack('__LOCAL_PIXELS__') : null;
+Promise.all([unpack('__PIXELS__'),unpack('__DATA__'),localRaster]).then(([bytes, records, local]) => {
   const ids = new Uint32Array(bytes), data = JSON.parse(new TextDecoder().decode(records));
-  let selected = 96848, background;
+  const localIds = local ? new Uint32Array(local) : null;
+  let selected = Number(field.value.split(':')[1]), background, displayedIds = ids;
   function renderLayer() {
+    const syntheticLayer = Object.hasOwn(syntheticLayers, layer.value);
     const sourcedLayer = Object.hasOwn(sourcedLayers, layer.value);
-    const [index,low,high,start,end,label] = sourcedLayer
-      ? [21,0,1,[34,42,55],[126,227,194],sourcedLayers[layer.value] + ' · bright cells contain imported records']
-      : palettes[layer.value];
-    legend.textContent = label;
-    const colors = data.map(row => {
+    const sourcedPalette = [21,0,1,[34,42,55],[126,227,194],
+      sourcedLayers[layer.value] + ' · bright cells contain imported records'];
+    const [index,low,high,start,end,label] = sourcedLayer ? sourcedPalette : palettes[layer.value] ?? [];
+    legend.textContent = syntheticLayer
+      ? syntheticLayers[layer.value][0] + ' · fixture area near 0° E · bright is positive, dim is zero, grey has no fixture value'
+      : label;
+    const colors = data.map((row,id) => {
+      if (syntheticLayer) return syntheticStyle(layer.value,id);
       if (sourcedLayer) return Object.hasOwn(row[index], layer.value) ? end : start;
       if (layer.value === 'geology') {
         const code = row[9][0]?.[0];
@@ -199,9 +252,10 @@ Promise.all([unpack('__PIXELS__'),unpack('__DATA__')]).then(([bytes, records]) =
       if (layer.value === 'thermal' && row[11] === 'archive_interpolated') scale *= .58;
       return start.map((value,j) => Math.round(value + scale*(end[j]-value)));
     });
+    displayedIds = syntheticLayer ? localIds : ids;
     background = ctx.createImageData(view.width,view.height);
-    for (let i=0;i<ids.length;i++) {
-      background.data.set(colors[ids[i]],i*4);
+    for (let i=0;i<displayedIds.length;i++) {
+      background.data.set(colors[displayedIds[i]],i*4);
       background.data[i*4+3] = 255;
     }
     if (sparse.has(layer.value)) {
@@ -224,9 +278,27 @@ Promise.all([unpack('__PIXELS__'),unpack('__DATA__')]).then(([bytes, records]) =
     field.value = 'HPX128:' + id;
     const lon = (x+180)%360-180;
     ctx.putImageData(background,0,0);
-    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath();
-    ctx.arc((lon+180)*4,(90-y)*4,6,0,2*Math.PI); ctx.stroke();
+    const [west,south,east,north] = displayedIds === ids ? [-180,-90,180,90] : syntheticBounds;
+    if (lon >= west && lon <= east && y >= south && y <= north) {
+      ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath();
+      ctx.arc((lon-west)*view.width/(east-west),(north-y)*view.height/(north-south),6,0,2*Math.PI);
+      ctx.stroke();
+    }
     const pct = fraction => (100*fraction).toFixed(2) + '%';
+    if (Object.hasOwn(syntheticLayers, layer.value)) {
+      const [title, metric] = syntheticLayers[layer.value];
+      const record = syntheticRows[id]?.[layer.value];
+      const unit = metric === 'magnitude_nt' ? ' nT' : metric === 'length_km' ? ' km' : '';
+      const value = record == null ? 'No synthetic result for this cell.'
+        : metric.includes('fraction')
+          ? pct(record[metric]) + ' of cell' : record[metric].toFixed(2) + unit;
+      details.textContent = [field.value + ' · Synthetic test data', title + ' · ' + value,
+        record?.surveyed_fraction != null ? 'Fixture survey overlap · ' + pct(record.surveyed_fraction) : '',
+        record?.valid_spectral_fraction != null ? 'Valid synthetic spectra · ' + pct(record.valid_spectral_fraction) : '',
+        record?.feature_ids?.length ? 'Fixture IDs · ' + record.feature_ids.join(', ') : ''
+      ].filter(Boolean).join('\\n');
+      return;
+    }
     details.textContent = [
       field.value + ' · ' + x.toFixed(4) + '° E, ' + y.toFixed(4) + '° latitude',
       'MOLA elevation ' + z.toLocaleString() + ' m · ' + n.toLocaleString() + ' observations in the native sample',
@@ -259,7 +331,7 @@ Promise.all([unpack('__PIXELS__'),unpack('__DATA__')]).then(([bytes, records]) =
     const rect=view.getBoundingClientRect();
     const x=Math.min(1439,Math.max(0,Math.floor((event.clientX-rect.left)*1440/rect.width)));
     const y=Math.min(719,Math.max(0,Math.floor((event.clientY-rect.top)*720/rect.height)));
-    inspect(ids[y*1440+x]);
+    inspect(displayedIds[y*1440+x]);
   });
   document.querySelector('#search').addEventListener('submit',event => {
     event.preventDefault();
@@ -267,6 +339,7 @@ Promise.all([unpack('__PIXELS__'),unpack('__DATA__')]).then(([bytes, records]) =
     if (match && Number(match[1])<data.length) inspect(Number(match[1]));
     else details.textContent='Enter HPX128:0 through HPX128:196607.';
   });
+  if (Object.keys(syntheticLayers).length) layer.value = 'deltas';
   renderLayer();
 }).catch(error => { details.textContent = 'Could not open map data: ' + error.message; });
 </script></html>
@@ -297,9 +370,24 @@ if ranking_mode:
                        for key, title in ranking_layers.items())
     note += (" Named feature bounds are approximate. Cave locations are candidates. "
              "InSight locations are estimates. Empty cells indicate unknown survey coverage.")
-name = ("mars-cell-map-sourced.html" if ranking_mode else "mars-cell-map-expanded.html" if expansion else
+title = "Mars HEALPix evidence map"
+banner = ""
+if synthetic_mode:
+    options += '<optgroup label="Synthetic test layers">' + "".join(
+        f'<option value="{key}">{escape(title)}</option>' for key, (title, _) in synthetic_layers.items()
+    ) + "</optgroup>"
+    title = "Mars HEALPix synthetic science preview"
+    banner = ('<p><strong>Synthetic test layers contain invented values.</strong> '
+              'They are for software demonstration. Source catalogue layers retain their published data.</p>')
+name = ("mars-cell-map-synthetic-science.html" if synthetic_mode else
+        "mars-cell-map-sourced.html" if ranking_mode else "mars-cell-map-expanded.html" if expansion else
         "mars-cell-map-science.html" if science else "mars-cell-map.html")
 (root / name).write_text(html.replace("__PIXELS__", pack(pixels.tobytes())).replace(
     "__DATA__", pack(json.dumps(data, separators=(",", ":")).encode())).replace(
     "__SCIENCE_OPTIONS__", options).replace("__SCIENCE_NOTE__", note).replace(
-    "__RANKING_LAYERS__", json.dumps(ranking_layers if ranking_mode else {})))
+    "__RANKING_LAYERS__", json.dumps(ranking_layers if ranking_mode else {})).replace(
+    "__SYNTHETIC_LAYERS__", json.dumps(synthetic_layers)).replace(
+    "__SYNTHETIC_ROWS__", json.dumps(synthetic_rows, separators=(",", ":"), allow_nan=False)).replace(
+    "__SYNTHETIC_BOUNDS__", json.dumps(synthetic_bounds)).replace(
+    "__LOCAL_PIXELS__", pack(local_pixels.tobytes()) if synthetic_mode else "").replace(
+    "__EXAMPLE_ID__", example_id).replace("__MAP_TITLE__", title).replace("__SYNTHETIC_NOTE__", banner))
