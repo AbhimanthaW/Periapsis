@@ -72,3 +72,7 @@ $work = Join-Path $env:TEMP "return-window-dust"
 ```
 
 `inspect` prints the file layout and scores each candidate grid convention against the storm-outline CSVs. `extract` stops unless one convention clearly wins in every year. Commit `dust-outlook.json` together with `series\dust-series-manifest.json` (input checksums, convention scores) and paste the `train` output (per-year skill) into the PR. Fixture tests: `python -m pytest tests/test_dust_outlook.py`.
+
+## Minimal-sensor weather forecast
+
+`python -m return_window_pipeline.forecast` trains a station forecaster for pressure, air temperature, wind and dust optical depth 1–6 Mars hours ahead. It works out the fewest sensors that keep the skill, gives validated P10–P90 bands, and abstains to climatology outside its training range. `runtime/marswalk/forecast.py` turns the model into a command-centre view, a three-line astronaut view, and ADVISORY weather messages that never change the plan. Datasets, their verification status and the real-data steps are in [docs/weather-forecast-datasets.md](../docs/weather-forecast-datasets.md). The example in `examples/weather/` is SYNTHETIC. Tests: `python -m pytest tests/test_forecast_model.py` and, from the repository root, `python -m pytest runtime/tests/test_forecast.py`.
