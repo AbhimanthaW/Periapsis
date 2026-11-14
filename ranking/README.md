@@ -92,6 +92,8 @@ The release arrays and metadata occupy 30.6 MB against a 20 MB target, with
 alone occupy 20.4 MB. The content-addressed layer build cache is outstanding.
 Pyramid pruning is optional under the current implementation prompt.
 At the draft thresholds, changing the shallow ice ramp endpoint by ±20%
-retained only 9–10 of its top 20 areas. The DEMO delta objective supplies
-eight Direct areas, so its top-20 robustness remains unqualified. Keep the
-ranker in draft while the model and performance gates are open.
+retained only 9–10 of its top 20 areas. Reducing the structure ramp endpoint
+by 20% retained 14 of 20 young-volcanism and lava-flow areas. The DEMO delta
+objective supplies eight Direct areas, so its top-20 robustness remains
+unqualified. An uncached five-concept query with zero Direct matches also
+exceeded 50 ms. Keep the ranker in draft while these gates are open.

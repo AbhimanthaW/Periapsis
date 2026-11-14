@@ -269,3 +269,12 @@ def test_http_contract(service):
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+def test_top_golden_area_order(demo_service):
+    from tests.ranking.check_sensitivity import top_areas
+
+    expected = json.loads(Path(__file__).with_name("golden_areas.json").read_text())
+    actual = top_areas(demo_service.engine)
+    assert {objective: [[tile, cells[0]] for tile, cells in matches]
+            for objective, matches in actual.items()} == expected
