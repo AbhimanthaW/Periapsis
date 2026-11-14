@@ -6,9 +6,11 @@
 
 **Decisions taken.** Polar exclusion at 60° is accepted. Areas are Nside-32 tiles, about 108 km across. Water and mineral layers will be joined.
 
-[Cell plan and profile](PLAN-CELLS.md) · [Concept ledger](cell-concepts-v1-draft.json) · [Benchmark](cell-profile/bench.py)
+[Implementation prompt](IMPLEMENTATION-PROMPT.md) · [Cell plan and profile](PLAN-CELLS.md) · [Concept ledger](cell-concepts-v1-draft.json) · [Benchmark](cell-profile/bench.py)
 
 ## 1. The data that should be there
+
+> **Update, 14 Nov afternoon.** Release `mars-cell-map-v0.2.0` already joins layers 2, 3, 6, 7, 8, 9 and 10, plus the NASA PDS hydrated-mineral sites. MOCAAS returned HTTP 410, so mineral classes are demo for now. The [implementation prompt](IMPLEMENTATION-PROMPT.md) carries the current status and supersedes this table where they differ.
 
 The 31 unsupported concepts fall into thirteen missing layers. Status is **Source** when a download page was found, and **Dummy** when only a paper was found or nothing was found. Sources were located by web search on 14 November. None has been downloaded or licence-checked yet.
 
