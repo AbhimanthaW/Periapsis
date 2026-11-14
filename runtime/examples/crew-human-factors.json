@@ -9,7 +9,8 @@
       "respiratory_exchange_ratio": 0.85, "sustainable_metabolic_w": 350,
       "peak_metabolic_w": 600, "initial_oxygen_g": 750,
       "initial_cooling_water_kg": 2.2, "initial_drinking_water_l": 1.5,
-      "drinking_water_l_h": 0.30, "initial_battery_wh": 650
+      "drinking_water_l_h": 0.30, "initial_battery_wh": 650,
+      "co2_removal_g_s": 0.045
     },
     {
       "id": "EV1", "mass_kg": 138, "metabolic_baseline_w": 205,
@@ -17,7 +18,8 @@
       "respiratory_exchange_ratio": 0.85, "sustainable_metabolic_w": 350,
       "peak_metabolic_w": 600, "initial_oxygen_g": 750,
       "initial_cooling_water_kg": 2.2, "initial_drinking_water_l": 1.5,
-      "drinking_water_l_h": 0.30, "initial_battery_wh": 650
+      "drinking_water_l_h": 0.30, "initial_battery_wh": 650,
+      "co2_removal_g_s": 0.045
     },
     {
       "id": "EV2", "mass_kg": 156, "metabolic_baseline_w": 250,
@@ -25,7 +27,8 @@
       "respiratory_exchange_ratio": 0.87, "sustainable_metabolic_w": 350,
       "peak_metabolic_w": 600, "initial_oxygen_g": 700,
       "initial_cooling_water_kg": 2.2, "initial_drinking_water_l": 1.5,
-      "drinking_water_l_h": 0.35, "initial_battery_wh": 650
+      "drinking_water_l_h": 0.35, "initial_battery_wh": 650,
+      "co2_removal_g_s": 0.045
     }
   ]
 }

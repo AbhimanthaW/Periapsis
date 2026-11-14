@@ -100,6 +100,7 @@ def test_fixture_constant_grade_rates_agree():
     crew, policy = fixture_data()
     person = next(p for p in crew["astronauts"] if p["id"] == "REF")
     person["suit_joint_power_w"] = scenario["suit_joint_torque_nm"] * scenario["suit_joint_angular_speed_rad_s"]
+    person["co2_removal_g_s"] = scenario["co2_removal_g_s"]
     speed = scenario["flat_speed_m_s"] * math.exp(-scenario["pace_grade_decay"] * (
         abs(scenario["signed_grade"] + scenario["pace_optimum_downhill_grade"]) - scenario["pace_optimum_downhill_grade"]))
     gain = speed * scenario["signed_grade"] * 1200
@@ -150,5 +151,72 @@ def test_deterministic_bytes_and_order():
     Phase("bad", "outbound", float("nan"), 0),
 ])
 def test_invalid_route_phases_refused(phase):
+    with pytest.raises(MarswalkError, match="INVALID_HUMAN_FACTORS"):
+        evaluate(CREW, POLICY, [phase])
+
+
+def test_phase_context_tracks_dose_vitals_and_derived_fields_without_double_counting():
+    environment = {
+        "data_status": "simulated", "radiation_dose_rate_mgy_day": .25,
+        "temperature_k": 238, "wind_speed_m_s": 7,
+        "atmospheric_pressure_pa": 730, "dust_concentration_mg_m3": .25,
+        "solar_illumination_deg": 30, "surface_traction": .55,
+        "regolith_sinkage_mm": 10, "obstacle_density_count_m2": 11 / 600,
+        "communication_signal_available": True, "visibility_distance_m": 100,
+        "communication_latency_s": 800,
+    }
+    observations = {"EV1": {"data_status": "simulated", "heart_rate_bpm": 106,
+                            "core_body_temperature_c": 37.1,
+                            "suit_internal_pressure_kpa_abs": 30.1}}
+    phase = Phase("outbound", "outbound", 3600, 40, distance_m=1800,
+                  max_slope_deg=12, environment=environment, observations=observations)
+    with_context = evaluate(CREW, POLICY, [phase])
+    without_context = evaluate(CREW, POLICY, [Phase("outbound", "outbound", 3600, 40)])
+    assert with_context["ambient_absorbed_dose_proxy_mgy"] == pytest.approx(.25 / 24)
+    assert with_context["phase_context"][0]["environment"] == environment
+    assert "wind_speed_m_s" in with_context["phase_context"][0]["not_in_consumables_model"]
+    ev1 = with_context["astronauts"][0]
+    assert ev1["phase_metrics"][0]["walking_speed_m_s"] == .5
+    assert ev1["phase_metrics"][0]["observations"] == observations["EV1"]
+    assert ev1["phase_metrics"][0]["suit_mobility_resistance_w"] == 13.5
+    assert ev1["phase_metrics"][0]["cooling_demand_w"] > 0
+    assert ev1["remaining_resources"]["oxygen"] == pytest.approx(750 - ev1["ledgers"][0]["total_use"])
+    assert ev1["estimated_remaining_eva_s"] > 0
+    assert [a["ledgers"] for a in with_context["astronauts"]] == [a["ledgers"] for a in without_context["astronauts"]]
+    assert serialize(with_context) == serialize(evaluate(CREW, POLICY, [phase]))
+
+
+def test_missing_dose_rate_is_unknown_not_zero():
+    result = evaluate(CREW, POLICY, [Phase("outbound", "outbound", 100, 0)])
+    assert result["ambient_absorbed_dose_proxy_mgy"] is None
+    assert result["phase_context"][0]["ambient_absorbed_dose_proxy_mgy"] is None
+
+
+def test_declared_co2_removal_reports_excess_without_medical_claim():
+    crew, policy = fixture_data()
+    crew["astronauts"][1]["co2_removal_g_s"] = 0
+    result = evaluate(crew, policy, [Phase("outbound", "outbound", 100, 0)])
+    ev1 = result["astronauts"][0]
+    assert ev1["co2_excess_load_g"] == pytest.approx(ev1["co2_produced_g"])
+    assert "co2_production_above_declared_removal" in ev1["flags"]
+    assert ev1["check"] == "pass"
+
+
+def test_route_slope_and_mean_peak_limits_fail_without_risk_score():
+    slope = evaluate(CREW, POLICY, [Phase("outbound", "outbound", 100, 0, max_slope_deg=16)])
+    assert slope["route"]["check"] == "fail" and slope["route"]["risk"] is None
+    assert slope["astronauts"][0]["breach"] == {"resource": "terrain_slope", "phase": "outbound"}
+    peak = evaluate(CREW, POLICY, [Phase("outbound", "outbound", 100, 100)])
+    assert peak["route"]["check"] == "fail" and peak["route"]["risk"] is None
+    assert peak["astronauts"][0]["breach"] == {"resource": "metabolic_peak", "phase": "outbound"}
+
+
+@pytest.mark.parametrize("phase", [
+    Phase("x", "outbound", 10, 0, environment={"data_status": "simulated", "wind_speed_m_s": float("nan")}),
+    Phase("x", "outbound", 10, 0, environment={"data_status": "simulated", "unknown": 1}),
+    Phase("x", "outbound", 10, 0, observations={"UNKNOWN": {"data_status": "simulated", "heart_rate_bpm": 90}}),
+    Phase("x", "outbound", 10, 0, distance_m=1, max_slope_deg=90),
+])
+def test_invalid_phase_context_refused(phase):
     with pytest.raises(MarswalkError, match="INVALID_HUMAN_FACTORS"):
         evaluate(CREW, POLICY, [phase])

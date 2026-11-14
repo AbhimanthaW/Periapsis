@@ -24,6 +24,7 @@ class Astronaut:
     initial_drinking_water_l: float
     drinking_water_l_h: float
     initial_battery_wh: float
+    co2_removal_g_s: float
 
 
 @dataclass(frozen=True)
@@ -109,7 +110,8 @@ def load_crew(source):
         person = _object(raw, ("id", *ASTRONAUT_NUMBERS), f"astronauts[{index}]")
         if not isinstance(person["id"], str) or not person["id"].strip():
             _refuse(f"astronauts[{index}].id must be a nonempty string")
-        values = {k: _number(person[k], f"{person['id']}.{k}", strictly_positive=True)
+        values = {k: _number(person[k], f"{person['id']}.{k}",
+                             strictly_positive=k != "co2_removal_g_s")
                   for k in ASTRONAUT_NUMBERS}
         if not 0 < values["mechanical_efficiency"] <= 1:
             _refuse(f"{person['id']}.mechanical_efficiency must be in (0, 1]")
