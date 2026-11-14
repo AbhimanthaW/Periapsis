@@ -202,7 +202,7 @@ class Leg:
 class Router:
     """One request: baseline graph minus closures. Caches Dijkstra fields."""
 
-    def __init__(self, graph, closure_cells=(), *, backend="auto", limit_s=inf):
+    def __init__(self, graph, closure_cells=(), *, backend="auto", limit_s=inf, outbound_limit_s=None):
         self.graph = graph
         self.baseline = graph.baseline
         shape = self.baseline.support.shape
@@ -228,6 +228,9 @@ class Router:
         self._key, self._key_edges = self._key[order], self.edge_ids[order]
         self.backend = backend if backend != "auto" else ("scipy" if "scipy" in available_backends() else "python")
         self.limit_s = limit_s
+        # Search horizon for outbound fields only. The home field stays exact so
+        # the direct-return gate can tell "over reserve" from "no route".
+        self.outbound_limit_s = limit_s if outbound_limit_s is None else min(limit_s, outbound_limit_s)
         self._fwd, self._bwd, self._energy_fields = {}, {}, {}
         self.dijkstra_runs = 0
 
@@ -249,7 +252,7 @@ class Router:
     def outbound_field(self, start):
         s = self.node(start)
         if s not in self._fwd:
-            self._fwd[s] = dijkstra(self.csr, s, limit=self.limit_s, backend=self.backend)
+            self._fwd[s] = dijkstra(self.csr, s, limit=self.outbound_limit_s, backend=self.backend)
             self.dijkstra_runs += 1
         return self._fwd[s]
 
@@ -272,7 +275,7 @@ class Router:
         dist, pred = self.outbound_field(start)
         s, g = self.node(start), self.node(goal)
         if not np.isfinite(dist[g]):
-            return self._diagnose(start, goal)
+            return self._diagnose(start, goal, limit_s=self.outbound_limit_s)
         nodes = [g]
         while nodes[-1] != s:
             nodes.append(int(pred[nodes[-1]]))
@@ -337,7 +340,7 @@ class Router:
                 return Leg(LEG_NO_EVIDENCE, a, b, f"cell {list(c)} has insufficient terrain evidence")
         return None
 
-    def _diagnose(self, a, b):
+    def _diagnose(self, a, b, *, limit_s=None):
         """Relax unknown cells and mobility edges while preserving known
         exclusions and closures. The diagnostic connection is never drawn."""
         a, b = tuple(map(int, a)), tuple(map(int, b))
@@ -363,7 +366,8 @@ class Router:
                     continue
                 seen.add((nr, nc))
                 queue.append((nr, nc))
-        suffix = "" if self.limit_s == inf else f" within {self.limit_s:.0f} s"
+        limit = self.limit_s if limit_s is None else limit_s
+        suffix = "" if limit == inf else f" within the {limit:.0f} s search horizon"
         return Leg(LEG_NO_PATH, a, b, "no admissible connection in the modelled area" + suffix)
 
     def _leg(self, a, b, nodes):

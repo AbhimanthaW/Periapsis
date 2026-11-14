@@ -141,7 +141,7 @@ def _energy_ledger(plan, snapshot, router):
                          capacity_j=profile.battery_capacity_j, max_discharge_w=profile.max_discharge_w)
 
 
-def select_energy_feasible_legs(plan, snapshot, router, *, direct_plan=None, activations=()):
+def select_energy_feasible_legs(plan, snapshot, router, *, direct_plan=None, activations=(), extra_rules=None):
     """Try bounded time/energy combinations when the fastest plan fails energy."""
     ledger = plan.energy_ledger
     if (ledger is None or ledger.check != FAIL
@@ -156,7 +156,8 @@ def select_energy_feasible_legs(plan, snapshot, router, *, direct_plan=None, act
             continue
         candidate = replace(plan, legs=list(legs), failure_reasons=[], deferred_artifacts=[])
         reevaluate_science_tasks([candidate], snapshot, router)
-        enforce_hard_constraints(candidate, snapshot, router, direct_plan=direct_plan, activations=activations)
+        enforce_hard_constraints(candidate, snapshot, router, direct_plan=direct_plan, activations=activations,
+                                 extra_rules=extra_rules)
         if candidate.passed:
             return candidate
     plan.failure_reasons.append("bounded route search found no energy-feasible alternative")
@@ -214,7 +215,9 @@ def _environment_rule(activations):
     return PASS, "no active environmental restriction"
 
 
-def enforce_hard_constraints(plan, snapshot, router, *, direct_plan=None, activations=()):
+def enforce_hard_constraints(plan, snapshot, router, *, direct_plan=None, activations=(), extra_rules=None):
+    """extra_rules(plan) -> [(rule, outcome, reason), ...] adds request-level
+    checks such as weather and the rover walkback."""
     rules = []
     rules.append(("positions_supported", *_positions_rule(snapshot, router)))
     if plan.kind != "direct_return":
@@ -252,6 +255,8 @@ def enforce_hard_constraints(plan, snapshot, router, *, direct_plan=None, activa
         if plan.energy_ledger.check == UNKNOWN and snapshot.power is None:
             reason = "no power scenario declared for the vehicle"
         rules.append(("energy_budget", plan.energy_ledger.check, reason))
+    if extra_rules is not None:
+        rules.extend(extra_rules(plan))
     max_leg = snapshot.limit("max_leg_s")
     if max_leg is not None:
         worst = max((leg.seconds for _, leg in plan.legs if leg.ok), default=None)

@@ -5,13 +5,14 @@ from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from contracts.pack import PackError, decode
 from marsdoc import CapabilityQuery, DocumentationEngine, Package
 from runtime.marswalk import HumanProfile, MarswalkError, baseline_from_pack, plan_marswalk, snapshot_from_pack
+from runtime.marswalk.profiles import load_profile
 from runtime.mission import load_pack, simulate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,6 +40,9 @@ class PlanRequest(BaseModel):
     completed_task_ids: Annotated[list[Identifier], Field(max_length=64)]
     remaining_s: Seconds
     reserve_s: Seconds
+    # Optional operating profile fed as data (runtime/examples/profile-*.json). Marswalk engine only;
+    # absent means the fixture control profile, so the v1 response is unchanged.
+    profile: dict[str, Any] | None = None
 
 
 class PlanningService:
@@ -81,6 +85,8 @@ class PlanningService:
                 raise PackError("SCENARIO_MISMATCH", f"{key} differs from the configured fixture")
         if self.engine == "marswalk":
             result = self._marswalk(request)
+        elif request.profile is not None:
+            raise PackError("PROFILE_UNSUPPORTED", "operating profiles need the marswalk engine")
         else:
             result = simulate(self.pack, closures=request.closure_ids, remaining_s=request.remaining_s)
         return {"schema_version": 1, "request_id": request.request_id, "route_index_order": "row_col", **result}
@@ -94,8 +100,9 @@ class PlanningService:
         if len(set(closures)) != len(closures) or set(closures) - named:
             raise PackError("INVALID_SCENARIO", "unknown or duplicate closure")
         try:
+            profile = FIXTURE_CONTROL if request.profile is None else load_profile(request.profile)
             snapshot = snapshot_from_pack(self.pack, closure_ids=tuple(closures), remaining_s=request.remaining_s,
-                                          profile=FIXTURE_CONTROL, mission_id=request.request_id)
+                                          profile=profile, mission_id=request.request_id)
             result = plan_marswalk(self.baseline, snapshot)
         except MarswalkError as error:
             raise PackError(error.code, str(error)) from error

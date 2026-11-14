@@ -245,3 +245,27 @@ from an environment that has Matplotlib:
 
 ![Human Marswalk demo](docs/marswalk-demo-human.png)
 ![Rover Marswalk demo](docs/marswalk-demo-rover.png)
+
+### Site gates, profiles as data, rover walkback and weather
+
+The full algorithm, with dimensions and the remaining simulated inputs, is in
+[docs/marswalk-algorithm.md](docs/marswalk-algorithm.md).
+
+| Module | What it adds |
+| --- | --- |
+| `site.py` | Phase 0. Reads grid dimensions from the data and refuses before routing: no eligible local DTM (`NO_TERRAIN_EVIDENCE`), cells above 20 m (`TERRAIN_TOO_COARSE`), more than 1,000,000 cells (`GRID_TOO_LARGE`) or no analytical payload (`TERRAIN_NOT_AVAILABLE`). It reports rover rock clearance as unverified when the DTM cannot resolve obstacles that small. It includes loaders for the Arcadia MOLA handoff, the Jezero CTX control and the HEALPix cells on main. |
+| `profiles.py` | Human and rover profiles from JSON, with strict field names and optional kWh battery fields. Example files are in `runtime/examples/`. `HumanProfile` gains `v_flat_mps` (rejected above the 1.16 m/s walk-to-run limit) and an optional `max_slope_deg`. |
+| `walkback.py` | Mode B. A third Dijkstra from the shelter on the walking graph (0.75 m/s, 15°). Every rover route cell must satisfy elapsed + walk home ≤ B − R. `breakdown_snapshot` replans on foot after a rover failure. A failing direct return gives `RETURN_WALKBACK_EXCEEDED`. |
+| `weather.py` | Base-station messages are validated and classified as advisory (forecast), caution, warning (active) or link lost. Active wind and SEP alerts force a return. Dust removes rover solar credit. A required feed that loses its link leaves science unknown. |
+
+On grids of at least 250,000 cells the outbound search stops at B − R. The
+home search stays exact. `POST /api/v1/plan` accepts an optional `profile`
+object with `--engine marswalk`.
+
+```sh
+uv run --project documentation --locked --offline python -m runtime.marswalk sites
+uv run --project documentation --locked --offline python -m runtime.marswalk demo --platform rover --rover-fails-at-min 12
+uv run --project documentation --locked --offline python -m runtime.marswalk demo --weather runtime/examples/weather-wind-warning.json
+uv run --project documentation --locked --offline python -m runtime.marswalk demo --platform rover --profile runtime/examples/profile-rover-hypothetical.json
+uv run --project documentation --locked --offline python -m pytest runtime/tests/test_marswalk_site_walkback_weather.py -q
+```

@@ -1,0 +1,27 @@
+{
+  "provenance": "simulated",
+  "required": false,
+  "max_age_s": 600,
+  "stations": [
+    {
+      "id": "base-1",
+      "cell": [
+        80,
+        40
+      ],
+      "provenance": "simulated"
+    }
+  ],
+  "messages": [
+    {
+      "station_id": "base-1",
+      "variable": "dust_optical_depth",
+      "value": 2.4,
+      "unit": "1",
+      "kind": "observed",
+      "time_utc": "2021-02-18T20:42:00Z",
+      "provenance": "simulated",
+      "note": "SIMULATED dust event"
+    }
+  ]
+}

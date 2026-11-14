@@ -180,3 +180,28 @@ def test_marswalk_engine_matches_mission_contract(closures, remaining):
 def test_unknown_engine_is_refused():
     with pytest.raises(ValueError):
         PlanningService(load_pack(FIXTURE, simulation=True), None, engine="astar")
+
+
+def _service_request(service, **extra):
+    from runtime.planning_api import PlanRequest
+    return PlanRequest.model_validate({**service.identity, "schema_version": 1, "request_id": "profile",
+                                       "closure_ids": [], "remaining_s": 100, **extra})
+
+
+def test_profile_is_fed_as_data_to_the_marswalk_engine():
+    from contracts.pack import PackError
+    pack = load_pack(FIXTURE, simulation=True)
+    marswalk = PlanningService(pack, None, engine="marswalk")
+    control = {"platform": "human", "pace_model": "control_linear", "neighbours": 4}
+    assert marswalk.plan(_service_request(marswalk, profile=control))["direct_return"] == \
+        marswalk.plan(_service_request(marswalk))["direct_return"]
+    tobler = marswalk.plan(_service_request(marswalk, profile={"platform": "human", "v_flat_mps": 0.6}))
+    assert tobler["marswalk"]["profile"]["v_flat_mps"] == 0.6
+    assert tobler["marswalk"]["site"]["dimensions"]["cell_dx_m"] == 10
+    with pytest.raises(PackError) as error:
+        marswalk.plan(_service_request(marswalk, profile={"platform": "human", "v_flat_mps": 2.0}))
+    assert error.value.code == "INVALID_PROFILE"
+    mission = PlanningService(pack, None)
+    with pytest.raises(PackError) as error:
+        mission.plan(_service_request(mission, profile=control))
+    assert error.value.code == "PROFILE_UNSUPPORTED"

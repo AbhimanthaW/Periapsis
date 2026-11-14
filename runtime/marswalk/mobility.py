@@ -64,6 +64,40 @@ class ToblerScaled:
 
 
 @dataclass(frozen=True)
+class SlopeLimitedTobler:
+    """Mars Tobler with a walking slope limit. Refuses an edge when its own
+    grade or either end cell's Horn slope exceeds the limit, and marks it
+    unsupported when an end cell has no slope estimate (fail closed). The
+    pace scenario factor is already folded into v_flat_mps."""
+
+    v_flat_mps: float
+    max_slope_deg: float
+    k: float = 3.5
+    offset: float = 0.05
+    name: str = "tobler_slope_limited"
+
+    def edge_times(self, length_m, dz_m, src, dst, baseline):
+        length_m = np.asarray(length_m, float)
+        dz_m = np.asarray(dz_m, float)
+        if np.any(length_m <= 0) or not np.all(np.isfinite(dz_m)):
+            raise MarswalkError("INVALID_TERRAIN", "edge lengths must be positive and height changes finite")
+        seconds = ToblerScaled(self.v_flat_mps, self.k, self.offset).seconds(length_m, dz_m)
+        slope = np.asarray(baseline.slope_deg, float).ravel()
+        s_src, s_dst = slope[src], slope[dst]
+        tag = np.full(seconds.shape, TAG_OK, dtype=np.uint8)
+        unsupported = ~np.isfinite(s_src) | ~np.isfinite(s_dst)
+        grade_deg = np.degrees(np.arctan(np.abs(dz_m / length_m)))
+        with np.errstate(invalid="ignore"):
+            steep = (grade_deg > self.max_slope_deg) | (s_src > self.max_slope_deg) | (s_dst > self.max_slope_deg)
+        tag[steep & ~unsupported] = TAG_REFUSED_GRADE
+        tag[unsupported] = TAG_UNSUPPORTED
+        seconds = np.where(tag == TAG_OK, seconds, np.inf)
+        params = (("k", self.k), ("max_slope_deg", self.max_slope_deg), ("offset", self.offset),
+                  ("v_flat_mps", self.v_flat_mps))
+        return EdgeTimes(seconds=seconds.astype(float), tag=tag, model=self.name, params=params)
+
+
+@dataclass(frozen=True)
 class ControlLinear:
     base_s_per_m: float = 1.0
     ascent_s_per_m: float = 2.0
@@ -83,7 +117,11 @@ def pace_for(profile):
         from .rover import RoverMobility
         return RoverMobility(profile)
     if profile.pace_model == "tobler_scaled":
-        return ToblerScaled()
+        v_flat = getattr(profile, "v_flat_mps", 0.5)
+        limit = getattr(profile, "max_slope_deg", None)
+        if limit is not None:
+            return SlopeLimitedTobler(v_flat * SCENARIO_SPEED_FACTOR[profile.pace_scenario], limit)
+        return ToblerScaled(v_flat_mps=v_flat)
     if profile.pace_model == "control_linear":
         return ControlLinear()
     raise MarswalkError("INVALID_PROFILE", profile.pace_model)
