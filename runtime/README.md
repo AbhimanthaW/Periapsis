@@ -262,8 +262,8 @@ On grids of at least 250,000 cells the outbound search stops at B − R. The
 home search stays exact. With `--engine marswalk`, `POST /api/v1/plan` accepts an
 optional `profile` object and an optional `weather` feed, which needs `now_utc` as the plan time.
 The feed uses the same shape as `runtime/examples/weather-*.json`. Results appear under
-`marswalk.weather`. An observed warning makes the v1 recommendation `direct_return`. The
-`mission` engine refuses both fields (`PROFILE_UNSUPPORTED`, `WEATHER_UNSUPPORTED`).
+`marswalk.weather`. An active wind or SEP warning blocks science. The planner recommends `direct_return`
+when the direct return passes its own checks. The `mission` engine refuses both fields (`PROFILE_UNSUPPORTED`, `WEATHER_UNSUPPORTED`).
 
 ```sh
 uv run --project documentation --locked --offline python -m runtime.marswalk sites

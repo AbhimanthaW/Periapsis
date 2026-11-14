@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from contracts.pack import PackError, decode
 from marsdoc import CapabilityQuery, DocumentationEngine, Package
 from runtime.marswalk import HumanProfile, MarswalkError, baseline_from_pack, plan_marswalk, snapshot_from_pack
+from runtime.marswalk.environment import parse_utc
 from runtime.marswalk.profiles import load_profile
 from runtime.marswalk.weather import feed_from_dict
 from runtime.mission import load_pack, simulate
@@ -48,8 +49,8 @@ class PlanRequest(BaseModel):
     profile: dict[str, Any] | None = None
     # Optional base-station weather feed (runtime/examples/weather-*.json shape) with a required
     # "now_utc" that sets the plan time. Marswalk engine only. Forecasts are advisory; an observed
-    # warning forces a return; a lost link on a required feed leaves science unknown.
-    weather: dict[str, Any] | None = None
+    # return-now warning blocks science; a lost link on a required feed leaves science unknown.
+    weather: Any = None  # Validated at the service boundary for the weather-specific error code.
 
 
 class PlanningService:
@@ -114,10 +115,13 @@ class PlanningService:
             snapshot = snapshot_from_pack(self.pack, closure_ids=tuple(closures), remaining_s=request.remaining_s,
                                           profile=profile, mission_id=request.request_id)
             if request.weather is not None:
+                feed = feed_from_dict(request.weather)
                 now_utc = request.weather.get("now_utc")
-                if not isinstance(now_utc, str):
-                    raise MarswalkError("INVALID_WEATHER", "weather needs now_utc, the plan time in UTC")
-                snapshot = replace(snapshot, weather=feed_from_dict(request.weather), time_utc=now_utc)
+                try:
+                    parse_utc(now_utc)
+                except MarswalkError as error:
+                    raise MarswalkError("INVALID_WEATHER", "weather needs a valid now_utc timestamp in UTC") from error
+                snapshot = replace(snapshot, weather=feed, time_utc=now_utc)
             result = plan_marswalk(self.baseline, snapshot)
         except MarswalkError as error:
             raise PackError(error.code, str(error)) from error

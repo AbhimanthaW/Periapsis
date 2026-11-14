@@ -260,3 +260,22 @@ def test_invalid_profile_shape_returns_http_error(call):
     _, site = call("/api/v1/site")
     status, result = call("/api/v1/plan", plan_request(site, profile={"platform": []}))
     assert status == 400 and result["error"] == "INVALID_PROFILE"
+
+
+@pytest.mark.parametrize("call", [{"engine": "marswalk"}], indirect=True)
+def test_malformed_weather_returns_a_structured_http_error(call):
+    _, site = call("/api/v1/site")
+    valid = _feed(_wind(5))
+    invalid = [
+        [],
+        {**valid, "now_utc": "invalid"},
+        {**valid, "now_utc": "2021-02-18T20:43:49"},
+        {**valid, "stations": [{"id": "base-1", "cell": [1]}]},
+        {**valid, "stations": [{"id": "base-1", "cell": [1.5, 0]}]},
+        {**valid, "stations": [{"id": [], "cell": [1, 0]}]},
+        {**valid, "messages": [{**_wind(5), "variable": []}]},
+        {**valid, "max_age_s": True},
+    ]
+    for weather in invalid:
+        status, body = call("/api/v1/plan", plan_request(site, weather=weather))
+        assert status == 400 and body["error"] == "INVALID_WEATHER", weather
