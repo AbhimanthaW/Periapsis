@@ -38,3 +38,16 @@ $work = Join-Path $env:TEMP "return-window-whole-mars"
 ```
 
 Choose a new output directory for each rebuild. Validation checks the pinned source, manifest, hashes, projection, bounds, every elevation and observation-count cell, and every region index entry against the supplied catalog. A zero observation count is distinct from a missing value. The atlas provides coarse elevation and sampling context. Browser tile integration and formal atlas release acceptance are pending.
+
+## Stage 4 atlas release candidates
+
+The local registry stores each candidate at `<registry>/mars-mola-meg004/<version>/`. Run these PowerShell commands from `pipeline/` after preparing the MOLA cache above.
+
+```powershell
+.\.venv\Scripts\return-window.exe build-atlas-release configs\mola-global-4ppd-topography.json --regions ..\web\src\atlas\regions.json --workspace "$work\data" --registry "$work\registry" --version 0.1.0-rc.1
+.\.venv\Scripts\return-window.exe verify-atlas-release configs\mola-global-4ppd-topography.json --regions ..\web\src\atlas\regions.json --workspace "$work\data" --registry "$work\registry" --version 0.1.0-rc.1
+```
+
+Each candidate contains the global GeoTIFFs, point index, atlas manifest, exact source configuration and region catalog, and a release manifest with file receipts, software versions and offline validation status. Use the source configuration and catalog from a trusted checkout when verifying. Verification compares the packaged inputs with that checkout, then checks all raster cells and catalog entries against the pinned MOLA source. Builds reject an existing release version. To reproduce a version, use the same inputs and software in an empty registry.
+
+Candidates record browser runtime compatibility (G10) as unevaluated until the Atlas consumes the package offline.

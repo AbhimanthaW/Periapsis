@@ -73,6 +73,42 @@ class GlobalAtlasTests(unittest.TestCase):
                     self.assertIn("does not match the reviewed MOLA MEG004 bundle", result["message"])
             self.assertFalse((root / "altered-atlas").exists())
 
+    def test_release_registry_rebuild_and_input_validation(self):
+        with TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            registry = workspace / "registry"
+            release_version = "0.1.0-rc.1"
+            args = [str(CONFIG), "--workspace", str(WORKSPACE), "--regions", str(REGIONS), "--version", release_version]
+
+            def run_release(command, destination, expected_exit=0):
+                output, errors = StringIO(), StringIO()
+                with redirect_stdout(output), redirect_stderr(errors):
+                    status = main([command, *args, "--registry", str(destination)])
+                self.assertEqual(status, expected_exit, errors.getvalue())
+                return json.loads(output.getvalue() if status == 0 else errors.getvalue())
+
+            manifest = run_release("build-atlas-release", registry)
+            release = registry / "mars-mola-meg004" / release_version
+            self.assertEqual(manifest["status"], "release_candidate")
+            self.assertEqual(manifest["validation"]["G10_browser_runtime"], "not_evaluated")
+            self.assertEqual(manifest, run_release("verify-atlas-release", registry))
+            self.assertEqual(manifest, run_release("build-atlas-release", workspace / "rebuilt"))
+            rebuilt = workspace / "rebuilt" / "mars-mola-meg004" / release_version
+            for path in release.rglob("*"):
+                if path.is_file():
+                    self.assertEqual(path.read_bytes(), (rebuilt / path.relative_to(release)).read_bytes())
+
+            error = run_release("build-atlas-release", registry, expected_exit=2)
+            self.assertIn("version already exists", error["message"])
+            catalog = release / "region-catalog.json"
+            raw = catalog.read_bytes()
+            changed = raw + b" "
+            catalog.write_bytes(changed)
+            manifest["inputs"]["region_catalog"].update(bytes=len(changed), sha256=sha256(changed).hexdigest())
+            (release / "release-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            error = run_release("verify-atlas-release", registry, expected_exit=2)
+            self.assertIn("differs from the trusted checkout", error["message"])
+
     def test_build_validate_and_reject_rehashed_global_raster(self):
         with TemporaryDirectory() as temp:
             directory = Path(temp) / "atlas"

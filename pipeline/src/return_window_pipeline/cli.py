@@ -11,6 +11,7 @@ from .errors import PipelineError
 from .ingestion import ingest, verify_workspace
 from .models import SourceSpec
 from .regional import build_preview, load_job, verify_preview
+from .release import build_atlas_release, verify_atlas_release
 
 
 def main(argv=None) -> int:
@@ -45,6 +46,16 @@ def main(argv=None) -> int:
     atlas_check.add_argument("--workspace", type=Path, required=True)
     atlas_check.add_argument("--directory", type=Path, required=True)
     atlas_check.add_argument("--regions", type=Path, required=True, help="Periapsis atlas region catalog JSON")
+    for command, help_text in (
+        ("build-atlas-release", "Build and register an offline atlas release candidate"),
+        ("verify-atlas-release", "Revalidate an offline atlas release candidate"),
+    ):
+        release = sub.add_parser(command, help=help_text)
+        release.add_argument("configuration", type=Path)
+        release.add_argument("--workspace", type=Path, required=True)
+        release.add_argument("--regions", type=Path, required=True)
+        release.add_argument("--registry", type=Path, required=True)
+        release.add_argument("--version", required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "ingest":
@@ -70,6 +81,9 @@ def main(argv=None) -> int:
         elif args.command == "validate-global-atlas":
             result = validate_global_atlas(SourceSpec.load(args.configuration), args.workspace, args.directory,
                                            regions=args.regions)
+        elif args.command in {"build-atlas-release", "verify-atlas-release"}:
+            release_command = build_atlas_release if args.command == "build-atlas-release" else verify_atlas_release
+            result = release_command(args.configuration, args.regions, args.workspace, args.registry, args.version)
         else:
             reference = SourceSpec.load(args.configuration).reference
             lon, lat = normalize_position(args.longitude, args.latitude, reference)
