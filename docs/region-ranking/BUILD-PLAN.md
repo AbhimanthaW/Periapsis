@@ -2,7 +2,7 @@
 
 **Periapsis · Workstream B · 14 November 2026, Colombo**
 
-**Verdict.** Build the ranker as an offline compiler plus a small query engine in the local Python service. The compiler turns cell records and catalogue layers into one 6–10 MB concept matrix. The engine answers an objective with a few array operations. Measured on the real 196,608 cells, one core: scoring takes 0.3 ms, tile aggregation 0.6 ms and grouping 6.5 ms, so a full answer is about 10 ms before caching. Seven missing layers unlock the 31 concepts that have no data today. The water and mineral layers come first.
+**Verdict.** Build the ranker as an offline compiler plus a small query engine in the local Python service. The compiler turns cell records and catalogue layers into one 6–10 MB concept matrix. The engine answers an objective with a few array operations. Measured on the real 196,608 cells, one core: scoring takes 0.3 ms, tile aggregation 0.6 ms and grouping 6.5 ms, so a full answer is about 10 ms before caching. Thirteen missing layers unlock the concepts that have no data today. Eight have a download source. Five need dummy data until a file is obtained.
 
 **Decisions taken.** Polar exclusion at 60° is accepted. Areas are Nside-32 tiles, about 108 km across. Water and mineral layers will be joined.
 
@@ -10,17 +10,30 @@
 
 ## 1. The data that should be there
 
-The 31 unsupported concepts fall into seven missing layers. Sources marked *confirm* are from the literature and still need a pinned download, licence and format check by the data owner.
+The 31 unsupported concepts fall into twelve missing layers. Status is **Source** when a download page was found, and **Dummy** when only a paper was found or nothing was found. Sources were located by web search on 14 November. None has been downloaded or licence-checked yet.
 
-| # | Missing layer | Concepts it unlocks | Candidate source | Join method | Priority |
-| --- | --- | --- | --- | --- | --- |
-| 1 | Aqueous mineral map with mineral classes | clays, sulfates, carbonates, silica, hydrated minerals, alteration, mineralogy | [MOCAAS](https://www.ias.u-psud.fr/moccas/) global GeoTIFFs (OMEGA 500 m, CRISM 100 m), Carter et al. 2023 | Bin pixels to cells, fraction per class | P0 |
-| 2 | Fans and deltas | delta, alluvial fan | Wilson et al. 2021 crater inventory, [doi:10.1029/2020GL091653](https://doi.org/10.1029/2020GL091653). Morgan et al. 2022 global fan survey *(confirm)* | Point in cell, count | P0 |
-| 3 | Valley networks | river, valley network | Hynek, Beach and Hoke 2010, [doi:10.1029/2009JE003548](https://doi.org/10.1029/2009JE003548) *(confirm download)* | Sample lines every 5 km, length per cell | P0 |
-| 4 | Paleolakes | lake, groundwater-fed basin | Open- and closed-basin lake catalogues, Fassett and Head 2008, Goudge et al. 2012–2016 *(confirm)* | Point or basin polygon | P0 |
-| 5 | SIM 3292 line features | tectonic, canyon, outflow channel axis, inverted and ridge features | Same USGS package already pinned for the unit polygons *(confirm layer list)* | Sample lines, length per cell | P1 |
-| 6 | Gazetteer footprints | chaos, canyon, fossae, dunes, named context | IAU/USGS Gazetteer with centre and diameter | Disc overlap fraction | P1 |
-| 7 | Specialist catalogues | chlorides, olivine, glacial landforms, dunes, caves, magnetism, marsquakes | Osterloo 2010, Ody 2012, Levy 2014, USGS dune and cave databases, Langlais 2019, InSight catalogue *(all confirm)* | Per source | P2 |
+| # | Missing layer | Concepts it unlocks | Status | Source | Join | Priority |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Aqueous mineral map with classes | clays, sulfates, carbonates, silica, hydrated minerals, alteration, mineralogy | Source | [MOCAAS](https://www.ias.u-psud.fr/moccas/) database and GeoTIFFs, Carter et al. 2023 | Pixel bin, fraction per class | P0 |
+| 2 | Paleolakes | lake | Source | [Goudge catalog of open- and closed-basin lakes](https://www.jsg.utexas.edu/goudge/shared-data/), CSV and shapefile | Point in cell | P0 |
+| 3 | Chlorides | chlorides | Source | [Leask and Ehlmann 2021 CSV](https://data.caltech.edu/records/kasms-vp209) of the Osterloo 2010 deposits. [Bickel et al. 2024](https://doi.org/10.1038/s41597-024-03685-3) candidates as a second layer | Point in cell | P0 |
+| 4 | Deltas and alluvial fans | delta, alluvial fan | **Dummy** | Paper only: Wilson et al. 2021, [doi:10.1029/2020GL091653](https://doi.org/10.1029/2020GL091653). Check its supporting table for coordinates | Point in cell | P0 |
+| 5 | Valley networks | river, valley network | **Dummy** | Paper only: Hynek et al. 2010, [doi:10.1029/2009JE003548](https://doi.org/10.1029/2009JE003548). No download page found | Line length per cell | P0 |
+| 6 | Structure lines | tectonic, graben, channels, ridges | Source | [SIM 3292 database ZIP](https://pubs.usgs.gov/publication/sim3292), 790 MB, same package as the unit polygons | Line length per cell | P1 |
+| 7 | Named-feature footprints | chaos, canyon, fossae, named context | Source | [IAU/USGS Gazetteer](https://planetarynames.wr.usgs.gov/Nomenclature) Mars shapefile with centre and diameter | Disc overlap | P1 |
+| 8 | Dune fields | dunes, aeolian | Source | [USGS Mars Global Digital Dune Database](https://www.usgs.gov/centers/astrogeology-science-center/science/mars-global-digital-dune-database), polygons | Polygon fraction | P1 |
+| 9 | Cave candidates | lava tube, cave | Source | [Mars Global Cave Candidate Catalog](https://catalog.data.gov/dataset/mars-global-cave-candidate-catalog-archive-bundle-8a257), NASA PDS | Point in cell | P2 |
+| 10 | Marsquakes | seismic | Source | [IRIS mars-event service](https://services.iris.edu/irisws/mars-event/docs/1/help), InSight Marsquake Service catalogue. Few events have locations | Point in cell | P2 |
+| 11 | Mid-latitude glacial landforms | glacial, periglacial | **Dummy** | Paper only: Levy et al. 2014, [doi:10.1002/2014JE004685](https://doi.org/10.1002/2014JE004685). The SWIM and apron-unit concepts already cover part of this | Polygon fraction | P2 |
+| 12 | Crustal magnetism | magnetism | **Dummy** | Paper only: Langlais et al. 2019, [doi:10.1029/2018JE005854](https://doi.org/10.1029/2018JE005854). Model needs evaluation to a grid | Raster sample | P2 |
+| 13 | Olivine | olivine | **Dummy** | No source searched or found | Raster sample | P2 |
+
+**Dummy-data rule.** A dummy layer exists only so the pipeline, API and Explore view can be built and tested end to end.
+
+- Generate it from a fixed seed and record `"synthetic": true` with the seed in the layer receipt and the pack manifest.
+- Use it for plumbing tests only. A concept backed by a dummy layer is labelled **DEMO** in every response and in the table.
+- Never mix it into a ranking that is presented as a Mars result. The service refuses to build a release pack while any synthetic layer is present.
+- Replace it with the real file as soon as one is pinned. The concept rule and thresholds stay the same.
 
 Three record problems also need fixing in the existing build:
 
