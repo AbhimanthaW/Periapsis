@@ -1,0 +1,144 @@
+{
+  "cell_count": 196608,
+  "sources": {
+    "swim_0_1": {
+      "url": "https://swim.psi.edu/output/SWIM4MIM/Global/Composite/SWIM4MIM_Ci_0_1.tif",
+      "files": {
+        "swim-0_1.tif": {
+          "sha256": "ed618121ce8fd5310ccfc6685e56a4695c48869a35b9afef7506b06a56c8be4f",
+          "bytes": 70995807
+        }
+      },
+      "cells_with_data": 170040,
+      "method": "SWIM depth-specific composite consistency index at centroid. Range \u22121 to +1. Outside coverage is null."
+    },
+    "swim_1_5": {
+      "url": "https://swim.psi.edu/output/SWIM4MIM/Global/Composite/SWIM4MIM_Ci_1_5.tif",
+      "files": {
+        "swim-1_5.tif": {
+          "sha256": "4dec646d32fb9c00039d8ad2066591a98ee635dc2e6999906cb6fa7c4059a0ef",
+          "bytes": 70995807
+        }
+      },
+      "cells_with_data": 170040,
+      "method": "SWIM depth-specific composite consistency index at centroid. Range \u22121 to +1. Outside coverage is null."
+    },
+    "swim_5": {
+      "url": "https://swim.psi.edu/output/SWIM4MIM/Global/Composite/SWIM4MIM_Ci_5.tif",
+      "files": {
+        "swim-5.tif": {
+          "sha256": "07de39eaa55331ae4f927d2297f6922916e779a90068a0241b7094ad82d97d50",
+          "bytes": 70995794
+        }
+      },
+      "cells_with_data": 170040,
+      "method": "SWIM depth-specific composite consistency index at centroid. Range \u22121 to +1. Outside coverage is null."
+    },
+    "tes_albedo": {
+      "url": "https://ms-mars.mars.asu.edu/alb32?SERVICE=WMS&REQUEST=GetMap&FORMAT=image/vicar&WIDTH=1440&HEIGHT=720&SRS=JMARS:4&BBOX=0,-90,360,90&STYLES=&VERSION=1.1.1&LAYERS=TES_Lambert_Albedo_numeric",
+      "files": {
+        "tes-albedo-4ppd.vic": {
+          "sha256": "244aa8e66100524c1714e9f127f1f5b9f4630e565aff36878bbae1cd1181d703",
+          "bytes": 4152960
+        }
+      },
+      "cells_with_data": 196608,
+      "method": "MGS TES Lambert albedo, ASU/JMARS WMS numerical export at 4 ppd. Dimensionless reflectivity."
+    },
+    "ctx": {
+      "url": "https://ode.rsl.wustl.edu/mars/datafile/derived_products/coverageshapefiles/mars/mro/ctx/edr/mars_mro_ctx_edr_c0a.zip",
+      "files": {
+        "mars_mro_ctx_edr_c0a.zip": {
+          "sha256": "3bd7406836c68cd51a61882c1e166d90895dbce223fcc2c69a45abf6d70ab449",
+          "bytes": 38448739
+        }
+      },
+      "records": 167196,
+      "imported": 166093,
+      "excluded": {
+        "duplicate_product_key": 1048,
+        "ambiguous_seam_or_bounds": 55
+      },
+      "cells_with_data": 196367,
+      "method": "Centroid containment in published geographic catalogue polygons. Counts are product keys, not unique acquisitions."
+    },
+    "hirise_rdr4": {
+      "url": "https://ode.rsl.wustl.edu/mars/datafile/derived_products/coverageshapefiles/mars/mro/hirise/rdr4/mars_mro_hirise_rdr4_c0a.zip",
+      "files": {
+        "hirise-rdr4.zip": {
+          "sha256": "1ee4b9f2110a33fe76dccef49839e82590f3e2e7dcc514858c9397c33bc6d458",
+          "bytes": 3521357
+        }
+      },
+      "records": 16536,
+      "imported": 16503,
+      "excluded": {
+        "duplicate_product_key": 18,
+        "ambiguous_seam_or_bounds": 15
+      },
+      "cells_with_data": 968,
+      "method": "Centroid containment in published geographic catalogue polygons. Counts are product keys, not unique acquisitions."
+    },
+    "hirise_rdrv11": {
+      "url": "https://ode.rsl.wustl.edu/mars/datafile/derived_products/coverageshapefiles/mars/mro/hirise/rdrv11/mars_mro_hirise_rdrv11_c0a.zip",
+      "files": {
+        "hirise-rdrv11.zip": {
+          "sha256": "0c86fafe2117e0465ae5a1959214590964cf39974fc8780cee2f6f1d06141e98",
+          "bytes": 40538426
+        }
+      },
+      "records": 189137,
+      "imported": 188763,
+      "excluded": {
+        "duplicate_product_key": 370,
+        "ambiguous_seam_or_bounds": 4
+      },
+      "cells_with_data": 6715,
+      "method": "Centroid containment in published geographic catalogue polygons. Counts are product keys, not unique acquisitions."
+    },
+    "hirise_dtm": {
+      "url": "https://ode.rsl.wustl.edu/mars/datafile/derived_products/coverageshapefiles/mars/mro/hirise/dtm/mars_mro_hirise_dtm_c0a.zip",
+      "files": {
+        "hirise-dtm.zip": {
+          "sha256": "992dcbe2f5429d3e5b077a6a91c415b0dbb6ffac0052129246cbc0156711a15c",
+          "bytes": 271239
+        }
+      },
+      "records": 1372,
+      "imported": 1370,
+      "excluded": {
+        "duplicate_product_key": 2
+      },
+      "cells_with_data": 114,
+      "method": "Centroid containment in published geographic catalogue polygons. Counts are product keys, not unique acquisitions."
+    },
+    "tes_dust": {
+      "url": "https://atmos.nmsu.edu/PDS/data/PDS4/mgs_tes_atmos_dust-ice/data_IR_Dust_Optical_Depth_Maps/MY25/month_01/TES_CDODMAP_IR_MY25_SOY001.xml",
+      "files": {
+        "tes-dust.dat": {
+          "sha256": "5a80020ab4d7bd4794af54f6f47394d777845f9f5217512029a6a391b6c9a21e",
+          "bytes": 259282
+        },
+        "tes-dust.xml": {
+          "sha256": "458aa6c619c584538676048f59004b8bbb37f689314b8e9b875d77bec46df369",
+          "bytes": 15577
+        },
+        "tes-dust.txt": {
+          "sha256": "c732eabc9b44bca14c002908048325957a1b451aadb4614e30171ecc9f070a24",
+          "bytes": 100
+        }
+      },
+      "cells_with_data": 184760,
+      "mars_year": 25,
+      "sol_of_year": 1,
+      "solar_longitude_deg": 359.93,
+      "retrieval_utc_start": "2000-05-27T21:07:46Z",
+      "retrieval_utc_end": "2000-06-04T00:28:42Z",
+      "method": "Historical MGS TES reconstructed IR column dust optical depth at 9.3 \u00b5m, sampled at nearest 6\u00b0 \u00d7 3\u00b0 bin."
+    }
+  },
+  "output_sha256": "4736585f7150e450a05e9b3d8fe39885abef791518b19403ebb7cfddba5c3ecf",
+  "hirise_combined_cells": 7425,
+  "hirise_count_scope": "Sum of PDS3 and PDS4 catalogue counts. An acquisition may be represented in both.",
+  "sampling": "HEALPix cell centroid, not cell area or model eligibility"
+}

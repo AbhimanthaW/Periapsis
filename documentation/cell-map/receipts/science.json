@@ -1,0 +1,46 @@
+{
+  "cell_count": 196608,
+  "coverage": {
+    "archive_noninterpolated": 181782,
+    "geology_centroids_matched": 196368,
+    "geology_centroids_multiple_matches": 4,
+    "crism_centroids_matched": 1962,
+    "archive_interpolated": 14577,
+    "no_positive_sample": 249
+  },
+  "geology_feature_count": 1311,
+  "geology_repaired_projected_parts": 0,
+  "crism_catalogue_records": 10495,
+  "crism_rejected_footprints": 4,
+  "crism_method": "Centroid containment in the published ODE c0a shapefile. Planar longitude/latitude containment for catalogue discovery only.",
+  "source_urls": {
+    "geology": "https://pubs.usgs.gov/sim/3292/",
+    "tes_night": "https://pds-geosciences.wustl.edu/missions/mgs/tes-timap.html",
+    "crism": "https://ode.rsl.wustl.edu/mars/datafile/derived_products/coverageshapefiles/mars/mro/crism/mtrdr/mars_mro_crism_mtrdr_c0a.zip"
+  },
+  "geology_method": "Centroid covered by USGS SIM 3292 geometry in native Mars Robinson. Service generalization tolerance 100 m. Map scale 1:20,000,000.",
+  "tes_method": "Containing native 20 ppd nighttime TES raster pixel, unit J m^-2 K^-1 s^-1/2. PDS interpolation mask preserved.",
+  "source_files_sha256": {
+    "sim3292-0000.json": "62f69c8e5c6764cedebe0610b41747e15381bd94ff9dbea5bdd74e5971e217d3",
+    "sim3292-0150.json": "46250b6e02797e16d11f0ee86643a72c9b571598226c0f60b832b75c0e215660",
+    "sim3292-0300.json": "8085806ca87adcf3b0b95e888f60b279417725b4cdbe8e79c0cb0304ad7f5a28",
+    "sim3292-0450.json": "9fd3d6433a57e692fd9aae167df5806dcbebfeab228cbe628ca7b97856c60d66",
+    "sim3292-0600.json": "5d46f77901625842493682b815c01de8b915b2fd525fe498b6dd93875e189531",
+    "sim3292-0750.json": "7830c9ef6082a35d18371ea2055f52c83363ae541b00a92db8652ff8afda9e01",
+    "sim3292-0900.json": "400267b92fd5d79e1ce9778bb68efd124ab3bb6036ecf8b6738d7573d6f8a002",
+    "sim3292-1050.json": "718ac4b5f1b78dd096cb5439d1ef11581c1f1bc475fb2ba40c31e5539219fb3b",
+    "sim3292-1200.json": "624b52d471ec41b430b60b8631c53ea8bb8a3644ce7d80c9a8cda733a54e8ef2",
+    "global_ti_night_2007.lbl": "c1c897d9bd5399292166f99d84a29a73e42432cedfb9dd9a81a1441b3004b72b",
+    "global_ti_night_2007.img": "faee32838da40045ee7ebd21bed156cc649620312c01165b556d77a2128258f4",
+    "global_ti_msk_night_2007.lbl": "164838970c1405b2dc6cf367a74c60c0de96d18f05f5e924db6c00f77038ee8a",
+    "global_ti_msk_night_2007.img": "fca7ec6fab8b3e81226e1d14dbb3a22509ad111bda4e03bf2b64f050bd550d0b",
+    "sim3292-layer.json": "7f2f63bc5d40c1f5121ccf9d5aa6f662895fb98b27dbe7108ee24d1f6dfd886e",
+    "datainfo.txt": "2de2f687656cb2b8b44249c4c0ba4923014b86d55979448dad3988e92b28f46c",
+    "crism.zip": "b30600310e239af7b9573a90b71532fd65f4519a496591f6a2934a9a837be7a6"
+  },
+  "output_sha256": "5024b49b3bb06d9af7f32e1ad5391d0a7be0281e7d650054f965629cc3b78acd",
+  "limitations": [
+    "Centroid samples only. No full-cell area fractions or change to documentation scoring.",
+    "TES thermal inertia describes surface thermophysical properties. No time-specific temperature or weather is inferred."
+  ]
+}
