@@ -1,5 +1,7 @@
 # Objective-driven region ranking
 
+> **Scope update, 14 Nov.** The 56-region registry is retired. The ranked units are now the 196,608 documented HEALPix cells. See the [200 k-cell plan](PLAN-200K.md). The model below still applies, and the 56-region results remain prototype evidence.
+
 **Periapsis · Workstream B · Design proposal · 14 November 2026, Colombo**
 
 **Verdict.** Rank regions against a typed objective with a reviewed concept vocabulary, a rule-based objective parser and a fielded relevance score computed on concepts. Show science interest, documentation and traversal as separate criteria and never add them together. The same vocabulary can also score the 196,608 HEALPix cells through structured layers. A standard-library prototype runs on the current 56-region registry. It puts Jezero, Icaria Planum and Margaritifer Terra first for *ancient water and delta deposits*, stays deterministic across input orders, and keeps the same top region on six benchmark objectives under ±20 % changes to any parameter. The lexicon and weights are drafts. Isath must review them before any ranking is shown as a team result.
