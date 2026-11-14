@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from contracts.pack import PackError, decode
 from marsdoc import CapabilityQuery, DocumentationEngine, Package
+from runtime.marswalk import HumanProfile, MarswalkError, baseline_from_pack, plan_marswalk, snapshot_from_pack
 from runtime.mission import load_pack, simulate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +19,10 @@ FIXTURE = ROOT / "contracts/fixtures/synthetic-v1"
 MAX_REQUEST_BYTES = 16_384
 Identifier = Annotated[str, Field(min_length=1, max_length=128)]
 Seconds = Annotated[int, Field(ge=0, le=86_400)]
+ENGINES = ("mission", "marswalk")
+# The fixture contract is 4-neighbour moves at 1 s/m plus 2 s per metre climbed.
+# The Marswalk control profile reproduces it, so the v1 response stays identical.
+FIXTURE_CONTROL = HumanProfile(pace_model="control_linear", neighbours=4)
 
 
 class PlanRequest(BaseModel):
@@ -37,9 +42,13 @@ class PlanRequest(BaseModel):
 
 
 class PlanningService:
-    def __init__(self, pack, evidence_result):
+    def __init__(self, pack, evidence_result, *, engine="mission"):
+        if engine not in ENGINES:
+            raise ValueError(f"engine must be one of {', '.join(ENGINES)}")
         self.pack = pack
         self.evidence_result = evidence_result
+        self.engine = engine
+        self.baseline = baseline_from_pack(pack) if engine == "marswalk" else None
         scenario = pack.scenario
         self.identity = {
             "pack_id": pack.site["pack_id"],
@@ -70,8 +79,50 @@ class PlanningService:
         for key, expected in self.identity.items():
             if getattr(request, key) != expected:
                 raise PackError("SCENARIO_MISMATCH", f"{key} differs from the configured fixture")
-        result = simulate(self.pack, closures=request.closure_ids, remaining_s=request.remaining_s)
+        if self.engine == "marswalk":
+            result = self._marswalk(request)
+        else:
+            result = simulate(self.pack, closures=request.closure_ids, remaining_s=request.remaining_s)
         return {"schema_version": 1, "request_id": request.request_id, "route_index_order": "row_col", **result}
+
+    def _marswalk(self, request):
+        """Plan with runtime.marswalk and serialize the v1 fields the mission view reads.
+        The complete Marswalk plan is attached under `marswalk` for later UI work."""
+        scenario = self.pack.scenario
+        named = {closure["id"] for closure in scenario["closures"]}
+        closures = request.closure_ids
+        if len(set(closures)) != len(closures) or set(closures) - named:
+            raise PackError("INVALID_SCENARIO", "unknown or duplicate closure")
+        try:
+            snapshot = snapshot_from_pack(self.pack, closure_ids=tuple(closures), remaining_s=request.remaining_s,
+                                          profile=FIXTURE_CONTROL, mission_id=request.request_id)
+            result = plan_marswalk(self.baseline, snapshot)
+        except MarswalkError as error:
+            raise PackError(error.code, str(error)) from error
+
+        def route(leg):
+            return {"seconds": leg.seconds, "cells": [list(cell) for cell in leg.cells]} if leg.ok else None
+
+        direct = result.direct_leg
+        reverse = result.router.leg_outbound(snapshot.return_cell, snapshot.current_cell)
+        science = []
+        if result.status == "OK":
+            for task in snapshot.tasks:
+                if task.id in snapshot.completed_task_ids:
+                    continue
+                plan = result.plan(f"science:{task.id}")
+                science.append({"id": task.id, "seconds": plan.ledger.total_use, "margin_s": plan.ledger.margin,
+                                "feasible": plan.passed})
+        recommendation = result.recommendation
+        if recommendation is not None and recommendation.startswith("science:"):
+            recommendation = recommendation.removeprefix("science:")
+        return dict(pack_id=snapshot.pack_id, pack_version=snapshot.pack_version, scenario_id=snapshot.scenario_id,
+                    classification="synthetic", closure_ids=list(closures), remaining_s=snapshot.remaining_s,
+                    reserve_s=snapshot.reserve_s, direct_return=route(direct), reverse_control=route(reverse),
+                    return_margin_s=result.direct_gate.margin_s if direct.ok else None,
+                    completed_task_ids=list(snapshot.completed_task_ids), science=science,
+                    recommendation=recommendation, status=result.status, engine="marswalk",
+                    marswalk=result.to_dict())
 
     def evidence(self):
         if self.evidence_result is None:
@@ -150,7 +201,7 @@ class PlanningHandler(BaseHTTPRequestHandler):
                         error.code, str(error), request.request_id)
 
 
-def create_server(port=8000, *, evidence_package=None, evidence_query=None):
+def create_server(port=8000, *, evidence_package=None, evidence_query=None, engine="mission"):
     if (evidence_package is None) != (evidence_query is None):
         raise ValueError("Supply the evidence package and query together")
     result = None
@@ -158,7 +209,7 @@ def create_server(port=8000, *, evidence_package=None, evidence_query=None):
         package = Package.model_validate_json(evidence_package.read_bytes())
         query = CapabilityQuery.model_validate_json(evidence_query.read_bytes())
         result = DocumentationEngine(package).resolve(query).model_dump(mode="json")
-    service = PlanningService(load_pack(FIXTURE, simulation=True), result)
+    service = PlanningService(load_pack(FIXTURE, simulation=True), result, engine=engine)
     return ThreadingHTTPServer(("127.0.0.1", port), partial(PlanningHandler, service=service))
 
 
@@ -167,13 +218,16 @@ def main():
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--evidence-package", type=Path)
     parser.add_argument("--evidence-query", type=Path)
+    parser.add_argument("--engine", choices=ENGINES, default="mission",
+                        help="planner behind POST /api/v1/plan (default: mission)")
     args = parser.parse_args()
     try:
-        server = create_server(args.port, evidence_package=args.evidence_package, evidence_query=args.evidence_query)
+        server = create_server(args.port, evidence_package=args.evidence_package, evidence_query=args.evidence_query,
+                               engine=args.engine)
     except (OSError, ValueError, PackError) as error:
         parser.exit(2, f"Unable to initialize planning service: {error}\n")
     with server:
-        print(f"Planning service ready at http://127.0.0.1:{server.server_port}", flush=True)
+        print(f"Planning service ready at http://127.0.0.1:{server.server_port} (engine: {args.engine})", flush=True)
         try:
             server.serve_forever()
         except KeyboardInterrupt:

@@ -5,7 +5,8 @@ from threading import Thread
 
 import pytest
 
-from runtime.planning_api import FIXTURE, create_server
+from runtime.mission import load_pack
+from runtime.planning_api import ENGINES, FIXTURE, PlanningService, PlanRequest, create_server
 
 
 @pytest.fixture
@@ -43,6 +44,8 @@ def plan_request(site, **overrides):
     return {**{key: site[key] for key in fields}, "request_id": "test-1", "closure_ids": [], **overrides}
 
 
+@pytest.mark.parametrize("call", [{"engine": engine} for engine in ENGINES], indirect=True,
+                         ids=list(ENGINES))
 def test_http_replay(call):
     assert call("/healthz") == (200, {"status": "ready"})
     status, site = call("/api/v1/site")
@@ -72,6 +75,8 @@ def test_http_replay(call):
         assert result["completed_task_ids"] == ["survey-done"]
 
 
+@pytest.mark.parametrize("call", [{"engine": engine} for engine in ENGINES], indirect=True,
+                         ids=list(ENGINES))
 def test_invalid_requests_and_evidence_boundary(call):
     _, site = call("/api/v1/site")
     for changes, http_status, code in [
@@ -129,3 +134,41 @@ def test_eligible_synthetic_evidence_has_unverified_provenance(call):
     assert status == 200
     assert evidence["classification"] == "provenance_unverified"
     assert evidence["result"]["requested"]["eligible"] is True
+
+
+V1_FIELDS = ("pack_id", "pack_version", "scenario_id", "classification", "closure_ids", "remaining_s", "reserve_s",
+             "return_margin_s", "completed_task_ids", "science", "recommendation", "status")
+
+
+def _route_seconds(route):
+    return None if route is None else route["seconds"]
+
+
+@pytest.mark.parametrize("closures", [[], ["mid"], ["north"], ["mid", "north"]])
+@pytest.mark.parametrize("remaining", [0, 60, 70, 100, 200])
+def test_marswalk_engine_matches_mission_contract(closures, remaining):
+    pack = load_pack(FIXTURE, simulation=True)
+    mission, marswalk = PlanningService(pack, None), PlanningService(pack, None, engine="marswalk")
+    request = PlanRequest.model_validate({**mission.identity, "schema_version": 1, "request_id": "parity",
+                                          "closure_ids": closures, "remaining_s": remaining})
+    expected, result = mission.plan(request), marswalk.plan(request)
+    for key in V1_FIELDS + ("schema_version", "request_id", "route_index_order"):
+        assert result[key] == expected[key], key
+    for key in ("direct_return", "reverse_control"):
+        assert _route_seconds(result[key]) == _route_seconds(expected[key]), key
+        if result[key] is not None:    # equal-time ties may pick different cells; the route must still be valid
+            cells = result[key]["cells"]
+            assert all(abs(a[0] - b[0]) + abs(a[1] - b[1]) == 1 for a, b in zip(cells, cells[1:]))
+    direct = result["direct_return"]
+    if direct is not None:
+        assert direct["cells"][0] == list(pack.scenario["checkpoint"]["cell"])
+        assert direct["cells"][-1] == list(pack.scenario["shelter"]["cell"])
+    assert result["engine"] == "marswalk"
+    assert result["marswalk"]["schema"] == "marswalk-plan-v1"
+    assert result["marswalk"]["status"] == result["status"]
+    json.dumps(result, allow_nan=False)
+
+
+def test_unknown_engine_is_refused():
+    with pytest.raises(ValueError):
+        PlanningService(load_pack(FIXTURE, simulation=True), None, engine="astar")
