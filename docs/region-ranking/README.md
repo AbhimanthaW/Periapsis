@@ -1,6 +1,6 @@
 # Objective-driven region ranking
 
-> **Scope update, 14 Nov.** The 56-region registry is retired. The ranked units are now the 196,608 documented HEALPix cells. See the [200 k-cell plan](PLAN-200K.md). The model below still applies, and the 56-region results remain prototype evidence.
+> **Scope update, 14 Nov.** The 56-region registry is retired. The ranked units are now the 196,608 documented HEALPix cells. See the [cell-ranking plan](PLAN-CELLS.md). The model below still applies, and the 56-region results remain prototype evidence.
 
 **Periapsis · Workstream B · Design proposal · 14 November 2026, Colombo**
 
@@ -163,7 +163,7 @@ Cell scoring mirrors the region formula. `S_q(c)` is the maximum over layers of 
 
 **Hierarchy.** In nested order the four children of a cell are consecutive, so Nside-64 and coarser zoom levels are linear max or mean reductions. Region AOIs and product footprints should be stored as HEALPix Multi-Order Coverage maps (IVOA MOC). Region ↔ cell membership and region-level documentation aggregation then become sorted-range intersections.
 
-**Use for the demo site.** The framework's open P0 decision is a genuinely less-documented site with a real science objective. With cell scoring, the query is *cells with Direct match for the objective whose documentation tier is Low or Very Low*, ordered by Match. These hits supply screening evidence for candidate-region assessment. See the [cell plan](PLAN-200K.md) for the registry handoff and shortlist review.
+**Use for the demo site.** The framework's open P0 decision is a genuinely less-documented site with a real science objective. With cell scoring, the query is *cells with Direct match for the objective whose documentation tier is Low or Very Low*, ordered by Match. These hits supply screening evidence for candidate-region assessment. See the [cell plan](PLAN-CELLS.md) for the registry handoff and shortlist review.
 
 ## Determinism and reproducibility
 
