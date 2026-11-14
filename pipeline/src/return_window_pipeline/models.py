@@ -167,11 +167,20 @@ class SourceSpec:
         return cls(**{**value, "reference": reference, "members": members})
 
     @classmethod
+    def from_json(cls, raw: bytes, path: Path) -> "SourceSpec":
+        try:
+            value = json.loads(raw)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ConfigurationError(f"Cannot read source specification: {error}") from error
+        return cls.from_dict(value, path.resolve().parent)
+
+    @classmethod
     def load(cls, path: Path) -> "SourceSpec":
         try:
-            return cls.from_dict(json.loads(path.read_text(encoding="utf-8")), path.resolve().parent)
-        except (OSError, json.JSONDecodeError) as error:
+            raw = path.read_bytes()
+        except OSError as error:
             raise ConfigurationError(f"Cannot read source specification: {error}") from error
+        return cls.from_json(raw, path)
 
     def to_dict(self) -> dict:
         return json.loads(canonical(asdict(self)))
