@@ -1,6 +1,7 @@
 """Loopback HTTP adapter for the fixture and an explicitly configured evidence query."""
 
 import argparse
+from dataclasses import replace
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -13,6 +14,7 @@ from contracts.pack import PackError, decode
 from marsdoc import CapabilityQuery, DocumentationEngine, Package
 from runtime.marswalk import HumanProfile, MarswalkError, baseline_from_pack, plan_marswalk, snapshot_from_pack
 from runtime.marswalk.profiles import load_profile
+from runtime.marswalk.weather import feed_from_dict
 from runtime.mission import load_pack, simulate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +45,10 @@ class PlanRequest(BaseModel):
     # Optional operating profile fed as data (runtime/examples/profile-*.json). Marswalk engine only;
     # absent means the fixture control profile, so the v1 response is unchanged.
     profile: dict[str, Any] | None = None
+    # Optional base-station weather feed (runtime/examples/weather-*.json shape) with a required
+    # "now_utc" that sets the plan time. Marswalk engine only. Forecasts are advisory; an observed
+    # warning forces a return; a lost link on a required feed leaves science unknown.
+    weather: dict[str, Any] | None = None
 
 
 class PlanningService:
@@ -87,6 +93,8 @@ class PlanningService:
             result = self._marswalk(request)
         elif request.profile is not None:
             raise PackError("PROFILE_UNSUPPORTED", "operating profiles need the marswalk engine")
+        elif request.weather is not None:
+            raise PackError("WEATHER_UNSUPPORTED", "weather feeds need the marswalk engine")
         else:
             result = simulate(self.pack, closures=request.closure_ids, remaining_s=request.remaining_s)
         return {"schema_version": 1, "request_id": request.request_id, "route_index_order": "row_col", **result}
@@ -103,6 +111,11 @@ class PlanningService:
             profile = FIXTURE_CONTROL if request.profile is None else load_profile(request.profile)
             snapshot = snapshot_from_pack(self.pack, closure_ids=tuple(closures), remaining_s=request.remaining_s,
                                           profile=profile, mission_id=request.request_id)
+            if request.weather is not None:
+                now_utc = request.weather.get("now_utc")
+                if not isinstance(now_utc, str):
+                    raise MarswalkError("INVALID_WEATHER", "weather needs now_utc, the plan time in UTC")
+                snapshot = replace(snapshot, weather=feed_from_dict(request.weather), time_utc=now_utc)
             result = plan_marswalk(self.baseline, snapshot)
         except MarswalkError as error:
             raise PackError(error.code, str(error)) from error

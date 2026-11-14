@@ -259,8 +259,11 @@ The full algorithm, with dimensions and the remaining simulated inputs, is in
 | `weather.py` | Base-station messages are validated and classified as advisory (forecast), caution, warning (active) or link lost. Active wind and SEP alerts force a return. Dust removes rover solar credit. A required feed that loses its link leaves science unknown. |
 
 On grids of at least 250,000 cells the outbound search stops at B − R. The
-home search stays exact. `POST /api/v1/plan` accepts an optional `profile`
-object with `--engine marswalk`.
+home search stays exact. With `--engine marswalk`, `POST /api/v1/plan` accepts an
+optional `profile` object and an optional `weather` feed, which needs `now_utc` as the plan time.
+The feed uses the same shape as `runtime/examples/weather-*.json`. Results appear under
+`marswalk.weather`. An observed warning makes the v1 recommendation `direct_return`. The
+`mission` engine refuses both fields (`PROFILE_UNSUPPORTED`, `WEATHER_UNSUPPORTED`).
 
 ```sh
 uv run --project documentation --locked --offline python -m runtime.marswalk sites
