@@ -1,0 +1,96 @@
+{
+  "themis": {
+    "request_url": "https://stac.astrogeology.usgs.gov/api/search?collections=mo_themis_controlled_mosaics&limit=100",
+    "collection": "mo_themis_controlled_mosaics",
+    "bbox": null,
+    "reported_matches": 56,
+    "rows": 56,
+    "unique_ids": 56,
+    "pagination_exhausted": true,
+    "count_reconciled": true,
+    "pages_sha256": {
+      "000.json": "10eb04c20f6b7cddabb769fb979ae2343001f117f8742e55ea411ef82049d006",
+      "001.json": "cacc1470acf27bfd62fe126de7be6cb3043918da0064f4882d005f8e08bf9e58"
+    }
+  },
+  "hirise-dtm": {
+    "request_url": "https://stac.astrogeology.usgs.gov/api/search?collections=mro_hirise_socet_dtms&limit=100",
+    "collection": "mro_hirise_socet_dtms",
+    "bbox": null,
+    "reported_matches": 1262,
+    "rows": 1262,
+    "unique_ids": 1262,
+    "pagination_exhausted": true,
+    "count_reconciled": true,
+    "pages_sha256": {
+      "000.json": "0e74a854d581127c90bd5aec7ad58880d3fc76d7184ffe285d4e57d9758bf976",
+      "001.json": "6993cb5edb4d07c32a68473a9839ffa3733b642fee44085792d1a01906acff66",
+      "002.json": "273cfb27f6ca7e158caedb236634aec2d327050ab936299898583346b2620b5f",
+      "003.json": "c131b918ad37d6e63caba532e648538401c65506fe9f285ec5724f596301ea7b",
+      "004.json": "4947abfec080fea0307daad65b7d9df05ed3a6e9de1cafadebfb0c8d889475a5",
+      "005.json": "f98903bc89052c835736e6c8b275fb6e18e71c74cdb6dec69fcdff60bb678f4a",
+      "006.json": "372485c2d77f42c0b9374497f7b357f855317fc604c7acd9fb40333f7a93eb6d",
+      "007.json": "d95e5e89fcb8e4b312df8bc63cd89e7d596841856adb5685d4d16e7c836c295a",
+      "008.json": "7c26dc4fee83c05f42a30711dda88b71ceb26b4bd755e0ba4f920ca42c80582a",
+      "009.json": "4f956a7d9564b8dcac1a01314f2a5a4c68d8d99625fc08cc44c2677e3a9af277",
+      "010.json": "cc14fb8e45a9c86302f4334abe7365ef8f35fe3a78d9a6ff5c9b8edb821ee743",
+      "011.json": "de787651ece5e4444644f6a9f0303f667a5c91caef44659b8cc47754d18167ef",
+      "012.json": "2c2858e6f328a66fe66af751f7c5d189e046a094ccdbe24a42cfe23fa01e2eda",
+      "013.json": "565cb4cf8aac163fe555f61f6a696c199e87ebb84adb839696e89f7eedbfc6a4"
+    }
+  },
+  "arcadia-ctx": {
+    "request_url": "https://stac.astrogeology.usgs.gov/api/search?collections=mro_ctx_controlled_usgs_dtms&limit=100&bbox=-171.90145369%2C48.9862569%2C-171.79854631%2C49.0537431",
+    "collection": "mro_ctx_controlled_usgs_dtms",
+    "bbox": "-171.90145369,48.9862569,-171.79854631,49.0537431",
+    "reported_matches": 0,
+    "rows": 0,
+    "unique_ids": 0,
+    "pagination_exhausted": true,
+    "count_reconciled": true,
+    "pages_sha256": {
+      "000.json": "c4fdca1ec8faf71943f98be7c39297f1c803197227507a1e57b336dfc6c856db"
+    }
+  },
+  "jezero-ctx": {
+    "request_url": "https://stac.astrogeology.usgs.gov/api/search?collections=mro_ctx_controlled_usgs_dtms&limit=100&bbox=77.41442646%2C18.4262569%2C77.48557354%2C18.4937431",
+    "collection": "mro_ctx_controlled_usgs_dtms",
+    "bbox": "77.41442646,18.4262569,77.48557354,18.4937431",
+    "reported_matches": 24,
+    "rows": 24,
+    "unique_ids": 24,
+    "pagination_exhausted": true,
+    "count_reconciled": true,
+    "pages_sha256": {
+      "000.json": "18384361dff55632a16db31056dfe26a82a9ab2b2813956fc69cfa06b642d1ee",
+      "001.json": "fdea7b8f808775974a6031ddb5ea8898802fae76f8aec4e43a60a2f2521b0389"
+    }
+  },
+  "arcadia-hirise": {
+    "request_url": "https://stac.astrogeology.usgs.gov/api/search?collections=mro_hirise_uncontrolled_observations&limit=100&bbox=-171.90145369%2C48.9862569%2C-171.79854631%2C49.0537431",
+    "collection": "mro_hirise_uncontrolled_observations",
+    "bbox": "-171.90145369,48.9862569,-171.79854631,49.0537431",
+    "reported_matches": 0,
+    "rows": 0,
+    "unique_ids": 0,
+    "pagination_exhausted": true,
+    "count_reconciled": true,
+    "pages_sha256": {
+      "000.json": "c4fdca1ec8faf71943f98be7c39297f1c803197227507a1e57b336dfc6c856db"
+    }
+  },
+  "jezero-hirise": {
+    "request_url": "https://stac.astrogeology.usgs.gov/api/search?collections=mro_hirise_uncontrolled_observations&limit=100&bbox=77.41442646%2C18.4262569%2C77.48557354%2C18.4937431",
+    "collection": "mro_hirise_uncontrolled_observations",
+    "bbox": "77.41442646,18.4262569,77.48557354,18.4937431",
+    "reported_matches": 67,
+    "rows": 67,
+    "unique_ids": 67,
+    "pagination_exhausted": true,
+    "count_reconciled": true,
+    "pages_sha256": {
+      "000.json": "c79bc88cbfe5b72509e06db258110186d971b9e333fff3a192f7f5b64a822ba8",
+      "001.json": "a302da9f639f39b402f01a25d9e6956368a914d60d7c532b1d88fe6f08e17dbc"
+    }
+  }
+}

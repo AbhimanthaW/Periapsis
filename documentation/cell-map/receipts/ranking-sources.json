@@ -1,0 +1,113 @@
+{
+  "version": "ranking-sources-v2",
+  "datasets": {
+    "paleolakes": {
+      "publication": "https://www.jsg.utexas.edu/goudge/shared-data/",
+      "scope": "Goudge et al. 2016 open- and closed-basin catalogue",
+      "files": {
+        "lakes.zip": {
+          "url": "https://www.jsg.utexas.edu/goudge/files/Goudge_et_al_2016_Geology_CBL_OBL_Catalogue_CSV.zip",
+          "bytes": 4854,
+          "sha256": "e6c026b5eeef638cb8e95b2aa9b0e2af4882343ef35502660d437b668207e0c6"
+        }
+      }
+    },
+    "chlorides": {
+      "publication": "https://data.caltech.edu/records/kasms-vp209",
+      "scope": "Leask and Ehlmann 2021 cross-reference to the Osterloo et al. 2010 site points",
+      "files": {
+        "chlorides.csv": {
+          "url": "https://data.caltech.edu/records/kasms-vp209/files/Leask_and_Ehlmann_2021_2010_osterloo_chl_pts_w_tanaka_2014_age.csv?download=1",
+          "bytes": 54535,
+          "sha256": "7bf25baa9d98f91f5e8481ea5cd50ea0b090ccdabccbc0e567da2eb9d9ecf8a2"
+        }
+      }
+    },
+    "structures": {
+      "publication": "https://pubs.usgs.gov/sim/3292/",
+      "scope": "USGS SIM 3292 Global_Structure layer, native projected linework generalized by the service at 100 m",
+      "files": {
+        "sim-lines-2-layer.json": {
+          "url": "https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Tanaka_et_al_2014_Mars_Global_Map_Features/FeatureServer/2?f=json",
+          "bytes": 15143,
+          "sha256": "3676549b136639918bbf65ed5f11fb47c5f53d129694ffe4af02ffb3328835b5"
+        },
+        "sim-lines-2-count.json": {
+          "url": "https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Tanaka_et_al_2014_Mars_Global_Map_Features/FeatureServer/2/query?f=json&where=1%3D1&returnCountOnly=true",
+          "bytes": 14,
+          "sha256": "439bffdb89ab01aa99fb8c8c0e15491d10d9f4e53f953c78a81b45bbdb6903d3"
+        },
+        "sim-lines-2.json": {
+          "url": "https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Tanaka_et_al_2014_Mars_Global_Map_Features/FeatureServer/2/query?f=json&where=1%3D1&outFields=%2A&returnGeometry=true&orderByFields=OBJECTID&resultRecordCount=2000&maxAllowableOffset=100&resultOffset=0",
+          "bytes": 2066049,
+          "sha256": "6a400fb1f19e71e947a2cf38bdcca32ea52080a6bcd8ca27dfa922933405751b"
+        },
+        "sim-lines-2-page2.json": {
+          "url": "https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Tanaka_et_al_2014_Mars_Global_Map_Features/FeatureServer/2/query?f=json&where=1%3D1&outFields=%2A&returnGeometry=true&orderByFields=OBJECTID&resultRecordCount=2000&maxAllowableOffset=100&resultOffset=2000",
+          "bytes": 1456120,
+          "sha256": "e628494b1716395548b1be711114b358f00aa3ac3b4930a94e6c86bf15a58634"
+        }
+      }
+    },
+    "gazetteer": {
+      "publication": "https://planetarynames.wr.usgs.gov/GIS_Downloads",
+      "scope": "IAU/USGS Gazetteer Mars centre points and approximate published bounds",
+      "files": {
+        "gazetteer.zip": {
+          "url": "https://asc-planetarynames-data.s3.us-west-2.amazonaws.com/MARS_nomenclature_center_pts.zip",
+          "bytes": 5421247,
+          "sha256": "9dc310c1381f6d33a0a5199cb76d9a1942448bcac71ee2f7c9053ad79ef3fbe0"
+        }
+      }
+    },
+    "dunes": {
+      "publication": "https://pubs.usgs.gov/publication/ofr20181164",
+      "scope": "USGS OFR 2018\u20131164 equatorial and south polar Stability Index worksheets",
+      "files": {
+        "dune.zip": {
+          "url": "https://pubs.usgs.gov/of/2018/1164/ofr20181164_dunedatabase.zip",
+          "bytes": 2982330,
+          "sha256": "92771c23cfa4a64dfcc38f5ad29de00adfa41b9f321d3665beb2112eefe3485e"
+        }
+      }
+    },
+    "cave_candidates": {
+      "publication": "https://astrogeology.usgs.gov/search/map/mars_global_cave_candidate_catalog_v1_cushing",
+      "scope": "USGS Cushing Mars Global Cave Candidate Catalog v1",
+      "files": {
+        "caves.zip": {
+          "url": "https://astrogeology.usgs.gov/ckan/dataset/c2960f77-ee20-4cc6-ac85-abbecc0fc7f6/resource/ccd54fb2-9a50-46bf-8971-80c241bb2f40/download/mars_cave_catalog.zip",
+          "bytes": 1770313,
+          "sha256": "d2703c128b29f47d44bd482344887156bae82831a636844d1418d75661726097"
+        }
+      }
+    },
+    "marsquakes": {
+      "publication": "https://www.insight.ethz.ch/en/seismicity/catalog/v14/",
+      "scope": "InSight MQS via EarthScope, query restricted to published location-quality A/B",
+      "files": {
+        "marsquakes.txt": {
+          "url": "https://service.earthscope.org/irisws/mars-event/1/query?locationquality=A,B&format=text",
+          "bytes": 23975,
+          "sha256": "4aa2d15a35df41f271daa1cd00808316e9ec4ecdfd74084f1dab70f9bca2232b"
+        }
+      }
+    },
+    "hydrated_mineral_sites": {
+      "publication": "https://pds-geosciences.wustl.edu/mex/mex-m-omega-5-ddr-global-maps-v1/mexomg_2000/data/hydrous/",
+      "scope": "NASA PDS MEX-M-OMEGA-5-DDR-GLOBAL-MAPS-V1.0, Carter et al. 2013 OMEGA and CRISM hydrated-mineral detections, with no per-site mineral classes or survey mask",
+      "files": {
+        "hydrous_sites_geo_map.csv": {
+          "url": "https://pds-geosciences.wustl.edu/mex/mex-m-omega-5-ddr-global-maps-v1/mexomg_2000/data/hydrous/hydrous_sites_geo_map.csv",
+          "bytes": 55500,
+          "sha256": "e1ca76b883057f2dbc0fcc8b5d51da541834cdb8b45dbc9d83d2bcfd42c5f797"
+        },
+        "hydrous_sites_geo_map.lbl": {
+          "url": "https://pds-geosciences.wustl.edu/mex/mex-m-omega-5-ddr-global-maps-v1/mexomg_2000/data/hydrous/hydrous_sites_geo_map.lbl",
+          "bytes": 5378,
+          "sha256": "927e9f65b93c4894f365983f132957d5ba7e56ada0837ac666492f0c2c0d8dee"
+        }
+      }
+    }
+  }
+}
