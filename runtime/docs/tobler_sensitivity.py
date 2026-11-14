@@ -7,7 +7,7 @@ the remaining time, then reports which next action each setting recommends.
 The outbound field is priced with v_flat. The home field is priced with v_flat x
 return_factor. Selection follows the single-stop runtime rule: a direct-return gate,
 then science plans that fit B - R, chosen by priority, then margin, then id.
-With return_factor = 1 the result is checked against plan_marswalk.
+At the current pace the result is checked against plan_marswalk across the study grid.
 
     python runtime/docs/tobler_sensitivity.py      (from the repository root)
 """
@@ -71,10 +71,14 @@ def _check_against_runtime(cache):
     """Symmetric pace must reproduce plan_marswalk at the current default."""
     for closed, remaining in product(CLOSED, REMAINING_MIN):
         baseline, snapshot = demo_inputs(closed=closed, remaining_s=remaining * 60, with_time=False)
-        runtime = plan_marswalk(baseline, snapshot)
-        expected = runtime.recommendation or runtime.status
-        mine, _ = recommend(baseline, snapshot, 0.5, 1.0, cache)
-        assert mine == expected, (closed, remaining, mine, expected)
+        for reserve in RESERVES_MIN:
+            scenario = replace(snapshot, reserve_s=reserve * 60)
+            runtime = plan_marswalk(baseline, scenario)
+            expected = runtime.recommendation or runtime.status
+            action, _ = recommend(baseline, scenario, *BASELINE[:2], cache)
+            if action != expected:
+                raise ValueError(f"Runtime parity failed for {(closed, remaining, reserve)}: "
+                                 f"{action} != {expected}")
 
 
 def main():
@@ -87,11 +91,10 @@ def main():
         action, margin = recommend(baseline, snapshot, pace, factor, cache)
         rows.append((closed, remaining, reserve, pace, factor, action, margin))
 
-    base = {(r[0], r[1]): r[5] for r in rows if (r[3], r[4], r[2]) == BASELINE}
+    base = {r[:3]: r[5] for r in rows if r[3:5] == BASELINE[:2]}
     print("Recommendation by setting (synthetic demo terrain)")
     for closed, remaining in product(CLOSED, REMAINING_MIN):
-        print(f"\n{'north ramp CLOSED' if closed else 'all open'} · B = {remaining} min "
-              f"· current default -> {base[(closed, remaining)]}")
+        print(f"\n{'north ramp CLOSED' if closed else 'all open'} · B = {remaining} min")
         header = "  reserve  " + "  ".join(f"{p:.2f}{'' if f == 1 else '/x' + str(f)}".rjust(14)
                                           for p, f in product(PACES, RETURN_FACTORS))
         print(header)
@@ -102,17 +105,25 @@ def main():
                 short = {"science:transect": "transect", "science:photo-set": "photo-set",
                          "direct_return": "direct", "RETURN_OVER_RESERVE": "OVER_RES",
                          "NO_RETURN_ROUTE": "NO_ROUTE"}[action]
-                marker = "*" if action != base[(closed, remaining)] else " "
+                marker = "*" if action != base[(closed, remaining, reserve)] else " "
                 cells.append(f"{short}{marker}".rjust(14))
             print(f"  {reserve:>3} min  " + "  ".join(cells))
 
-    changed = [r for r in rows if r[5] != base[(r[0], r[1])]]
-    print(f"\n{len(changed)} of {len(rows)} settings differ from the current default (marked *).")
-    for (pace, factor) in product(PACES, RETURN_FACTORS):
-        subset = [r for r in rows if r[3] == pace and r[4] == factor and r[2] == 15]
-        diff = [r for r in subset if r[5] != base[(r[0], r[1])]]
-        print(f"  reserve 15 min, pace {pace:.2f} m/s, return x{factor}: "
-              f"{len(diff)} of {len(subset)} situations change")
+    print("\nChanges from 0.50 m/s symmetric at the same reserve (marked *):")
+    print("| Pace (m/s), home factor | Actions changed | Science instead of return | Return instead of science |")
+    print("| --- | ---: | ---: | ---: |")
+    for pace, factor in product(PACES, RETURN_FACTORS):
+        changes = [(base[row[:3]], row[5]) for row in rows
+                   if row[3:5] == (pace, factor) and row[5] != base[row[:3]]]
+        more_science = sum(before == "direct_return" and after.startswith("science:") for before, after in changes)
+        more_returns = sum(before.startswith("science:") and after == "direct_return" for before, after in changes)
+        print(f"| {pace:.2f}, {factor:.1f} | {len(changes)} | {more_science} | {more_returns} |")
+
+    print("\nChanges at 0.50 m/s symmetric from the 15-minute reserve:")
+    for reserve in RESERVES_MIN:
+        changes = sum(base[closed, remaining, reserve] != base[closed, remaining, BASELINE[2]]
+                      for closed, remaining in product(CLOSED, REMAINING_MIN))
+        print(f"  {reserve} min: {changes} of {len(CLOSED) * len(REMAINING_MIN)} situations")
 
 
 if __name__ == "__main__":

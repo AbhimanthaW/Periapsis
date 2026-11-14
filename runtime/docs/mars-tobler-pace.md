@@ -2,12 +2,12 @@
 
 **Periapsis · Runtime · Senula · 14 November 2026, Colombo · Status: proposal for review, revision 2**
 
-This note proposes the human walking-time model for `runtime.marswalk`. It keeps the shape of Tobler's hiking function, adds a walk-to-run speed limit, and proposes a slower pace for the return-home check. **No runtime code changes.** The current default stays at 0.50 m/s until the team selects a pace from the sensitivity evidence below.
+This note proposes changes to the human walking-time model in `runtime.marswalk`. It keeps the shape of Tobler's hiking function, adds a walk-to-run speed limit, and evaluates a slower pace for the return-home check. The current default is 0.50 m/s. The [Scientific Model Design Review](../../reference/architecture/scientific-model-design-review.md) records the linear pace formula for comparison.
 
 **Revision 2 responds to review:**
 
 - 0.75 m/s is now a **candidate**, not the proposed default.
-- A pace and reserve sensitivity study shows which recommendations change.
+- A synthetic pace and reserve sensitivity study shows which recommendations change.
 - The speed limit now has one behaviour. A profile whose fastest speed exceeds the limit is **rejected at validation**. The equation no longer clamps.
 
 ## The equation
@@ -133,10 +133,10 @@ Apollo 14's ten-degree climb was the hardest traverse of the programme. The limi
 
 ## Sensitivity study
 
-[`tobler_sensitivity.py`](tobler_sensitivity.py) runs the synthetic Marswalk demo (160 × 160 cells at 5 m, scarp with two ramps, two tasks) through the real `TerrainGraph`, `Router` and Dijkstra fields. The outbound field uses $v_{\text{flat}}$. The home field uses $f_{\text{return}} \cdot v_{\text{flat}}$. Selection follows the single-stop runtime rule. With $f_{\text{return}} = 1$, the script reproduces `plan_marswalk` at the current default before it runs.
+[`tobler_sensitivity.py`](tobler_sensitivity.py) runs the synthetic Marswalk demo (160 × 160 cells at 5 m, scarp with two ramps, two tasks) through `TerrainGraph`, `Router` and Dijkstra fields. The outbound field uses $v_{\text{flat}}$. The home field uses $f_{\text{return}} \cdot v_{\text{flat}}$. The study selects the highest-priority feasible single stop after checking direct return. At the current symmetric pace, it checks that the selected action agrees with `plan_marswalk` for every reserve, remaining time and ramp state in the grid.
 
 ```sh
-python runtime/docs/tobler_sensitivity.py
+uv run --project documentation --locked python runtime/docs/tobler_sensitivity.py
 ```
 
 **Grid:** $v_{\text{flat}}$ ∈ {0.40, 0.50, 0.60, 0.75} m/s × $f_{\text{return}}$ ∈ {1.0, 0.7} × reserve ∈ {10, 15, 20, 30} min × remaining time ∈ {45, 60, 75, 90} min × north ramp {open, closed} = 256 settings.
@@ -169,7 +169,7 @@ Compared with the current pace (0.50 m/s, symmetric) at the same reserve and sit
 
 - **Keep $v_{\text{flat}} = 0.50$ m/s as the default** until Isath reviews the pace sources. The evidence does not justify changing which science stops fit.
 - **List 0.40–0.75 m/s as declared candidate profiles** and treat the choice as a scenario assumption recorded in each plan.
-- **If a faster outbound pace is adopted, pair it with the × 0.7 home pace.** The safety-relevant return check then stays close to today's behaviour.
+- Evaluate the outbound pace, return factor and reserve together before adopting a new profile. The similar direct-return results at 0.525 m/s and 0.50 m/s reflect those two speeds in the synthetic study.
 - **Reject profiles above the walk-to-run limit** at validation. Do not clamp.
 - A later runtime option could report when the next action would differ under the slowest candidate pace, so the crew sees decisions close to a boundary.
 
