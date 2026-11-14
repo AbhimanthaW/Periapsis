@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "dataset_version": "0.1.0",
+  "cell_count": 196608,
+  "nside": 128,
+  "ordering": "NESTED",
+  "frame": "Mars planetocentric, east-positive [0, 360)",
+  "git_commit": "fa2bfce44315faa10d339409ea3146ca784fc4a8",
+  "method_version": "marsdoc-spherical-v1",
+  "policy_sha256": "071c0f658adfeb5f049b98130960f393a7474d0942bf2e8f5ec44719f446fcdd",
+  "scoring_policy": {
+    "version": "marsdoc-policy-v1",
+    "boundary_step": 16,
+    "tier_tolerance": 1e-09,
+    "modalities": [
+      {
+        "modality": "baseline_topography",
+        "axis": "terrain",
+        "weight": 1.0,
+        "good_spacing_m": null,
+        "poor_spacing_m": null
+      },
+      {
+        "modality": "stereo_topography",
+        "axis": "terrain",
+        "weight": 1.0,
+        "good_spacing_m": null,
+        "poor_spacing_m": null
+      },
+      {
+        "modality": "context_imagery",
+        "axis": "terrain",
+        "weight": 1.0,
+        "good_spacing_m": null,
+        "poor_spacing_m": null
+      },
+      {
+        "modality": "fine_imagery",
+        "axis": "terrain",
+        "weight": 1.0,
+        "good_spacing_m": null,
+        "poor_spacing_m": null
+      },
+      {
+        "modality": "geology",
+        "axis": "science_environment",
+        "weight": 1.0,
+        "good_spacing_m": null,
+        "poor_spacing_m": null
+      },
+      {
+        "modality": "mineralogy",
+        "axis": "science_environment",
+        "weight": 1.0,
+        "good_spacing_m": null,
+        "poor_spacing_m": null
+      },
+      {
+        "modality": "thermal",
+        "axis": "science_environment",
+        "weight": 1.0,
+        "good_spacing_m": null,
+        "poor_spacing_m": null
+      }
+    ],
+    "tiers": [
+      {
+        "minimum": 0.0,
+        "label": "Very Low"
+      },
+      {
+        "minimum": 20.0,
+        "label": "Low"
+      },
+      {
+        "minimum": 40.0,
+        "label": "Moderate"
+      },
+      {
+        "minimum": 60.0,
+        "label": "High"
+      },
+      {
+        "minimum": 80.0,
+        "label": "Very High"
+      }
+    ]
+  },
+  "atlas_manifest_sha256": "6c0c2817edf06ff17ac7f04c7c57ac543814d87d1e28f02bf83dc02ecc8645bf",
+  "products_by_dataset": {
+    "mgs-mola-megdr": 1,
+    "usgs-jezero-ctx-dem": 1,
+    "mro_hirise_socet_dtms": 976,
+    "mro_ctx_controlled_usgs_dtms": 24,
+    "mro_hirise_uncontrolled_observations": 67
+  },
+  "quarantined_footprints": 342,
+  "cells_with_catalogued_coverage": {
+    "baseline_topography": 196608,
+    "stereo_topography": 1585,
+    "context_imagery": 0,
+    "fine_imagery": 7,
+    "geology": 0,
+    "mineralogy": 0,
+    "thermal": 0
+  },
+  "cells_with_verified_usable_support": {
+    "baseline_topography": 196608,
+    "stereo_topography": 4,
+    "context_imagery": 0,
+    "fine_imagery": 0,
+    "geology": 0,
+    "mineralogy": 0,
+    "thermal": 0
+  },
+  "terrain_tiers": {
+    "Unclassified": 196608
+  },
+  "mola_zero_observation_samples": 71,
+  "named_feature_anchor_count": 56,
+  "limitations": [
+    "MOLA values are centroid samples from the containing native raster pixel, not HEALPix area statistics.",
+    "MOLA covers all cells as gridded context, including interpolated locations. Zero observations is a valid count.",
+    "STAC footprints are catalogue outlines, with no independently verified masks or scale.",
+    "Catalogue completeness remains open by modality. Unsearched areas are unknown.",
+    "Named feature associations are anchor points only. This build supplies no region boundaries or narratives."
+  ],
+  "files": {
+    "catalogue-snapshots.json": {
+      "sha256": "279e9511393116b9123595b43985aecc661f8e391cda7a06449f65f0c213a278",
+      "bytes": 4535
+    },
+    "cells.ndjson.gz": {
+      "sha256": "0812032536c15a02a97cef6c62fbe74b299ffe009d6d9eb3aae0be50da40b249",
+      "bytes": 9293956
+    },
+    "cells.sqlite": {
+      "sha256": "a0909c52472d34f9e216b18af9730d78e49a70766f9f55ad63a07f432f8a7d48",
+      "bytes": 414031872
+    },
+    "evidence-package.json": {
+      "sha256": "56ec672bcecfc236749e93abee1a998f15d9cefde983d12834c6e0a12a8100f2",
+      "bytes": 3421658
+    },
+    "quarantined-footprints.json": {
+      "sha256": "67f0a6816a6e713e4e55670bf5e86284ce539c3d8dc17f7c2c8bcbc0cdf6208d",
+      "bytes": 109815
+    }
+  }
+}
