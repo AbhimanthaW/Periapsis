@@ -15,7 +15,7 @@ Open the local address printed by Vite. For a compiled build, run `npm run build
 
 ## Mars Research Atlas
 
-Open **Mars Atlas** from the Architecture Workspace, or visit `/atlas` on the same local server. The Atlas packages the Viking and MOLA global views, a bounded Jezero CTX optical subset, the 56-region index, and the original survey. It runs from local files while the server is running. See the [Atlas data and methodology](docs/mars-research-atlas.md) for source credits, limits and regeneration. Run `npm run check:atlas` to validate the packaged registry and assets.
+Open **Mars Atlas** from the Architecture Workspace, or visit `/atlas` on the same local server. The Atlas packages the Viking and MOLA global views, a bounded Jezero CTX optical subset, the 56-region index, and the original survey. It runs from local files while the server is running. See the [Atlas data and methodology](../reference/architecture/mars-research-atlas.md) for source credits, limits and regeneration. Run `npm run check:atlas` to validate the packaged registry and assets.
 
 ## Mission (in progress)
 
@@ -71,7 +71,7 @@ Architecture 3.0 uses additive fields in JSON schema version 1. On the same brow
 
 ## Scientific model design
 
-See the [Scientific Model Design Review](docs/scientific-model-design-review.md) for the 56-region audit, primary references, formulas, model inventory and implementation priorities. The proposed runtime sequence is directed route candidates → resource ledger and hard gates → finite-set Pareto comparison → mission priorities → explanation. Parameter edits update this architecture document. They do not run a mission model. All model validation statuses start at **Not evaluated**.
+See the [Scientific Model Design Review](../reference/architecture/scientific-model-design-review.md) for the 56-region audit, primary references, formulas, model inventory and implementation priorities. The proposed runtime sequence is directed route candidates → resource ledger and hard gates → finite-set Pareto comparison → mission priorities → explanation. Parameter edits update this architecture document. They do not run a mission model. All model validation statuses start at **Not evaluated**.
 
 ## Editor stack
 

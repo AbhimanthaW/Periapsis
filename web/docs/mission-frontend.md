@@ -23,7 +23,7 @@ Screens 1–3 are implemented in `src/mission/`. Screen 4 is not started. Eviden
 3. **Simulated Marswalk.** The fixture's 3×5 grid in its own SVG panel, placed with the `/site` shape, `row_col` order and pixel-centre affine. Includes checkpoint and shelter, closure toggles (`mid`, `north`), remaining-time control, return-margin card, travel / dwell / reserve timeline and the task list with `survey-done` retained. Show the recommendation, or the refusal `RETURN_OVER_RESERVE` or `NO_RETURN_ROUTE` with no recommendation.
 4. **Later: closure trade-off.** A before/after comparison of direct return and the science option, following the 07a mockup pattern. Use only values from plan responses.
 
-Acceptance for screen 3 uses the golden-path values in [EXECUTION_PLAN §3](../../docs/EXECUTION_PLAN.md#3-prove-the-golden-path): 40 s / 75 s / +10 s at baseline; 60 s / 95 s with direct return after the middle closure; −5 s over reserve at 70 s; and no route with both corridors closed.
+Acceptance for screen 3 uses the golden-path values in [EXECUTION_PLAN §3](../../reference/project/EXECUTION_PLAN.md#3-prove-the-golden-path): 40 s / 75 s / +10 s at baseline; 60 s / 95 s with direct return after the middle closure; −5 s over reserve at 70 s; and no route with both corridors closed.
 
 ## API bindings
 
@@ -40,7 +40,7 @@ Errors use `{schema_version, request_id, error, message}`. Map them as follows: 
 
 ### Where the docs and the running code differ
 
-- `docs/CURRENT_STATE.md` lists the planning HTTP service as not implemented. It runs: `runtime/planning_api.py`, tested in `runtime/tests/test_planning_api.py`.
+- The [12 November snapshot](../../reference/project/CURRENT_STATE.md) lists the planning HTTP service as not implemented. It runs: `runtime/planning_api.py`, tested in `runtime/tests/test_planning_api.py`.
 - The framework describes `/api/v1/site` as the selected real pack. The running service serves only the synthetic fixture, so the real site's identity comes from frontend config and `/api/v1/evidence`.
 - Evidence is a parameterless `GET`. The client sends no query geometry. The operator configures the query when starting the service.
 

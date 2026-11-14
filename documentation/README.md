@@ -1,6 +1,6 @@
 # Planetary Documentation Engine
 
-The Python core is verified with synthetic controls and one archive-checked Jezero CTX elevation window. It computes evidence availability and model support for Return Window. The existing atlas and site-pack boundaries are described in the [audit](AUDIT.md) and [pipeline contract](CONTRACT.md). Measured results and the acceptance checklist are in [validation](VALIDATION.md).
+The Python core is verified with synthetic controls and one archive-checked Jezero CTX elevation window. It computes evidence availability and model support for Return Window. The existing atlas and site-pack boundaries are described in the [audit](../reference/architecture/AUDIT.md) and [pipeline contract](CONTRACT.md). Measured results and the acceptance checklist are in [validation](VALIDATION.md).
 
 ## Run the offline example
 
@@ -49,7 +49,7 @@ Yumeth's production sidecars, a full catalogue run, and application wiring are p
 
 | Files | Purpose |
 | --- | --- |
-| `AUDIT.md`, `CONTRACT.md`, `VALIDATION.md` | Architecture decisions, pipeline handshake and measured verification |
+| [Audit](../reference/architecture/AUDIT.md), `CONTRACT.md`, `VALIDATION.md` | Architecture decisions, pipeline handshake and measured verification |
 | `marsdoc/grid.py`, `spatial.py` | Mars normalization, HEALPix and bounded spherical geometry |
 | `marsdoc/catalogue.py`, `engine.py` | Sparse lookup, missingness, scoring, classification and local eligibility |
 | `marsdoc/contracts.py`, `schemas.py`, `scoring-v1.json`, `schemas/` | Runtime and wire contracts plus versioned policy |
