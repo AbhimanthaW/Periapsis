@@ -10,7 +10,7 @@
 
 ## 1. The data that should be there
 
-The 31 unsupported concepts fall into twelve missing layers. Status is **Source** when a download page was found, and **Dummy** when only a paper was found or nothing was found. Sources were located by web search on 14 November. None has been downloaded or licence-checked yet.
+The 31 unsupported concepts fall into thirteen missing layers. Status is **Source** when a download page was found, and **Dummy** when only a paper was found or nothing was found. Sources were located by web search on 14 November. None has been downloaded or licence-checked yet.
 
 | # | Missing layer | Concepts it unlocks | Status | Source | Join | Priority |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -153,7 +153,7 @@ flowchart TD
   class fluvial,lake,delta,fan,alteration,hydrated,clays,sulfates,silica,carbonates,tectonic,canyon,graben,water need
 ```
 
-Green concepts have data today. Brown ones arrive with layers 1–6. A parent's support is the maximum of its children's support times 0.8, computed at build time, so a *water* query needs one row at query time.
+Green concepts have data today. Brown ones arrive with layers 1–7. A parent's support is the maximum of its children's support times 0.8, computed at build time, so a *water* query needs one row at query time.
 
 **Derived concepts (fixed rules, flagged for review).**
 
@@ -300,7 +300,7 @@ gantt
 | Step | Deliverable | Done when |
 | --- | --- | --- |
 | 1 | `build_concepts.py`, pack format, manifest | Pack rebuilds byte-identically from pinned inputs |
-| 2 | Layers 1–4 joined with coverage masks | Each layer has a receipt with counts and digests |
+| 2 | Layers 1–5 joined with coverage masks (4 and 5 as dummy until files arrive) | Each layer has a receipt with counts and digests |
 | 3 | Ledger v2 with the new concepts and thresholds | Every concept has a rule, a cell count and a status |
 | 4 | Query engine and endpoint | *ancient water and delta deposits* returns Direct areas with deltas in Noachian terrain |
 | 5 | Explore integration | Table, parse report and heat layer render from one response |
