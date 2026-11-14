@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Map from 'ol/Map.js'
 import View from 'ol/View.js'
 import Projection from 'ol/proj/Projection.js'
@@ -115,10 +115,10 @@ export default function Explore() {
       if (response.ok) setDetail(await response.json())
     } catch { /* The area result remains usable without detail. */ }
   }
-  const selectTile = useCallback((tile: number) => {
+  const selectTile = (tile: number) => {
     const area = answer?.areas.find(item => item.tile === tile)
     if (area) void selectArea(area)
-  }, [answer])
+  }
   return <main className="explore">
     <header><a href="/">← Architecture</a><h1>Explore Mars cells</h1><p>Objective match, records and method compatibility are separate criteria. Cells with missing survey coverage remain unknown.</p></header>
     <form onSubmit={rank}>
