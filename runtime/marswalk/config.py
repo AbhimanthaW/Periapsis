@@ -11,10 +11,17 @@ be mistaken for evidence. Medical suitability, crew ranking and rescue
 assumptions are deliberately absent (see "Excluded from core" in the README).
 """
 from dataclasses import dataclass, field
+import math
 from math import inf
 from numbers import Real
 
 from .errors import MarswalkError
+
+# Mars Tobler shape and walk-to-run limit (runtime/docs/mars-tobler-pace.md). A
+# profile whose fastest speed exceeds the limit is rejected, never clamped.
+TOBLER_K = 3.5
+TOBLER_OFFSET = 0.05
+WALK_TO_RUN_CAP_MPS = 1.16       # sqrt(Fr* 0.36 x 3.721 m/s2 x 1 m leg), lunar suited Fr*
 
 MAX_SECONDS = 86_400
 PROVENANCE = frozenset({"evidence", "authorized", "assumed", "simulated", "crew_input"})
@@ -76,10 +83,23 @@ class HumanProfile:
     neighbours: int = 8
     crew_size: int = 2
     provenance: str = "assumed"
+    v_flat_mps: float = 0.5                    # Mars Tobler flat speed (runtime/docs/mars-tobler-pace.md)
+    max_slope_deg: float | None = None         # walking slope limit on edges and cells; None = terrain policy only
 
     def __post_init__(self):
         if self.platform != "human":
             raise MarswalkError("INVALID_PROFILE", "Human Marswalk accepts only a human profile")
+        _positive("v_flat_mps", self.v_flat_mps)
+        if self.max_slope_deg is not None:
+            _positive("max_slope_deg", self.max_slope_deg)
+            if self.max_slope_deg >= 90:
+                raise MarswalkError("INVALID_PROFILE", "max_slope_deg must be below 90")
+            if self.pace_model != "tobler_scaled":
+                raise MarswalkError("INVALID_PROFILE", "max_slope_deg requires the tobler_scaled pace model")
+        fastest = self.v_flat_mps * math.exp(TOBLER_K * TOBLER_OFFSET)
+        if self.pace_model == "tobler_scaled" and fastest > WALK_TO_RUN_CAP_MPS:
+            raise MarswalkError("INVALID_PROFILE", f"fastest walking speed {fastest:.2f} m/s exceeds the "
+                                                   f"{WALK_TO_RUN_CAP_MPS} m/s walk-to-run limit")
         if self.pace_model not in {"tobler_scaled", "control_linear"}:
             raise MarswalkError("INVALID_PROFILE", f"unknown pace model {self.pace_model!r}")
         if self.pace_scenario not in {"nominal", "slow"}:
@@ -200,6 +220,7 @@ class MissionSnapshot:
     site_lon_east_deg: float | None = None
     environment: tuple = ()              # EnvironmentalVariable, ...
     power: object = None                 # PowerScenario (rover plans need one)
+    weather: object = None               # WeatherFeed from base stations; judged at time_utc
 
     def limit(self, limit_id):
         for item in self.limits:
@@ -251,6 +272,10 @@ class MissionSnapshot:
         for variable in self.environment:
             for cell in variable.cells:
                 _cell(f"environment {variable.id}", cell, shape)
+        if self.weather is not None:
+            if self.time_utc is None:
+                raise MarswalkError("INVALID_SNAPSHOT", "a weather feed needs time_utc to judge message age")
+            self.weather.validate(shape)
         if isinstance(self.profile, RoverProfile) and self.power is not None:
             self.power.validate_source(self.profile.power_source)
         ids = [task.id for task in self.tasks]

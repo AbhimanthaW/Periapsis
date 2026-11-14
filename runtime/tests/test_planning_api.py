@@ -180,3 +180,102 @@ def test_marswalk_engine_matches_mission_contract(closures, remaining):
 def test_unknown_engine_is_refused():
     with pytest.raises(ValueError):
         PlanningService(load_pack(FIXTURE, simulation=True), None, engine="astar")
+
+
+def _service_request(service, **extra):
+    from runtime.planning_api import PlanRequest
+    return PlanRequest.model_validate({**service.identity, "schema_version": 1, "request_id": "profile",
+                                       "closure_ids": [], "remaining_s": 100, **extra})
+
+
+def test_profile_is_fed_as_data_to_the_marswalk_engine():
+    from contracts.pack import PackError
+    pack = load_pack(FIXTURE, simulation=True)
+    marswalk = PlanningService(pack, None, engine="marswalk")
+    control = {"platform": "human", "pace_model": "control_linear", "neighbours": 4}
+    assert marswalk.plan(_service_request(marswalk, profile=control))["direct_return"] == \
+        marswalk.plan(_service_request(marswalk))["direct_return"]
+    tobler = marswalk.plan(_service_request(marswalk, profile={"platform": "human", "v_flat_mps": 0.6}))
+    assert tobler["marswalk"]["profile"]["v_flat_mps"] == 0.6
+    assert tobler["marswalk"]["site"]["dimensions"]["cell_dx_m"] == 10
+    with pytest.raises(PackError) as error:
+        marswalk.plan(_service_request(marswalk, profile={"platform": "human", "v_flat_mps": 2.0}))
+    assert error.value.code == "INVALID_PROFILE"
+    mission = PlanningService(pack, None)
+    with pytest.raises(PackError) as error:
+        mission.plan(_service_request(mission, profile=control))
+    assert error.value.code == "PROFILE_UNSUPPORTED"
+
+
+def _feed(*messages, required=False, now_utc="2021-02-18T20:43:49Z"):
+    feed = {"provenance": "simulated", "required": required, "max_age_s": 600,
+            "stations": [{"id": "base-1", "cell": [1, 0]}], "messages": list(messages)}
+    return feed if now_utc is None else {**feed, "now_utc": now_utc}
+
+
+def _wind(value, *, kind="observed", t="2021-02-18T20:40:00Z"):
+    return {"station_id": "base-1", "variable": "wind_speed", "value": value, "unit": "m/s", "kind": kind,
+            "time_utc": t, "provenance": "simulated"}
+
+
+def test_weather_is_fed_to_the_marswalk_engine():
+    from contracts.pack import PackError
+    pack = load_pack(FIXTURE, simulation=True)
+    marswalk = PlanningService(pack, None, engine="marswalk")
+    calm = marswalk.plan(_service_request(marswalk, weather=_feed(_wind(5))))
+    assert calm["recommendation"] == "science-a" and calm["status"] == "OK"
+    assert calm["marswalk"]["weather"]["return_now"] is False
+    forecast = marswalk.plan(_service_request(marswalk, weather=_feed(_wind(5), _wind(30, kind="forecast"))))
+    assert forecast["recommendation"] == "science-a"
+    assert any(m.startswith("[ADVISORY]") for m in forecast["marswalk"]["weather"]["crew_messages"])
+    windy = marswalk.plan(_service_request(marswalk, weather=_feed(_wind(22))))
+    assert windy["status"] == "OK" and windy["recommendation"] == "direct_return"
+    assert windy["direct_return"] == calm["direct_return"]
+    assert not any(row["feasible"] for row in windy["science"])
+    assert windy["marswalk"]["weather"]["return_now"] is True
+    lost = marswalk.plan(_service_request(marswalk, weather=_feed(_wind(5, t="2021-02-18T19:00:00Z"),
+                                                                   required=True)))
+    assert lost["recommendation"] == "direct_return" and lost["marswalk"]["weather"]["link_lost"] is True
+    for bad in (_feed(_wind(5), now_utc=None), {**_feed(_wind(5)), "stations": [{"id": "base-1", "cell": [9, 9]}]}):
+        with pytest.raises(PackError) as error:
+            marswalk.plan(_service_request(marswalk, weather=bad))
+        assert error.value.code == "INVALID_WEATHER"
+    mission = PlanningService(pack, None)
+    with pytest.raises(PackError) as error:
+        mission.plan(_service_request(mission, weather=_feed(_wind(5))))
+    assert error.value.code == "WEATHER_UNSUPPORTED"
+
+
+@pytest.mark.parametrize("call", [{"engine": "marswalk"}], indirect=True, ids=["marswalk"])
+def test_weather_over_http(call):
+    _, site = call("/api/v1/site")
+    status, body = call("/api/v1/plan", plan_request(site, remaining_s=100, weather=_feed(_wind(22))))
+    assert status == 200 and body["recommendation"] == "direct_return"
+    status, body = call("/api/v1/plan", plan_request(site, remaining_s=100, weather=_feed(_wind(5), now_utc=None)))
+    assert status == 400 and body["error"] == "INVALID_WEATHER"
+
+
+@pytest.mark.parametrize("call", [{"engine": "marswalk"}], indirect=True)
+def test_invalid_profile_shape_returns_http_error(call):
+    _, site = call("/api/v1/site")
+    status, result = call("/api/v1/plan", plan_request(site, profile={"platform": []}))
+    assert status == 400 and result["error"] == "INVALID_PROFILE"
+
+
+@pytest.mark.parametrize("call", [{"engine": "marswalk"}], indirect=True)
+def test_malformed_weather_returns_a_structured_http_error(call):
+    _, site = call("/api/v1/site")
+    valid = _feed(_wind(5))
+    invalid = [
+        [],
+        {**valid, "now_utc": "invalid"},
+        {**valid, "now_utc": "2021-02-18T20:43:49"},
+        {**valid, "stations": [{"id": "base-1", "cell": [1]}]},
+        {**valid, "stations": [{"id": "base-1", "cell": [1.5, 0]}]},
+        {**valid, "stations": [{"id": [], "cell": [1, 0]}]},
+        {**valid, "messages": [{**_wind(5), "variable": []}]},
+        {**valid, "max_age_s": True},
+    ]
+    for weather in invalid:
+        status, body = call("/api/v1/plan", plan_request(site, weather=weather))
+        assert status == 400 and body["error"] == "INVALID_WEATHER", weather

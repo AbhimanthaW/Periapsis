@@ -16,18 +16,21 @@ from .inputs import N
 from .ledger import load
 
 
-CACHE_RULE_VERSION = "ranking-layers-v5"
+CACHE_RULE_VERSION = "ranking-layers-v3"
+DEMO_CACHE_RULE_VERSION = "ranking-layers-v5"
 DEMO_CENTRES = 8
 DEMO_SEPARATION_KM = 500
 DEMO_DELTA_CLEARANCE_KM = 600
 DEMO_FIELD_SOURCES = 16
 DEMO_FIELD_ALTITUDE_KM = 150
+DEMO_EXTENDED_SEED = (20261114, 2)
 LEGACY_DEMO = ("delta", "alluvial-fan", "valley-network", "clays", "sulfates", "carbonates",
                "silica", "glacial-landform", "magnetism", "olivine")
 
 
 def _cache_key(directory: Path, layer: str, sources: tuple[str, ...], parameters: dict) -> str:
-    receipt = {"layer": layer, "rules": CACHE_RULE_VERSION,
+    version = DEMO_CACHE_RULE_VERSION if layer == "demo" else CACHE_RULE_VERSION
+    receipt = {"layer": layer, "rules": version,
                "ledger": hashlib.sha256(Path(__file__).with_name("concepts.json").read_bytes()).hexdigest(),
                "sources": {name: hashlib.sha256((directory / name).read_bytes()).hexdigest() for name in sources},
                "parameters": parameters}
@@ -68,7 +71,7 @@ def ramp(value: float | None, lo: float, hi: float) -> float:
 def compile_layers(directory: Path, with_demo: bool = False, *,
                    ice_max: float = 0.5, rocky_lo: float = 350, rocky_hi: float = 500,
                    structure_max: float = 10, bounds_max: float = 0.5):
-    concepts = load()
+    concepts = load(with_demo=with_demo)
     cache_root = directory.parent / "ranking-layer-cache"
     keys = {
         "base": _cache_key(directory, "base", ("cells-enriched.ndjson.gz",),
@@ -287,21 +290,16 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
                 + np.cos(lat[index]) * np.cos(np.deg2rad([y for _, y in points]))
                 * np.cos(lon[index] - np.deg2rad([x for x, _ in points])), -1, 1))
 
-        # Densify the legacy DEMO layers to DEMO_CENTRES fixed-seed centres so
-        # each can fill a top-20 ranking. The first centre is unchanged. New
-        # centres are drawn after the delta controls, so the delta stream and
-        # its pinned cells are unchanged, and they stay DEMO_DELTA_CLEARANCE_KM
-        # from every delta control so the headline DEMO objective is untouched.
-        # Glacial landforms, magnetism and the seven formerly unsupported layers use
-        # a second fixed stream so the legacy draws keep their order.
-        # Masks are for visual plausibility only, never evidence.
+        # Preserve the pinned delta controls and the retained legacy centres.
+        # The new layers, glacial controls and magnetic sources use a second
+        # stream. Masks are for visual plausibility only.
         ages_any = unit_ages[:, 0] | unit_ages[:, 1]
         abs_lat = np.abs(latitudes)
         everywhere = np.ones(N, dtype=np.bool_)
         footprint_mask = {
             "delta": ages_any, "alluvial-fan": ages_any, "valley-network": ages_any,
             "clays": unit_ages[:, 0], "hydrothermal": ages_any,
-            # Levy et al. (2014) mapped these landforms within roughly 30-50 degrees.
+            # A fixture band inspired by the midlatitude terrain in Levy et al. (2014).
             "glacial-landform": (abs_lat >= 30) & (abs_lat <= 50),
             "periglacial": (abs_lat >= 35) & (abs_lat <= 58),
             "ocean": real[ids["lowland"]] >= 128,
@@ -324,7 +322,8 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
         for k, cid in enumerate(LEGACY_DEMO):
             if cid not in {"delta", "glacial-landform", "magnetism"}:
                 place(cid, rng, controls.get(cid, [centres[k]]))
-        second = np.random.default_rng([20261114, 2])
+        second = np.random.default_rng(DEMO_EXTENDED_SEED)
+        demo_receipt["extended_seed"] = list(DEMO_EXTENDED_SEED)
         for cid in ("glacial-landform", *extended):
             place(cid, second, [])
         demo_receipt["seeded_controls"] = {cid: points for cid, points in sorted(controls.items())}
@@ -339,9 +338,8 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
             j = ids[cid]
             demo[j, footprint] = np.rint(255 * np.exp(-0.5 * (distance[footprint] / 100) ** 2)).astype(np.uint8)
             demo_covered[j, footprint] = True
-        # A global synthetic field, because a real crustal-field model would
-        # give a value in every cell. Buried sources sit under old terrain.
-        # Each adds a dipole-like magnitude K h / r^3 seen from DEMO_FIELD_ALTITUDE_KM.
+        # Give every cell a dimensionless scalar from positive radial kernels.
+        # Their centres are sampled on terrain with a Noachian unit age.
         sources = []
         for index in second.permutation(np.flatnonzero(unit_ages[:, 0] & (abs_lat < 70))):
             if not sources or separation_km(index, [s[:2] for s in sources]).min() >= 600:
@@ -349,6 +347,8 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
                                 round(float(second.uniform(0.5, 1.5)), 4)))
             if len(sources) == DEMO_FIELD_SOURCES:
                 break
+        if len(sources) != DEMO_FIELD_SOURCES:
+            raise ValueError("unable to place the fixed-seed DEMO magnetism sources")
         field = np.zeros(N)
         h = DEMO_FIELD_ALTITUDE_KM
         for c_lon, c_lat, strength in sources:
