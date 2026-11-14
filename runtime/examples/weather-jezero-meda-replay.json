@@ -1,0 +1,24 @@
+{
+  "provenance": "historical_replay",
+  "required": false,
+  "max_age_s": 600,
+  "now_utc": "2021-03-27T19:20:00Z",
+  "stations": [
+    {
+      "id": "perseverance-meda",
+      "provenance": "historical_replay"
+    }
+  ],
+  "messages": [
+    {
+      "station_id": "perseverance-meda",
+      "variable": "wind_speed",
+      "value": 9.08,
+      "unit": "m/s",
+      "kind": "observed",
+      "time_utc": "2021-03-27T19:16:36.423Z",
+      "provenance": "historical_replay",
+      "note": "MEDA derived horizontal wind, sol 36, SCLK 670144481 (documentation/marsdoc/eva/historical-v1.json). Replayed as if live; the rover was stationary and uncertainty is blank."
+    }
+  ]
+}

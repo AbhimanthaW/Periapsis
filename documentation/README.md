@@ -1,6 +1,6 @@
 # Planetary Documentation Engine
 
-The Python core is verified with synthetic controls and one archive-checked Jezero CTX elevation window. It computes evidence availability and model support for Return Window. The existing atlas and site-pack boundaries are described in the [audit](AUDIT.md) and [pipeline contract](CONTRACT.md). Measured results and the acceptance checklist are in [validation](VALIDATION.md).
+The Python core is verified with synthetic controls and one archive-checked Jezero CTX elevation window. It computes evidence availability and model support for Return Window. The existing atlas and site-pack boundaries are described in the [audit](../reference/architecture/AUDIT.md) and [pipeline contract](CONTRACT.md). Measured results and the acceptance checklist are in [validation](VALIDATION.md).
 
 ## Run the offline example
 
@@ -49,7 +49,7 @@ Yumeth's production sidecars, a full catalogue run, and application wiring are p
 
 | Files | Purpose |
 | --- | --- |
-| `AUDIT.md`, `CONTRACT.md`, `VALIDATION.md` | Architecture decisions, pipeline handshake and measured verification |
+| [Audit](../reference/architecture/AUDIT.md), `CONTRACT.md`, `VALIDATION.md` | Architecture decisions, pipeline handshake and measured verification |
 | `marsdoc/grid.py`, `spatial.py` | Mars normalization, HEALPix and bounded spherical geometry |
 | `marsdoc/catalogue.py`, `engine.py` | Sparse lookup, missingness, scoring, classification and local eligibility |
 | `marsdoc/contracts.py`, `schemas.py`, `scoring-v1.json`, `schemas/` | Runtime and wire contracts plus versioned policy |
@@ -57,3 +57,11 @@ Yumeth's production sidecars, a full catalogue run, and application wiring are p
 | `examples/` | Jezero package and query, bounded archive verification, benchmark script and measured results |
 | `tests/` | Unit, integration and scientific controls |
 | Parent `README.md` | Link from the isolated copy of the existing architecture |
+
+## Synthetic science demonstration
+
+The opt-in fixture exercises deposit polygons, valley linework, glacial landforms, equivalent magnetic dipoles and olivine spectra through the cell query. It has a separately labeled offline map. See the [research, calculations and run instructions](SYNTHETIC-SCIENCE.md).
+
+## EVA documentation examples
+
+[The EVA context methods and run commands](EVA-CONTEXT.md) cover 28 environment, mobility and suit fields. The opt-in query uses scoped Jezero and Gale historical examples where available and a labeled synthetic scenario for the remaining inputs.

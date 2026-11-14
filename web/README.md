@@ -15,7 +15,21 @@ Open the local address printed by Vite. For a compiled build, run `npm run build
 
 ## Mars Research Atlas
 
-Open **Mars Atlas** from the Architecture Workspace, or visit `/atlas` on the same local server. The Atlas packages the Viking and MOLA global views, a bounded Jezero CTX optical subset, the 56-region index, and the original survey. It runs from local files while the server is running. See the [Atlas data and methodology](docs/mars-research-atlas.md) for source credits, limits and regeneration. Run `npm run check:atlas` to validate the packaged registry and assets.
+Open **Mars Atlas** from the Architecture Workspace, or visit `/atlas` on the same local server. The Atlas packages the Viking and MOLA global views, a bounded Jezero CTX optical subset, the 56-region index, and the original survey. It runs from local files while the server is running. See the [Atlas data and methodology](../reference/architecture/mars-research-atlas.md) for source credits, limits and regeneration. Run `npm run check:atlas` to validate the packaged registry and assets.
+
+## Mission (in progress)
+
+`/mission` is the astronaut workflow. **Site investigation** shows the configured site, its local map context and the evidence decision from `/api/v1/evidence`. **Enter simulated Marswalk** switches to the labeled fixture replay (`/mission?view=simulation`), where closures and remaining time drive `/api/v1/plan`. See the [mission frontend plan](docs/mission-frontend.md) for screens, API bindings and unavailable capabilities.
+
+From the repository root, follow the [one-time Python setup](../runtime/README.md#local-planning-http-foundation), then start the loopback planning service.
+
+```sh
+uv run --project documentation --locked --offline python -m runtime.planning_api
+```
+
+In a second terminal, run `npm run dev` from `web/` and open `/mission`. Vite proxies `/api` and `/healthz` to `http://127.0.0.1:8000` in both dev and preview. Set `RW_PLANNING_API_ORIGIN` when starting Vite to point the proxy elsewhere.
+
+Leave `VITE_RW_SITE` unset until the primary site is approved. To select the Jezero engineering control, run `VITE_RW_SITE=jezero-control npm run dev`. For preview, run `VITE_RW_SITE=jezero-control npm run build` followed by `npm run preview`. Vite embeds the site selection at build time.
 
 ## Explore and edit
 
@@ -57,7 +71,7 @@ Architecture 3.0 uses additive fields in JSON schema version 1. On the same brow
 
 ## Scientific model design
 
-See the [Scientific Model Design Review](docs/scientific-model-design-review.md) for the 56-region audit, primary references, formulas, model inventory and implementation priorities. The proposed runtime sequence is directed route candidates → resource ledger and hard gates → finite-set Pareto comparison → mission priorities → explanation. Parameter edits update this architecture document. They do not run a mission model. All model validation statuses start at **Not evaluated**.
+See the [Scientific Model Design Review](../reference/architecture/scientific-model-design-review.md) for the 56-region audit, primary references, formulas, model inventory and implementation priorities. The proposed runtime sequence is directed route candidates → resource ledger and hard gates → finite-set Pareto comparison → mission priorities → explanation. Parameter edits update this architecture document. They do not run a mission model. All model validation statuses start at **Not evaluated**.
 
 ## Editor stack
 

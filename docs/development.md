@@ -33,8 +33,8 @@ The ingest command obtains eight pinned archive members, approximately 4.2 MB in
 
 ## Mission pack and routing
 
-Work from the local `review/mission-pack-v1` branch while the interface review is pending. From the root run `uv run --project documentation --locked python -m pytest contracts/tests runtime/tests -q -rs`. The source-backed test requires the external Float32 input described in [Jezero evidence](../evidence/jezero/README.md). The CI workflow runs that full test on manual dispatch. Ordinary PR checks are path-sensitive, and affected MOLA jobs obtain the approximately 4.2 MB pinned test input. The `required` job reports the aggregate result.
+Start from the integrated `main` baseline. From the root run `uv run --project documentation --locked python -m pytest contracts/tests runtime/tests -q -rs`. The source-backed test requires the external Float32 input described in [Jezero evidence](../evidence/jezero/README.md). The CI workflow runs that full test on manual dispatch. Ordinary PR checks are path-sensitive, and affected MOLA jobs obtain the approximately 4.2 MB pinned test input. The `required` job reports the aggregate result.
 
 Yumeth and Senula should start separate topic branches from the accepted contract baseline. Yumeth emits a pack into a new external directory and records the site checksum. Senula runs the same contract tests and the loader against the emitted directory. Review the schema diff, independent coordinates, mask and refusal outcomes, and record both approvals before advancing the baseline.
 
-See [offline checks](offline-readiness.md) and [mission pack v1](../contracts/README.md).
+See the [local planning API and integration handoffs](../runtime/README.md#local-planning-http-foundation), [offline checks](offline-readiness.md) and [mission pack v1](../contracts/README.md).

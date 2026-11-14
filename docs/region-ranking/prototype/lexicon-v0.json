@@ -1,0 +1,1017 @@
+{
+  "version": "science-lexicon-v0.1-draft",
+  "status": "Draft for science review. Concepts, forms and weights are proposals, not reviewed values.",
+  "facets": {
+    "process": "What happened: the scientific process or theme.",
+    "landform": "Where it is recorded: a mappable feature type.",
+    "material": "What it is made of: minerals and rock types.",
+    "age": "When: a modifier that narrows other concepts. Low query weight.",
+    "setting": "Planetary setting. Used for filters, not for relevance."
+  },
+  "concepts": [
+    {
+      "id": "water",
+      "label": "Water and aqueous history",
+      "facet": "process",
+      "broader": [],
+      "forms": [
+        "water",
+        "aqueous",
+        "hydrology",
+        "hydrologic",
+        "hydrological",
+        "paleohydrology",
+        "water related",
+        "liquid water",
+        "wet"
+      ],
+      "related": []
+    },
+    {
+      "id": "fluvial",
+      "label": "Rivers and channels",
+      "facet": "process",
+      "broader": [
+        "water"
+      ],
+      "forms": [
+        "fluvial",
+        "river",
+        "stream",
+        "valley network",
+        "drainage",
+        "channel",
+        "channelized",
+        "sediment transport",
+        "tributary"
+      ],
+      "related": []
+    },
+    {
+      "id": "delta",
+      "label": "Delta",
+      "facet": "landform",
+      "broader": [
+        "fluvial",
+        "lacustrine",
+        "sedimentary"
+      ],
+      "forms": [
+        "delta",
+        "deltaic",
+        "fan delta"
+      ],
+      "related": [
+        "alluvial-fan"
+      ]
+    },
+    {
+      "id": "alluvial-fan",
+      "label": "Alluvial and sediment fans",
+      "facet": "landform",
+      "broader": [
+        "fluvial",
+        "sedimentary"
+      ],
+      "forms": [
+        "alluvial fan",
+        "alluvial",
+        "sediment fan",
+        "depositional fan",
+        "fan"
+      ],
+      "related": [
+        "delta"
+      ]
+    },
+    {
+      "id": "inverted-channel",
+      "label": "Inverted channel",
+      "facet": "landform",
+      "broader": [
+        "fluvial"
+      ],
+      "forms": [
+        "inverted channel",
+        "inverted ridge"
+      ],
+      "related": []
+    },
+    {
+      "id": "lacustrine",
+      "label": "Lakes",
+      "facet": "process",
+      "broader": [
+        "water"
+      ],
+      "forms": [
+        "lake",
+        "lacustrine",
+        "paleolake",
+        "crater lake",
+        "standing water",
+        "lake bed"
+      ],
+      "related": [
+        "delta"
+      ]
+    },
+    {
+      "id": "ocean",
+      "label": "Ocean and shorelines",
+      "facet": "process",
+      "broader": [
+        "water"
+      ],
+      "forms": [
+        "ocean",
+        "shoreline",
+        "sea"
+      ],
+      "related": []
+    },
+    {
+      "id": "outflow",
+      "label": "Outflow floods",
+      "facet": "process",
+      "broader": [
+        "water"
+      ],
+      "forms": [
+        "outflow",
+        "outflow channel",
+        "catastrophic flood",
+        "flood",
+        "flooding",
+        "megaflood",
+        "streamlined island"
+      ],
+      "related": []
+    },
+    {
+      "id": "chaos",
+      "label": "Chaos terrain",
+      "facet": "landform",
+      "broader": [
+        "outflow"
+      ],
+      "forms": [
+        "chaos",
+        "chaotic terrain",
+        "chaos terrain"
+      ],
+      "related": []
+    },
+    {
+      "id": "groundwater",
+      "label": "Groundwater",
+      "facet": "process",
+      "broader": [
+        "water"
+      ],
+      "forms": [
+        "groundwater",
+        "subsurface water",
+        "upwelling",
+        "aquifer"
+      ],
+      "related": []
+    },
+    {
+      "id": "hydrothermal",
+      "label": "Hydrothermal activity",
+      "facet": "process",
+      "broader": [
+        "water"
+      ],
+      "forms": [
+        "hydrothermal"
+      ],
+      "related": []
+    },
+    {
+      "id": "aqueous-alteration",
+      "label": "Aqueous alteration",
+      "facet": "process",
+      "broader": [
+        "water",
+        "mineralogy"
+      ],
+      "forms": [
+        "aqueous alteration",
+        "alteration",
+        "altered",
+        "water rock",
+        "water rock interaction",
+        "weathering"
+      ],
+      "related": []
+    },
+    {
+      "id": "mineralogy",
+      "label": "Mineralogy and geochemistry",
+      "facet": "material",
+      "broader": [],
+      "forms": [
+        "mineralogy",
+        "mineral",
+        "mineralogical",
+        "geochemistry",
+        "geochemical",
+        "composition"
+      ],
+      "related": []
+    },
+    {
+      "id": "hydrated-minerals",
+      "label": "Hydrated minerals",
+      "facet": "material",
+      "broader": [
+        "mineralogy",
+        "aqueous-alteration"
+      ],
+      "forms": [
+        "hydrated mineral",
+        "hydrated"
+      ],
+      "related": []
+    },
+    {
+      "id": "phyllosilicate",
+      "label": "Clays",
+      "facet": "material",
+      "broader": [
+        "hydrated-minerals"
+      ],
+      "forms": [
+        "clay",
+        "phyllosilicate",
+        "smectite",
+        "nontronite",
+        "montmorillonite",
+        "kaolinite"
+      ],
+      "related": []
+    },
+    {
+      "id": "sulfate",
+      "label": "Sulfates",
+      "facet": "material",
+      "broader": [
+        "hydrated-minerals"
+      ],
+      "forms": [
+        "sulfate",
+        "sulphate",
+        "gypsum",
+        "jarosite",
+        "kieserite"
+      ],
+      "related": []
+    },
+    {
+      "id": "carbonate",
+      "label": "Carbonates",
+      "facet": "material",
+      "broader": [
+        "mineralogy"
+      ],
+      "forms": [
+        "carbonate"
+      ],
+      "related": []
+    },
+    {
+      "id": "chloride",
+      "label": "Chlorides",
+      "facet": "material",
+      "broader": [
+        "mineralogy"
+      ],
+      "forms": [
+        "chloride",
+        "salt"
+      ],
+      "related": []
+    },
+    {
+      "id": "silica",
+      "label": "Hydrated silica",
+      "facet": "material",
+      "broader": [
+        "hydrated-minerals"
+      ],
+      "forms": [
+        "silica",
+        "opaline silica",
+        "hydrated silica"
+      ],
+      "related": []
+    },
+    {
+      "id": "olivine",
+      "label": "Olivine",
+      "facet": "material",
+      "broader": [
+        "mineralogy"
+      ],
+      "forms": [
+        "olivine"
+      ],
+      "related": []
+    },
+    {
+      "id": "sedimentary",
+      "label": "Sedimentary record",
+      "facet": "process",
+      "broader": [],
+      "forms": [
+        "sedimentary",
+        "sediment",
+        "sedimentology",
+        "strata",
+        "stratified",
+        "sedimentary rock"
+      ],
+      "related": []
+    },
+    {
+      "id": "layered-deposits",
+      "label": "Layered deposits",
+      "facet": "landform",
+      "broader": [
+        "sedimentary",
+        "stratigraphy"
+      ],
+      "forms": [
+        "layered deposit",
+        "interior layered deposit",
+        "ild",
+        "layered",
+        "layer",
+        "central mound"
+      ],
+      "related": []
+    },
+    {
+      "id": "stratigraphy",
+      "label": "Stratigraphy",
+      "facet": "process",
+      "broader": [],
+      "forms": [
+        "stratigraphy",
+        "stratigraphic",
+        "geological contact",
+        "contact",
+        "exposed section"
+      ],
+      "related": []
+    },
+    {
+      "id": "habitability",
+      "label": "Habitability and biosignatures",
+      "facet": "process",
+      "broader": [],
+      "forms": [
+        "habitability",
+        "habitable",
+        "biosignature",
+        "astrobiology",
+        "organic",
+        "life"
+      ],
+      "related": []
+    },
+    {
+      "id": "ice",
+      "label": "Water ice",
+      "facet": "process",
+      "broader": [],
+      "forms": [
+        "ice",
+        "water ice",
+        "ground ice",
+        "subsurface ice",
+        "buried ice",
+        "ice rich",
+        "frozen",
+        "cryosphere"
+      ],
+      "related": []
+    },
+    {
+      "id": "glacial",
+      "label": "Glaciation",
+      "facet": "process",
+      "broader": [
+        "ice"
+      ],
+      "forms": [
+        "glacial",
+        "glacier",
+        "glaciation",
+        "ice sheet",
+        "debris covered",
+        "lobate debris apron",
+        "lineated valley fill",
+        "concentric crater fill",
+        "ice assisted"
+      ],
+      "related": []
+    },
+    {
+      "id": "periglacial",
+      "label": "Periglacial landforms",
+      "facet": "landform",
+      "broader": [
+        "ice"
+      ],
+      "forms": [
+        "periglacial",
+        "polygon",
+        "patterned ground",
+        "scalloped depression",
+        "scalloped"
+      ],
+      "related": []
+    },
+    {
+      "id": "polar-deposits",
+      "label": "Polar layered deposits",
+      "facet": "landform",
+      "broader": [
+        "ice",
+        "layered-deposits"
+      ],
+      "forms": [
+        "polar layered deposit",
+        "polar cap",
+        "ice cap",
+        "residual cap",
+        "polar ice"
+      ],
+      "related": []
+    },
+    {
+      "id": "climate",
+      "label": "Climate history",
+      "facet": "process",
+      "broader": [],
+      "forms": [
+        "climate",
+        "paleoclimate",
+        "climatic",
+        "obliquity",
+        "atmospheric history"
+      ],
+      "related": []
+    },
+    {
+      "id": "volcanic",
+      "label": "Volcanism",
+      "facet": "process",
+      "broader": [],
+      "forms": [
+        "volcanic",
+        "volcanism",
+        "volcanology",
+        "volcano",
+        "magmatic",
+        "igneous"
+      ],
+      "related": []
+    },
+    {
+      "id": "lava",
+      "label": "Lava flows",
+      "facet": "process",
+      "broader": [
+        "volcanic"
+      ],
+      "forms": [
+        "lava",
+        "lava flow",
+        "effusive",
+        "flood basalt",
+        "lava channel",
+        "lava tube"
+      ],
+      "related": []
+    },
+    {
+      "id": "volcanic-edifice",
+      "label": "Volcanic edifices",
+      "facet": "landform",
+      "broader": [
+        "volcanic"
+      ],
+      "forms": [
+        "shield volcano",
+        "shield",
+        "caldera",
+        "summit caldera",
+        "mons",
+        "montes",
+        "tholus",
+        "patera"
+      ],
+      "related": []
+    },
+    {
+      "id": "explosive-volcanism",
+      "label": "Explosive volcanism",
+      "facet": "process",
+      "broader": [
+        "volcanic"
+      ],
+      "forms": [
+        "pyroclastic",
+        "explosive",
+        "volcanic ash",
+        "ash",
+        "tephra"
+      ],
+      "related": []
+    },
+    {
+      "id": "tectonic",
+      "label": "Tectonics",
+      "facet": "process",
+      "broader": [],
+      "forms": [
+        "tectonic",
+        "tectonics",
+        "fault",
+        "faulting",
+        "graben",
+        "fossa",
+        "fossae",
+        "fracture",
+        "wrinkle ridge",
+        "extensional",
+        "compressional"
+      ],
+      "related": []
+    },
+    {
+      "id": "canyon",
+      "label": "Canyons and troughs",
+      "facet": "landform",
+      "broader": [
+        "tectonic"
+      ],
+      "forms": [
+        "canyon",
+        "chasma",
+        "chasmata",
+        "trough"
+      ],
+      "related": []
+    },
+    {
+      "id": "impact",
+      "label": "Impact cratering",
+      "facet": "process",
+      "broader": [],
+      "forms": [
+        "impact",
+        "impact crater",
+        "ejecta",
+        "impact history",
+        "impact geology",
+        "cratering",
+        "megabreccia"
+      ],
+      "related": []
+    },
+    {
+      "id": "impact-basin",
+      "label": "Impact basins",
+      "facet": "landform",
+      "broader": [
+        "impact"
+      ],
+      "forms": [
+        "impact basin",
+        "basin"
+      ],
+      "related": []
+    },
+    {
+      "id": "aeolian",
+      "label": "Wind and dust",
+      "facet": "process",
+      "broader": [],
+      "forms": [
+        "aeolian",
+        "eolian",
+        "dune",
+        "wind",
+        "dust",
+        "yardang",
+        "ripple",
+        "dust storm"
+      ],
+      "related": []
+    },
+    {
+      "id": "seismic",
+      "label": "Seismic activity",
+      "facet": "process",
+      "broader": [
+        "geophysics"
+      ],
+      "forms": [
+        "seismic",
+        "seismicity",
+        "marsquake",
+        "quake"
+      ],
+      "related": []
+    },
+    {
+      "id": "magnetism",
+      "label": "Crustal magnetism",
+      "facet": "process",
+      "broader": [
+        "geophysics"
+      ],
+      "forms": [
+        "magnetism",
+        "magnetic",
+        "crustal magnetism",
+        "paleomagnetic",
+        "magnetization"
+      ],
+      "related": []
+    },
+    {
+      "id": "geophysics",
+      "label": "Geophysics and interior",
+      "facet": "process",
+      "broader": [],
+      "forms": [
+        "geophysics",
+        "geophysical",
+        "heat flow"
+      ],
+      "related": []
+    },
+    {
+      "id": "mass-wasting",
+      "label": "Landslides",
+      "facet": "process",
+      "broader": [],
+      "forms": [
+        "landslide",
+        "mass wasting",
+        "slump"
+      ],
+      "related": []
+    },
+    {
+      "id": "early-crust",
+      "label": "Early crust",
+      "facet": "material",
+      "broader": [],
+      "forms": [
+        "ancient crust",
+        "early crust",
+        "crust",
+        "crustal",
+        "primary crust"
+      ],
+      "related": []
+    },
+    {
+      "id": "age-ancient",
+      "label": "Ancient",
+      "facet": "age",
+      "broader": [],
+      "forms": [
+        "ancient",
+        "noachian",
+        "early",
+        "old",
+        "oldest",
+        "primordial"
+      ],
+      "related": []
+    },
+    {
+      "id": "age-hesperian",
+      "label": "Hesperian",
+      "facet": "age",
+      "broader": [],
+      "forms": [
+        "hesperian"
+      ],
+      "related": []
+    },
+    {
+      "id": "age-young",
+      "label": "Young or recent",
+      "facet": "age",
+      "broader": [],
+      "forms": [
+        "young",
+        "recent",
+        "amazonian",
+        "late",
+        "youngest"
+      ],
+      "related": []
+    },
+    {
+      "id": "age-active",
+      "label": "Active today",
+      "facet": "age",
+      "broader": [],
+      "forms": [
+        "active",
+        "modern",
+        "present day",
+        "ongoing"
+      ],
+      "related": []
+    },
+    {
+      "id": "polar",
+      "label": "Polar setting",
+      "facet": "setting",
+      "broader": [],
+      "forms": [
+        "polar",
+        "pole",
+        "circumpolar",
+        "north polar",
+        "south polar"
+      ],
+      "related": []
+    }
+  ],
+  "generic_terms": [
+    "deposit",
+    "material",
+    "terrain",
+    "feature",
+    "history",
+    "process",
+    "evolution",
+    "evidence",
+    "environment",
+    "environmental",
+    "geology",
+    "geological",
+    "geologic",
+    "site",
+    "region",
+    "area",
+    "rock",
+    "surface",
+    "study",
+    "science",
+    "landform",
+    "formation",
+    "record",
+    "find",
+    "look",
+    "search",
+    "explore",
+    "investigate",
+    "sample",
+    "sampling",
+    "past",
+    "possible",
+    "potential",
+    "sign",
+    "trace",
+    "mars",
+    "martian",
+    "activity",
+    "landscape",
+    "structure",
+    "unit",
+    "system"
+  ],
+  "stopwords": [
+    "a",
+    "an",
+    "the",
+    "and",
+    "or",
+    "of",
+    "for",
+    "in",
+    "on",
+    "at",
+    "to",
+    "with",
+    "by",
+    "from",
+    "as",
+    "is",
+    "are",
+    "be",
+    "this",
+    "that",
+    "these",
+    "those",
+    "its",
+    "it",
+    "into",
+    "near",
+    "along",
+    "within",
+    "about",
+    "where",
+    "which",
+    "any",
+    "some",
+    "i",
+    "we",
+    "want",
+    "need",
+    "like",
+    "would"
+  ],
+  "query_weights": {
+    "process": 1.0,
+    "landform": 1.0,
+    "material": 1.0,
+    "age": 0.35,
+    "setting": 0.0
+  },
+  "negation_cues": [
+    "no",
+    "not",
+    "without",
+    "lack",
+    "lacking",
+    "absence",
+    "absent",
+    "never",
+    "excluding",
+    "except"
+  ],
+  "negation_window": 3,
+  "hedge_cues": [
+    "possible",
+    "possibly",
+    "potential",
+    "potentially",
+    "may",
+    "might",
+    "candidate",
+    "suspected",
+    "proposed",
+    "interpreted",
+    "consistent",
+    "debated",
+    "uncertain",
+    "perhaps"
+  ],
+  "hedge_window": 6,
+  "hedge_weight": 0.6,
+  "relation_weights": {
+    "exact": 1.0,
+    "narrower_per_level": 0.8,
+    "broader": 0.35,
+    "related": 0.5
+  },
+  "bm25": {
+    "k1": 1.2,
+    "b": 0.0
+  },
+  "field_roles": {
+    "science_assessment": 1.0,
+    "science_opportunity": 1.0,
+    "science_poi": 0.8,
+    "science_prose": 0.8,
+    "terrain_summary": 0.6,
+    "context_prose": 0.5,
+    "documentation": 0.25,
+    "operations": 0.0
+  },
+  "field_aliases": {
+    "science_opportunity": [
+      "primary scientific opportunity",
+      "main scientific opportunity",
+      "overall scientific interest"
+    ],
+    "science_poi": [
+      "important pois",
+      "potential pois",
+      "recommended subregions"
+    ],
+    "terrain_summary": [
+      "dominant terrain",
+      "surface category"
+    ],
+    "documentation": [
+      "documentation",
+      "key data advantage",
+      "key validation advantage",
+      "ground reference"
+    ],
+    "operations": [
+      "primary operational concerns",
+      "primary operational concern",
+      "main operational concern",
+      "main operational concerns",
+      "potential exclusion zones",
+      "routing classification",
+      "routing recommendation",
+      "main potential advantage",
+      "main advantage",
+      "key uncertainty",
+      "important uncertainty",
+      "principal limitation",
+      "ground-truth limitation"
+    ]
+  },
+  "operations_sentence_cues": [
+    "routing implication",
+    "routing",
+    "rover",
+    "traction",
+    "sinkage",
+    "slip",
+    "hazard",
+    "traverse",
+    "mobility",
+    "wheel",
+    "slope",
+    "obstacle",
+    "barrier",
+    "corridor",
+    "passable",
+    "impassable",
+    "cost"
+  ],
+  "poi_science_cues": [
+    "scientific",
+    "science",
+    "value",
+    "target",
+    "poi",
+    "interest",
+    "objective"
+  ],
+  "methods": {
+    "sample-rock": {
+      "label": "Sample rock",
+      "requires_any": [
+        "sedimentary",
+        "layered-deposits",
+        "mineralogy",
+        "early-crust",
+        "stratigraphy",
+        "lava"
+      ],
+      "requires_profile_access": true,
+      "requires_imagery": false
+    },
+    "investigate-ice": {
+      "label": "Investigate ice",
+      "requires_any": [
+        "ice"
+      ],
+      "requires_profile_access": true,
+      "requires_imagery": false
+    },
+    "remote-survey": {
+      "label": "Remote survey",
+      "requires_any": [],
+      "requires_profile_access": false,
+      "requires_imagery": true
+    }
+  },
+  "exclusions": {
+    "polar": {
+      "label": "Polar",
+      "latitude_abs_min": 65.0,
+      "or_primary_concepts": [
+        "polar",
+        "polar-deposits"
+      ]
+    },
+    "volcanic": {
+      "label": "Volcanic",
+      "or_primary_concepts": [
+        "volcanic"
+      ]
+    }
+  },
+  "primary_concepts_rule": "Concepts in the first domain clause of the science assessment, plus the dominant-terrain field.",
+  "cross_reference_weight": 0.5,
+  "stop_phrases": [
+    "journal of geophysical research",
+    "geophysical research letters",
+    "research planets",
+    "icarus",
+    "planetary science journal",
+    "earth and planetary science letters",
+    "lunar and planetary science"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "rows": 196608,
+  "baseline_git_commit": "fa2bfce44315faa10d339409ea3146ca784fc4a8",
+  "output": "cells-enriched.ndjson.gz",
+  "sha256": "d5c0d6a7889cf5e1a28d026505271c5ccda8b7f89ca0aaacf6f62dfc2bd994df",
+  "expansion_coverage": {
+    "ctx": 196367,
+    "hirise_rdr4": 968,
+    "hirise_rdrv11": 6715,
+    "hirise_combined": 7425,
+    "hirise_dtm": 114,
+    "tes_dust": 184760,
+    "swim_0_1": 170040,
+    "swim_1_5": 170040,
+    "swim_5": 170040,
+    "tes_albedo": 196608
+  },
+  "inputs": {
+    "map/cells.ndjson.gz": "0812032536c15a02a97cef6c62fbe74b299ffe009d6d9eb3aae0be50da40b249",
+    "science/cell-science.ndjson.gz": "5024b49b3bb06d9af7f32e1ad5391d0a7be0281e7d650054f965629cc3b78acd",
+    "expansion/cell-expansion.ndjson.gz": "4736585f7150e450a05e9b3d8fe39885abef791518b19403ebb7cfddba5c3ecf"
+  },
+  "source_manifests": [
+    "map/manifest.json",
+    "science/manifest.json",
+    "expansion/manifest.json"
+  ],
+  "scope": "The merged file preserves documentation scores and separately adds centroid observations and source-derived context."
+}

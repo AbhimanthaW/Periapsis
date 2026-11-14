@@ -1,0 +1,11 @@
+{
+  "platform": "human",
+  "profile_id": "human-pair-15deg",
+  "pace_model": "tobler_scaled",
+  "pace_scenario": "nominal",
+  "neighbours": 8,
+  "crew_size": 2,
+  "provenance": "assumed",
+  "v_flat_mps": 0.5,
+  "max_slope_deg": 15.0
+}

@@ -260,6 +260,19 @@ class DocumentationEngine:
                          "Scores and tiers are provisional conventions for the declared source universe."),
         )
 
+    def synthetic_context(self, cell_id: str) -> dict:
+        """Evaluate the opt-in science fixture for this cell without affecting evidence."""
+        from .synthetic_science import evaluate_synthetic_science
+
+        index = self.grid.parse_id(cell_id)
+        return evaluate_synthetic_science(cell_id, self.grid.cell(index).centroid, self._cell_window(index))
+
+    def eva_context(self, cell_id: str, *, case="synthetic", elapsed_s=None) -> dict:
+        """Attach example EVA metrics without adding observations to the evidence index."""
+        from .eva_context import evaluate_eva_context
+
+        return evaluate_eva_context(self.grid, cell_id, case, elapsed_s)
+
     def resolve(self, request: CapabilityQuery) -> CapabilityResult:
         window = Window.from_geometry(request.geometry, request.corridor_width_m)
         matches = self.catalogue.match(window)
