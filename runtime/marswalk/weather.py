@@ -1,4 +1,4 @@
-"""Live weather feed from base stations (both modes).
+"""Scenario weather feed from base stations (both modes).
 
 Base stations send messages; the planner never trusts a forecast on its own.
 
@@ -23,6 +23,7 @@ are simulated or replay published records, and are tagged as such.
 from dataclasses import dataclass, field, replace
 import math
 
+from .config import _cell
 from .errors import FAIL, MarswalkError, PASS, UNKNOWN
 
 NOMINAL, ADVISORY, CAUTION, WARNING, LINK_LOST = "nominal", "advisory", "caution", "warning", "link_lost"
@@ -30,7 +31,15 @@ REJECTED, STALE = "rejected", "stale"
 MESSAGE_KINDS = frozenset({"observed", "forecast"})
 MESSAGE_PROVENANCE = frozenset({"simulated", "historical_replay", "measured"})
 EFFECTS = frozenset({"return_now", "no_solar_credit"})
-FUTURE_TOLERANCE_S = 60.0
+
+
+def _number(value):
+    if type(value) not in (int, float):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -45,10 +54,12 @@ class WeatherLimit:
     provenance: str = "assumed"
 
     def __post_init__(self):
+        if not all(isinstance(v, str) and v for v in (self.variable, self.unit, self.effect, self.provenance)):
+            raise MarswalkError("INVALID_WEATHER", "weather limit metadata must be nonempty strings")
         if self.effect not in EFFECTS:
             raise MarswalkError("INVALID_WEATHER", f"unknown weather effect {self.effect!r}")
         numbers = [self.warning, self.valid_min, self.valid_max] + ([] if self.caution is None else [self.caution])
-        if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in numbers):
+        if not all(_number(v) for v in numbers):
             raise MarswalkError("INVALID_WEATHER", f"{self.variable} limits must be finite numbers")
         if not self.valid_min <= (self.caution if self.caution is not None else self.warning) <= self.warning \
                 <= self.valid_max:
@@ -94,19 +105,22 @@ class WeatherFeed:
 
     def validate(self, shape=None):
         ids = [s.id for s in self.stations]
-        if not ids or len(set(ids)) != len(ids):
+        if not ids or any(not isinstance(i, str) or not i for i in ids) or len(set(ids)) != len(ids):
             raise MarswalkError("INVALID_WEATHER", "weather feed needs at least one uniquely named station")
         for station in self.stations:
-            if station.cell is not None and shape is not None:
-                r, c = station.cell
-                if not (0 <= r < shape[0] and 0 <= c < shape[1]):
-                    raise MarswalkError("INVALID_WEATHER", f"station {station.id} lies outside the grid")
+            if not isinstance(station.provenance, str) or station.provenance not in MESSAGE_PROVENANCE:
+                raise MarswalkError("INVALID_WEATHER", f"invalid provenance for station {station.id}")
+            if station.cell is not None:
+                try:
+                    _cell(f"station {station.id}", station.cell, shape)
+                except MarswalkError as error:
+                    raise MarswalkError("INVALID_WEATHER", str(error)) from error
         variables = [limit.variable for limit in self.limits]
         if len(set(variables)) != len(variables):
             raise MarswalkError("INVALID_WEATHER", "duplicate weather limit")
-        if not (isinstance(self.max_age_s, (int, float)) and 0 < self.max_age_s < math.inf):
+        if not _number(self.max_age_s) or self.max_age_s <= 0:
             raise MarswalkError("INVALID_WEATHER", "max_age_s must be positive and finite")
-        if self.provenance not in MESSAGE_PROVENANCE:
+        if not isinstance(self.provenance, str) or self.provenance not in MESSAGE_PROVENANCE:
             raise MarswalkError("INVALID_WEATHER", "feed provenance must be simulated, historical_replay or measured")
         return self
 
@@ -159,10 +173,6 @@ class WeatherAssessment:
                 "limits": [dict(l.__dict__) for l in self.limits]}
 
 
-def _number(value):
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
-
-
 def assess_weather(feed, now_utc, *, shape=None):
     """Classify every message at `now_utc` and derive the active effects."""
     from .environment import parse_utc
@@ -175,6 +185,8 @@ def assess_weather(feed, now_utc, *, shape=None):
         base = dict(station_id=m.station_id, variable=m.variable, value=m.value if _number(m.value) else None,
                     unit=m.unit, kind=m.kind, provenance=m.provenance)
         problem = None
+        if not all(isinstance(v, str) for v in (m.station_id, m.variable, m.unit, m.kind, m.provenance)):
+            raise MarswalkError("INVALID_WEATHER", "message station, variable, unit, kind and provenance must be strings")
         limit = limits.get(m.variable)
         if m.station_id not in stations:
             problem = f"unknown station {m.station_id!r}"
@@ -200,12 +212,15 @@ def assess_weather(feed, now_utc, *, shape=None):
             continue
         age = (now - sent).total_seconds()
         label = f"{m.variable} {m.value:g}{'' if m.unit == '1' else ' ' + m.unit} at {m.station_id}"
-        if age < -FUTURE_TOLERANCE_S:
+        if age < 0:
             alerts.append(WeatherAlert(REJECTED, age_s=age, reason=f"{label}: timestamp is in the future", **base))
             continue
         if m.kind == "forecast":
-            if until is not None and until < now:
-                alerts.append(WeatherAlert(STALE, age_s=age, reason=f"forecast {label}: window ended", **base))
+            if until is not None and until < sent:
+                alerts.append(WeatherAlert(REJECTED, age_s=age, reason=f"forecast {label}: window ends before issue", **base))
+                continue
+            if age > feed.max_age_s or (until is not None and until < now):
+                alerts.append(WeatherAlert(STALE, age_s=age, reason=f"forecast {label}: issue too old or window ended", **base))
                 continue
             over = " (exceeds the warning limit; forecasts never change the plan)" if m.value >= limit.warning else ""
             alerts.append(WeatherAlert(ADVISORY, age_s=age, reason=f"forecast {label}{over}", **base))
@@ -251,8 +266,9 @@ def without_solar(power):
 def feed_from_dict(data):
     """Build a WeatherFeed from JSON (see runtime/examples/weather-*.json)."""
     try:
-        stations = tuple(WeatherStation(s["id"], None if s.get("cell") is None else tuple(s["cell"]),
-                                        s.get("provenance", "simulated")) for s in data["stations"])
+        if not isinstance(data, dict):
+            raise MarswalkError("INVALID_WEATHER", "weather feed must be a JSON object")
+        stations = tuple(WeatherStation(**s) for s in data["stations"])
         messages = tuple(WeatherMessage(**m) for m in data.get("messages", ()))
         limits = (DEFAULT_LIMITS if "limits" not in data else
                   tuple(WeatherLimit(**l) for l in data["limits"]))

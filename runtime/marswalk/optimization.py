@@ -20,7 +20,7 @@ from itertools import permutations, product
 
 import numpy as np
 
-from .errors import FAIL, LEG_NO_EVIDENCE, LEG_OK, PASS, UNKNOWN
+from .errors import FAIL, LEG_NO_EVIDENCE, LEG_SEARCH_LIMIT, LEG_OK, PASS, UNKNOWN
 from .environment import ACTIVE, UNVERIFIED, supply_energy_j
 from .resources import EnergyPhase, Phase, ResourceLedger, energy_ledger, route_resource_ledger
 
@@ -236,6 +236,8 @@ def enforce_hard_constraints(plan, snapshot, router, *, direct_plan=None, activa
     statuses = [leg.status for _, leg in plan.legs]
     if all(s == LEG_OK for s in statuses):
         rules.append(("path_exists", PASS, "all legs admissible"))
+    elif LEG_SEARCH_LIMIT in statuses:
+        rules.append(("path_exists", UNKNOWN, "outbound search was limited to the available time"))
     elif any(s == LEG_NO_EVIDENCE for s in statuses) and all(s in (LEG_OK, LEG_NO_EVIDENCE) for s in statuses):
         rules.append(("path_exists", UNKNOWN, "a leg needs unverified terrain"))
     else:

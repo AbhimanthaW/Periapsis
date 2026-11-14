@@ -189,22 +189,20 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
         raise MarswalkError("INVALID_SNAPSHOT", "search_horizon must be 'auto', True or False")
     cells = support.shape[0] * support.shape[1]
     use_horizon = search_horizon is True or (search_horizon == "auto" and cells >= SEARCH_HORIZON_MIN_CELLS)
-    horizon_s = float(snapshot.remaining_s - snapshot.reserve_s) if use_horizon else None
+    horizon_s = float(max(0, snapshot.remaining_s - snapshot.reserve_s)) if use_horizon else None
     graph = TerrainGraph(baseline, pace_for(profile), scenario=getattr(profile, "pace_scenario", "nominal"),
                          neighbours=profile.neighbours)
     closures = snapshot.closure_cells + blocked
     router = Router(graph, closures, backend=backend, outbound_limit_s=horizon_s)
     walk_router = walkback_router(baseline, closures, policy=walkback, backend=backend) \
         if rover and walkback is not None else None
-    walk_details = {}
 
     def extra_rules(plan):
         rules = []
         if weather is not None:
             rules.append(("weather", *weather.rule(plan.kind)))
         if walk_router is not None:
-            outcome, reason, detail = walkback_rule(plan, snapshot, router, walk_router)
-            walk_details[plan.id] = detail
+            outcome, reason, _ = walkback_rule(plan, snapshot, router, walk_router)
             rules.append(("walkback", outcome, reason))
         return rules
 
@@ -258,7 +256,7 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
         walk_home = walk_router.time_to_home(snapshot.return_cell)[tuple(snapshot.current_cell)]
         walk_summary = {"policy": walkback.to_dict(),
                         "walk_home_from_current_s": float(walk_home) if walk_home < float("inf") else None,
-                        "per_plan": {p.id: walk_details.get(p.id) for p in plans},
+                        "per_plan": {p.id: walkback_rule(p, snapshot, router, walk_router)[2] for p in plans},
                         "dijkstra_runs": walk_router.dijkstra_runs}
     return MarswalkPlan(snapshot, baseline, router, status, gate, plans, front, used, recommendation, alternatives,
                         activations, site_gate, weather, walk_summary, horizon_s)

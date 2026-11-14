@@ -205,3 +205,10 @@ def test_profile_is_fed_as_data_to_the_marswalk_engine():
     with pytest.raises(PackError) as error:
         mission.plan(_service_request(mission, profile=control))
     assert error.value.code == "PROFILE_UNSUPPORTED"
+
+
+@pytest.mark.parametrize("call", [{"engine": "marswalk"}], indirect=True)
+def test_invalid_profile_shape_returns_http_error(call):
+    _, site = call("/api/v1/site")
+    status, result = call("/api/v1/plan", plan_request(site, profile={"platform": []}))
+    assert status == 400 and result["error"] == "INVALID_PROFILE"

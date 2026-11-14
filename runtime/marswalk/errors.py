@@ -18,6 +18,7 @@ TERRAIN_NOT_AVAILABLE = "TERRAIN_NOT_AVAILABLE"     # eligible evidence but no r
 
 # Per-leg status (Subsystem 09)
 LEG_OK = "ok"
+LEG_SEARCH_LIMIT = "outbound_search_limit"
 LEG_NO_PATH = "no_path_under_constraints"
 LEG_NO_EVIDENCE = "insufficient_terrain_evidence"
 LEG_ENDPOINT_EXCLUDED = "endpoint_excluded"

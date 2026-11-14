@@ -14,7 +14,7 @@ from runtime.marswalk import site as site_module
 from runtime.marswalk.__main__ import main
 from runtime.marswalk.config import Task
 from runtime.marswalk.demo import DEMO_TIME_UTC, demo_inputs
-from runtime.marswalk.errors import (FAIL, GRID_TOO_LARGE, NO_TERRAIN_EVIDENCE, OK, PASS, RETURN_WALKBACK_EXCEEDED,
+from runtime.marswalk.errors import (FAIL, GRID_TOO_LARGE, LEG_SEARCH_LIMIT, NO_TERRAIN_EVIDENCE, OK, PASS, RETURN_WALKBACK_EXCEEDED,
                                      TERRAIN_NOT_AVAILABLE, TERRAIN_TOO_COARSE, UNKNOWN)
 from runtime.marswalk.profiles import load_profile, profile_to_dict
 from runtime.marswalk.rover import hypothetical_crew_rover
@@ -337,3 +337,49 @@ def test_cli_sites_and_breakdown(capsys):
     assert "ROVER FAILS" in capsys.readouterr().out
     assert main(["demo", "--weather", str(EXAMPLES / "weather-wind-warning.json")]) == 0
     assert "[WARNING] wind_speed 22 m/s" in capsys.readouterr().out
+
+
+def test_phase_zero_checks_native_spacing_and_synthetic_boundary():
+    baseline, _ = demo_inputs()
+    coarse = replace(baseline.support, native_spacing_m=100)
+    assert gate_for_support(coarse).code == TERRAIN_TOO_COARSE
+    source_backed = replace(baseline.support, classification="source_backed")
+    assert gate_for_support(source_backed).code == TERRAIN_NOT_AVAILABLE
+    assert gate_for_support(baseline.support, clearance_m=20).obstacle_visibility["status"] == "not_observable"
+
+
+def test_outbound_search_limit_keeps_exact_return_and_reports_cutoff():
+    baseline, snapshot = demo_inputs(with_time=False)
+    snapshot = replace(snapshot, remaining_s=snapshot.reserve_s + 1)
+    full = plan_marswalk(baseline, snapshot, search_horizon=False)
+    limited = plan_marswalk(baseline, snapshot, search_horizon=True)
+    assert full.plan("science:transect").legs[0][1].ok
+    assert limited.plan("science:transect").legs[0][1].status == LEG_SEARCH_LIMIT
+    assert limited.direct_leg == full.direct_leg
+
+
+def test_walkback_detail_describes_selected_route():
+    baseline, snapshot = demo_inputs(platform="rover", closed=True)
+    result = plan_marswalk(baseline, snapshot, alternatives_k=4)
+    assert result.recommendation == "science:transect"
+    assert rule(result.plan(result.recommendation), "walkback")[0] == PASS
+    assert result.walkback["per_plan"][result.recommendation]["slack_s"] >= 0
+
+
+def test_breakdown_advances_weather_clock_and_preserves_completed_work():
+    _, snapshot = demo_inputs(platform="rover", closed=True)
+    weather = feed(msg("wind_speed", 22, "m/s"))
+    completed = snapshot.tasks[0].id
+    snapshot = replace(snapshot, time_utc=DEMO_TIME_UTC, weather=weather, completed_task_ids=(completed,))
+    walking = breakdown_snapshot(snapshot, snapshot.current_cell, 601)
+    assert walking.completed_task_ids == (completed,)
+    assert [task.id for task in walking.tasks] == [completed]
+    assert assess_weather(weather, snapshot.time_utc).return_now
+    assert assess_weather(weather, walking.time_utc).link_lost
+
+
+def test_future_observation_cannot_activate_warning():
+    forecast_time = "2100-01-01T00:00:01Z"
+    warning = replace(msg("wind_speed", 22, "m/s"), time_utc=forecast_time)
+    assessment = assess_weather(feed(warning), "2100-01-01T00:00:00Z")
+    assert assessment.link_lost and not assessment.return_now

@@ -16,11 +16,13 @@ It is a planning assumption, not a measured Mars pace. Walking is limited to
 15 degrees on edges and cells, the same policy as Mode A.
 """
 from dataclasses import dataclass, replace
+from datetime import timedelta
 import math
 
 import numpy as np
 
 from .config import HumanProfile
+from .environment import parse_utc
 from .errors import FAIL, MarswalkError, PASS, UNKNOWN
 from .mobility import pace_for
 from .routing import Router, TerrainGraph
@@ -112,6 +114,11 @@ def breakdown_snapshot(snapshot, cell, elapsed_s, *, policy=WalkbackPolicy()):
     remaining = snapshot.remaining_s - int(math.ceil(elapsed_s))
     if remaining < 0:
         raise MarswalkError("INVALID_SNAPSHOT", "the failure happened after the remaining time ran out")
-    return replace(snapshot, revision=snapshot.revision + 1, current_cell=tuple(map(int, cell)),
-                   remaining_s=remaining, profile=policy.walking_profile(), tasks=(), completed_task_ids=(),
+    when = None
+    if snapshot.time_utc is not None:
+        when = (parse_utc(snapshot.time_utc) + timedelta(seconds=elapsed_s)).isoformat()
+    completed = tuple(replace(task, prerequisites=()) for task in snapshot.tasks
+                      if task.id in snapshot.completed_task_ids)
+    return replace(snapshot, revision=snapshot.revision + 1, current_cell=tuple(cell),
+                   remaining_s=remaining, time_utc=when, profile=policy.walking_profile(), tasks=completed,
                    power=None, provenance=snapshot.provenance + (("rover_failure", "simulated"),))
