@@ -160,7 +160,7 @@ Compared with the current pace (0.50 m/s, symmetric) at the same reserve and sit
 
 1. **0.75 m/s on both legs is the outlier.** It changes 10 of 32 actions, the most of any setting. It is the only setting that recommends a science stop where the current default returns: remaining time 45 min, reserve 30 min, ramp open or closed.
 2. **0.75 m/s outbound with a × 0.7 home pace behaves close to the current default.** It changes 3 of 32 actions and never trades a return for science. Its home pace (0.525 m/s) is close to today's 0.50 m/s, and the direct-return gate depends only on the home pace.
-3. **Changes sit at decision boundaries.** They occur when the budget is tight (45–60 min remaining) or the reserve is large (30 min). With the ramp open and 75–90 min remaining, almost every setting picks the same task.
+3. **The ramp closure shifts when decisions change.** With the ramp open, most changes occur at 45–60 min remaining. With the ramp closed, science task choices also change at 75–90 min, depending on the reserve.
 4. **Reserve matters as much as pace.** At 0.50 m/s, raising the reserve from 15 to 30 min changes the action in 4 of 8 situations (20 min: 1 of 8; 10 min: 0 of 8). At a 15 min reserve, changing the pace to 0.75 m/s changes 2 of 8, and 0.40 m/s changes 1 of 8. Pace and reserve should be chosen together.
 5. **A pessimistic setting can fail the safety gate.** At 45 min remaining with a 30 min reserve, 0.40 m/s with home × 0.7 reports `RETURN_OVER_RESERVE`, while the current default still finds a direct return. The direct-return verdict is therefore pace-sensitive close to the reserve.
 6. **Scope.** This is synthetic terrain with two tasks. It shows how sensitive the decision is. It does not show which pace is correct.
