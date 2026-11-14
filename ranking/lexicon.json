@@ -1,0 +1,369 @@
+{
+  "version": "cell-lexicon-v1",
+  "forms": {
+    "age-noachian": [
+      "ancient",
+      "noachian",
+      "early noachian"
+    ],
+    "age-hesperian": [
+      "hesperian"
+    ],
+    "age-amazonian": [
+      "amazonian",
+      "young",
+      "recent"
+    ],
+    "highland": [
+      "highland"
+    ],
+    "massif": [
+      "massif"
+    ],
+    "lowland": [
+      "lowland"
+    ],
+    "transition": [
+      "transition"
+    ],
+    "outflow": [
+      "outflow",
+      "outflow channel"
+    ],
+    "basin": [
+      "basin",
+      "basins"
+    ],
+    "impact": [
+      "cratering",
+      "ejecta",
+      "impact",
+      "impact crater",
+      "impact geology",
+      "impact history",
+      "megabreccia"
+    ],
+    "volcanic": [
+      "igneous",
+      "magmatic",
+      "volcanic",
+      "volcanism",
+      "volcano",
+      "volcanology"
+    ],
+    "volcanic-edifice": [
+      "volcanic edifice",
+      "shield volcano"
+    ],
+    "volcanic-field": [
+      "volcanic field"
+    ],
+    "young-volcanic": [
+      "young volcanic",
+      "young volcanism"
+    ],
+    "polar-deposits": [
+      "polar deposits",
+      "polar layered deposits"
+    ],
+    "polar-cap": [
+      "polar cap"
+    ],
+    "polar-dunes": [
+      "polar dunes"
+    ],
+    "ice": [
+      "buried ice",
+      "cryosphere",
+      "frozen",
+      "ice",
+      "ice rich",
+      "subsurface ice",
+      "water ice"
+    ],
+    "ice-shallow": [
+      "ice shallow",
+      "near surface ice",
+      "shallow ice"
+    ],
+    "ice-deep": [
+      "deep ice",
+      "deep subsurface ice",
+      "ice deep"
+    ],
+    "rocky-surface": [
+      "exposed rock",
+      "rocky surface"
+    ],
+    "dust-mantled": [
+      "dust mantled"
+    ],
+    "dark-coarse-surface": [
+      "dark coarse surface"
+    ],
+    "low-elevation": [
+      "low elevation"
+    ],
+    "high-elevation": [
+      "high elevation"
+    ],
+    "glacial-apron": [
+      "glacial apron",
+      "lobate debris apron"
+    ],
+    "mass-wasting": [
+      "landslide",
+      "mass wasting",
+      "slump"
+    ],
+    "lake": [
+      "lake",
+      "lakes",
+      "lacustrine",
+      "paleolake"
+    ],
+    "lake-open-basin": [
+      "lake open basin",
+      "open basin lake",
+      "open basin paleolake"
+    ],
+    "lake-closed-basin": [
+      "closed basin lake",
+      "closed basin paleolake",
+      "lake closed basin"
+    ],
+    "chlorides": [
+      "chloride",
+      "chlorides"
+    ],
+    "hydrated-minerals": [
+      "hydrated mineral",
+      "hydrated minerals"
+    ],
+    "dunes": [
+      "dune",
+      "dunes"
+    ],
+    "cave-candidate": [
+      "cave candidate",
+      "cave candidates",
+      "caves"
+    ],
+    "seismic": [
+      "seismic",
+      "seismicity",
+      "marsquake",
+      "marsquakes"
+    ],
+    "channel": [
+      "channel"
+    ],
+    "wrinkle-ridge": [
+      "wrinkle ridge"
+    ],
+    "graben": [
+      "graben"
+    ],
+    "pit-chain": [
+      "pit chain"
+    ],
+    "scarp": [
+      "scarp"
+    ],
+    "spiral-trough": [
+      "spiral trough"
+    ],
+    "lava-flow": [
+      "lava flow",
+      "lava flows",
+      "lava"
+    ],
+    "rille": [
+      "rille"
+    ],
+    "caldera": [
+      "caldera"
+    ],
+    "crater-rim": [
+      "crater rim"
+    ],
+    "yardang": [
+      "yardang"
+    ],
+    "chaos": [
+      "chaos",
+      "chaos terrain",
+      "chaotic terrain"
+    ],
+    "canyon": [
+      "canyon",
+      "chasma",
+      "chasmata",
+      "trough"
+    ],
+    "water": [
+      "water",
+      "aqueous",
+      "hydrology",
+      "hydrologic"
+    ],
+    "river": [
+      "river",
+      "fluvial",
+      "stream",
+      "drainage"
+    ],
+    "aqueous-alteration": [
+      "alteration",
+      "altered",
+      "aqueous alteration",
+      "water rock",
+      "water rock interaction",
+      "weathering"
+    ],
+    "tectonic": [
+      "compressional",
+      "extensional",
+      "fault",
+      "faulting",
+      "fossa",
+      "fossae",
+      "fracture",
+      "tectonic",
+      "tectonics"
+    ],
+    "aeolian": [
+      "aeolian",
+      "eolian",
+      "wind blown"
+    ],
+    "sedimentary": [
+      "sedimentary",
+      "sediment",
+      "sediments"
+    ],
+    "habitability": [
+      "habitability",
+      "habitable"
+    ],
+    "delta": [
+      "delta",
+      "deltas",
+      "deltaic"
+    ],
+    "alluvial-fan": [
+      "alluvial fan",
+      "alluvial fans",
+      "sediment fan"
+    ],
+    "valley-network": [
+      "valley network",
+      "valley networks"
+    ],
+    "clays": [
+      "clay",
+      "clays",
+      "phyllosilicate",
+      "phyllosilicates"
+    ],
+    "sulfates": [
+      "sulfate",
+      "sulfates",
+      "sulphate",
+      "sulphates"
+    ],
+    "carbonates": [
+      "carbonate",
+      "carbonates"
+    ],
+    "silica": [
+      "hydrated silica",
+      "silica"
+    ],
+    "glacial-landform": [
+      "glacial landform",
+      "glacial landforms",
+      "glacier",
+      "glacial"
+    ],
+    "magnetism": [
+      "magnetism",
+      "magnetic",
+      "crustal magnetism"
+    ],
+    "olivine": [
+      "olivine"
+    ],
+    "stratigraphy": [
+      "contact",
+      "exposed section",
+      "geological contact",
+      "stratigraphic",
+      "stratigraphy"
+    ],
+    "hydrothermal": [
+      "hydrothermal"
+    ],
+    "climate": [
+      "atmospheric history",
+      "climate",
+      "climatic",
+      "obliquity",
+      "paleoclimate"
+    ],
+    "ocean": [
+      "ocean",
+      "sea",
+      "shoreline"
+    ],
+    "groundwater": [
+      "aquifer",
+      "groundwater",
+      "subsurface water",
+      "upwelling"
+    ],
+    "periglacial": [
+      "patterned ground",
+      "periglacial",
+      "polygon",
+      "scalloped",
+      "scalloped depression"
+    ],
+    "layered-deposits": [
+      "layered deposits"
+    ]
+  },
+  "stopwords": [
+    "and",
+    "or",
+    "the",
+    "a",
+    "an",
+    "in",
+    "on",
+    "at",
+    "with",
+    "for",
+    "of",
+    "to",
+    "from"
+  ],
+  "generic": [
+    "deposit",
+    "deposits",
+    "terrain",
+    "region",
+    "regions",
+    "area",
+    "areas",
+    "feature",
+    "features"
+  ],
+  "negation": [
+    "not",
+    "no",
+    "without",
+    "excluding",
+    "except"
+  ]
+}

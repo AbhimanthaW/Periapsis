@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from contracts.pack import PackError, decode
 from marsdoc import CapabilityQuery, DocumentationEngine, Package
 from runtime.mission import load_pack, simulate
+from ranking.service import RankRequest, RankingService
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "contracts/fixtures/synthetic-v1"
@@ -37,9 +38,10 @@ class PlanRequest(BaseModel):
 
 
 class PlanningService:
-    def __init__(self, pack, evidence_result):
+    def __init__(self, pack, evidence_result, ranking=None):
         self.pack = pack
         self.evidence_result = evidence_result
+        self.ranking = ranking
         scenario = pack.scenario
         self.identity = {
             "pack_id": pack.site["pack_id"],
@@ -117,11 +119,20 @@ class PlanningHandler(BaseHTTPRequestHandler):
                 self.send_json(200, self.service.evidence())
             except PackError as error:
                 self.reject(503, error.code, str(error))
+        elif self.path.startswith("/api/v1/cell/"):
+            if self.service.ranking is None:
+                self.reject(503, "RANKING_NOT_CONFIGURED", "Configure a cell ranking pack")
+                return
+            result = self.service.ranking.detail(self.path.removeprefix("/api/v1/cell/"))
+            if result is None:
+                self.reject(404, "CELL_NOT_FOUND", "Cell ID was not found")
+            else:
+                self.send_json(200, result)
         else:
             self.reject(404, "NOT_FOUND", "Unknown endpoint")
 
     def do_POST(self):
-        if self.path != "/api/v1/plan":
+        if self.path not in ("/api/v1/plan", "/api/v1/rank"):
             self.reject(404, "NOT_FOUND", "Unknown endpoint")
             return
         if self.headers.get_content_type() != "application/json":
@@ -137,20 +148,26 @@ class PlanningHandler(BaseHTTPRequestHandler):
         payload = None
         try:
             payload = decode(self.rfile.read(length))
-            request = PlanRequest.model_validate(payload)
+            request = (RankRequest if self.path == "/api/v1/rank" else PlanRequest).model_validate(payload)
         except (PackError, ValidationError, TimeoutError):
             request_id = payload.get("request_id") if isinstance(payload, dict) else None
-            self.reject(400, "INVALID_REQUEST", "Expected a valid v1 planning request",
+            self.reject(400, "INVALID_REQUEST", "Expected a valid v1 request",
                         request_id if isinstance(request_id, str) and 0 < len(request_id) <= 128 else None)
             return
         try:
-            self.send_json(200, self.service.plan(request))
+            if self.path == "/api/v1/rank":
+                if self.service.ranking is None:
+                    self.reject(503, "RANKING_NOT_CONFIGURED", "Configure a cell ranking pack", request.request_id)
+                else:
+                    self.send_json(200, self.service.ranking.rank(request))
+            else:
+                self.send_json(200, self.service.plan(request))
         except PackError as error:
             self.reject(409 if error.code == "SCENARIO_MISMATCH" else 400,
                         error.code, str(error), request.request_id)
 
 
-def create_server(port=8000, *, evidence_package=None, evidence_query=None):
+def create_server(port=8000, *, evidence_package=None, evidence_query=None, ranking_pack=None):
     if (evidence_package is None) != (evidence_query is None):
         raise ValueError("Supply the evidence package and query together")
     result = None
@@ -158,7 +175,8 @@ def create_server(port=8000, *, evidence_package=None, evidence_query=None):
         package = Package.model_validate_json(evidence_package.read_bytes())
         query = CapabilityQuery.model_validate_json(evidence_query.read_bytes())
         result = DocumentationEngine(package).resolve(query).model_dump(mode="json")
-    service = PlanningService(load_pack(FIXTURE, simulation=True), result)
+    service = PlanningService(load_pack(FIXTURE, simulation=True), result,
+                              RankingService(ranking_pack) if ranking_pack else None)
     return ThreadingHTTPServer(("127.0.0.1", port), partial(PlanningHandler, service=service))
 
 
@@ -167,9 +185,11 @@ def main():
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--evidence-package", type=Path)
     parser.add_argument("--evidence-query", type=Path)
+    parser.add_argument("--ranking-pack", type=Path)
     args = parser.parse_args()
     try:
-        server = create_server(args.port, evidence_package=args.evidence_package, evidence_query=args.evidence_query)
+        server = create_server(args.port, evidence_package=args.evidence_package,
+                               evidence_query=args.evidence_query, ranking_pack=args.ranking_pack)
     except (OSError, ValueError, PackError) as error:
         parser.exit(2, f"Unable to initialize planning service: {error}\n")
     with server:
