@@ -2,7 +2,7 @@
 
 **Periapsis · Workstream B · 14 November 2026, Colombo**
 
-**Verdict.** The cell records are structured measurements, not survey text. Each cell has one geologic unit, thermal inertia, albedo, ice consistency, elevation and image-catalogue counts. The ranking model therefore becomes a set of reviewed rules that turn those fields into concepts, scored with dense arrays in the local Python service. 25 concepts pass on the current data, 3 pass with a flag, and 26 cannot be supported until more layers are joined. The largest gap is water history: the records hold nothing on deltas, lakes, rivers or alteration minerals, so *ancient water and delta deposits* cannot be answered from cells yet.
+**Verdict.** The cell records are structured measurements, not survey text. Each cell has one geologic unit, thermal inertia, albedo, ice consistency, elevation and image-catalogue counts. The ranking model therefore becomes a set of reviewed rules that turn those fields into concepts, scored with dense arrays in the local Python service. 25 concepts pass on the current data, 3 pass with a flag, and 31 cannot be supported until more layers are joined. The largest gap is water history: the records hold nothing on deltas, lakes, rivers or alteration minerals, so *ancient water and delta deposits* cannot be answered from cells yet.
 
 This replaces the earlier 200k plan, which assumed text records. Parser, tiers and never-summed criteria carry over from the [design](README.md).
 
@@ -38,7 +38,7 @@ Decided under the delegated approval. Full rules, forms and cell counts are in t
 - *Mass wasting* (unit Aa, 1,357 cells, around Olympus Mons and Valles Marineris). Confirm in the same source.
 - *Water*. It has no layer of its own. It is supported only through outflow and ice.
 
-**Not passed, no layer (26).**
+**Not passed, no layer (31).**
 
 | Concepts | Layer that would unlock them |
 | --- | --- |
