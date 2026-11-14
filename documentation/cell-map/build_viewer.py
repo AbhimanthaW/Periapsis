@@ -1,8 +1,10 @@
 """Build an offline HTML preview from the verified cell database."""
 from base64 import b64encode
 import gzip
+from hashlib import file_digest
+from html import escape
 import json
-from pathlib import Path
+import os
 import sqlite3
 
 from marsdoc import Grid
@@ -11,7 +13,6 @@ import numpy as np
 from workspace import build_workspace
 
 root = build_workspace()
-import os
 science_mode = os.environ.get("RW_SCIENCE_VIEW") == "1"
 science = []
 if science_mode:
@@ -26,6 +27,67 @@ if os.environ.get("RW_EXPANDED_VIEW") == "1":
         expansion = [json.loads(line) for line in stream]
     assert len(expansion) == 196608
     expanded_sources = json.loads((root / "expansion/manifest.json").read_bytes())["sources"]
+ranking_layers = {
+    "paleolakes": "Published paleolake basins",
+    "chlorides": "Published chloride sites",
+    "structures": "USGS mapped structures · approximate km",
+    "gazetteer": "IAU/USGS named feature centres",
+    "gazetteer_approximate_bounds": "IAU/USGS named feature bounds · approximate",
+    "dunes": "USGS equatorial and south polar dune sites",
+    "cave_candidates": "USGS cave entrance candidates",
+    "marsquakes": "InSight event locations · quality A/B",
+}
+ranking_mode = os.environ.get("RW_RANKING_VIEW") == "1"
+ranking = []
+feature_index = {}
+if ranking_mode:
+    if not expansion:
+        raise ValueError("RW_RANKING_VIEW requires RW_SCIENCE_VIEW and RW_EXPANDED_VIEW")
+    ranking_dir = root / "ranking"
+    ranking_manifest = json.loads((ranking_dir / "manifest.json").read_bytes())
+    for filename in ("cell-ranking.ndjson.gz", "ranking-features.json.gz"):
+        with (ranking_dir / filename).open("rb") as raw:
+            if file_digest(raw, "sha256").hexdigest() != ranking_manifest["files"][filename]["sha256"]:
+                raise ValueError(f"ranking export does not match manifest: {filename}")
+    with gzip.open(ranking_dir / "cell-ranking.ndjson.gz", "rt") as stream:
+        ranking = [json.loads(line) for line in stream]
+    if len(ranking) != Grid().count:
+        raise ValueError("ranking export has an unexpected cell count")
+    with gzip.open(ranking_dir / "ranking-features.json.gz", "rt") as stream:
+        feature_index = {layer: {item["id"]: item for item in items}
+                         for layer, items in json.load(stream).items()}
+
+
+def layer_label(key, identifier):
+    feature = feature_index["gazetteer" if key == "gazetteer_approximate_bounds" else key][identifier]
+    if key == "structures":
+        return f'{feature["interpretation"]} (SIM 3292 #{identifier})'
+    if key == "cave_candidates":
+        return f'{identifier} ({feature["candidate_type"]})'
+    if key == "dunes":
+        return feature["dune_id"]
+    if key == "marsquakes":
+        return f'{feature["contributor_id"]} ({feature["event_type"]})'
+    return feature.get("name", feature.get("label", identifier))
+
+
+def ranking_display(evidence):
+    display = {}
+    for key, records in evidence.items():
+        values = list(records)
+        labels = [layer_label(key, identifier) for identifier in values[:8]]
+        if key == "structures":
+            value = round(sum(records.values()), 2)
+        elif key == "gazetteer_approximate_bounds":
+            value = max(records.values())
+        else:
+            value = len(values)
+        if len(values) > len(labels):
+            labels.append(f"+{len(values) - len(labels)} more")
+        display[key] = [value, ", ".join(labels)]
+    return display
+
+
 width, height = 1440, 720
 lon, lat = np.meshgrid((np.arange(width) + .5) / width * 360 - 180,
                        90 - (np.arange(height) + .5) / height * 180)
@@ -44,6 +106,9 @@ with sqlite3.connect(f"file:{root / 'map/cells.sqlite'}?mode=ro", uri=True) as d
         assert not local or local["cell_id"] == f"HPX128:{i}"
         extra = expansion[i] if expansion else {}
         assert not extra or extra["cell_id"] == f"HPX128:{i}"
+        sourced = ranking[i] if ranking_mode else {}
+        if sourced and sourced["cell_id"] != f"HPX128:{i}":
+            raise ValueError(f"ranking cell ID mismatch at {i}")
         ice = extra.get("swim_ice_consistency", {})
         dust = extra.get("tes_dust_my25_sol001", {})
         data.append([x, y, z, n, terrain["observed_fraction"], terrain["usable_fraction"],
@@ -53,7 +118,8 @@ with sqlite3.connect(f"file:{root / 'map/cells.sqlite'}?mode=ro", uri=True) as d
                      local.get("tes_night_thermal_inertia"), local.get("tes_night_sample_status"), len(local.get("crism_mtrdr_product_ids", [])),
                      extra.get("ctx_edr_centroid_records"), extra.get("hirise_projected_centroid_records"),
                      len(extra.get("hirise_dtm_centroid_product_ids", [])), ice.get("0_1"), ice.get("1_5"),
-                     ice.get("5"), dust.get("opacity"), extra.get("tes_lambert_albedo")])
+                     ice.get("5"), dust.get("opacity"), extra.get("tes_lambert_albedo"),
+                     ranking_display(sourced["evidence"]) if sourced else {}])
 
 def pack(data):
     return b64encode(gzip.compress(data, mtime=0)).decode("ascii")
@@ -101,6 +167,7 @@ ice15:[17,-1,1,[211,132,84],[117,211,246],'SWIM 1–5 m ice consistency · −1 
 ice5:[18,-1,1,[211,132,84],[117,211,246],'SWIM >5 m ice consistency · −1 to +1; grey is outside coverage'],
 dust:[19,0,1,[33,56,101],[252,170,84],'TES historical column dust optical depth · MY25 sol 001 · 9.3 µm'],
 albedo:[20,0,.5,[38,42,55],[252,219,157],'TES Lambert albedo · dimensionless; display range 0–0.5']};
+const sourcedLayers = __RANKING_LAYERS__;
 const sparse = new Set(['stereo','usable','imagery','crism','hirisecat','hirstereo']);
 async function unpack(value) {
   const bytes = Uint8Array.from(atob(value), char => char.charCodeAt(0));
@@ -110,9 +177,13 @@ Promise.all([unpack('__PIXELS__'),unpack('__DATA__')]).then(([bytes, records]) =
   const ids = new Uint32Array(bytes), data = JSON.parse(new TextDecoder().decode(records));
   let selected = 96848, background;
   function renderLayer() {
-    const [index,low,high,start,end,label] = palettes[layer.value];
+    const sourcedLayer = Object.hasOwn(sourcedLayers, layer.value);
+    const [index,low,high,start,end,label] = sourcedLayer
+      ? [21,0,1,[34,42,55],[126,227,194],sourcedLayers[layer.value] + ' · bright cells contain imported records']
+      : palettes[layer.value];
     legend.textContent = label;
     const colors = data.map(row => {
+      if (sourcedLayer) return Object.hasOwn(row[index], layer.value) ? end : start;
       if (layer.value === 'geology') {
         const code = row[9][0]?.[0];
         if (!code) return start;
@@ -148,7 +219,7 @@ Promise.all([unpack('__PIXELS__'),unpack('__DATA__')]).then(([bytes, records]) =
   }
   function inspect(id) {
     selected=id;
-    const [x,y,z,n,stereo,usable,imagery,lower,names,geology,thermal,thermalStatus,crism,ctxCount,hiriseCount,dtmCount,ice01,ice15,ice5,dust,albedo] = data[id];
+    const [x,y,z,n,stereo,usable,imagery,lower,names,geology,thermal,thermalStatus,crism,ctxCount,hiriseCount,dtmCount,ice01,ice15,ice5,dust,albedo,sourced] = data[id];
     field.value = 'HPX128:' + id;
     const lon = (x+180)%360-180;
     ctx.putImageData(background,0,0);
@@ -170,7 +241,15 @@ Promise.all([unpack('__PIXELS__'),unpack('__DATA__')]).then(([bytes, records]) =
         .map(([v,depth])=>'SWIM ice consistency ' + depth + ' · ' + v.toFixed(3)).join('\\n'),
       dust !== null ? 'TES historical dust opacity · ' + dust.toFixed(3) + ' · MY25 sol 001' : '',
       albedo !== null ? 'TES Lambert albedo · ' + albedo.toFixed(3) : '',
-      'Terrain documentation '  + lower.toFixed(2) + '–100 · Unclassified',
+      ...Object.entries(sourcedLayers).filter(([key]) => Object.hasOwn(sourced,key)).map(([key,title]) => {
+        const [value,labels] = sourced[key];
+        const amount = key === 'gazetteer_approximate_bounds' ? pct(value) + ' largest sampled bounds overlap'
+          : key === 'structures' ? value + ' km' : String(value);
+        return title + ' · ' + amount + ' · ' + labels;
+      }),
+      Object.hasOwn(sourcedLayers, layer.value) && !Object.hasOwn(sourced, layer.value)
+        ? 'No imported records for the selected layer in this cell. Survey coverage is unknown.' : '',
+      'Terrain documentation '   + lower.toFixed(2) + '–100 · Unclassified',
       names.length ? 'Named feature anchors ' + names.join(', ') : ''
     ].filter(Boolean).join('\\n');
   }
@@ -212,8 +291,14 @@ if expansion:
     note += (" SWIM shows agreement among ice indicators. The TES dust snapshot is historical. "
              "Catalogue counts and raster samples describe the cell centre. "
              "See EXPANDED-LAYERS.md for source and scale details.")
-name = ("mars-cell-map-expanded.html" if expansion else
+if ranking_mode:
+    options += "".join(f'<option value="{key}">{escape(title)}</option>'
+                       for key, title in ranking_layers.items())
+    note += (" Named feature bounds are approximate. Cave locations are candidates. "
+             "InSight locations are estimates. Empty cells indicate unknown survey coverage.")
+name = ("mars-cell-map-sourced.html" if ranking_mode else "mars-cell-map-expanded.html" if expansion else
         "mars-cell-map-science.html" if science else "mars-cell-map.html")
 (root / name).write_text(html.replace("__PIXELS__", pack(pixels.tobytes())).replace(
     "__DATA__", pack(json.dumps(data, separators=(",", ":")).encode())).replace(
-    "__SCIENCE_OPTIONS__", options).replace("__SCIENCE_NOTE__", note))
+    "__SCIENCE_OPTIONS__", options).replace("__SCIENCE_NOTE__", note).replace(
+    "__RANKING_LAYERS__", json.dumps(ranking_layers if ranking_mode else {})))

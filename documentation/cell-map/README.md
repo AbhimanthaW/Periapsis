@@ -41,3 +41,32 @@ uv run --project documentation --locked --group archive-check --with pyshp==3.0.
 python3 documentation/cell-map/merge_metadata.py
 RW_SCIENCE_VIEW=1 RW_EXPANDED_VIEW=1 uv run --project documentation --locked python documentation/cell-map/build_viewer.py
 ```
+
+## Sourced catalogues for the cell-ranking workstream
+
+Open `mars-cell-map-sourced.html` for the additional offline layers. The map highlights cells containing imported records. Dark cells have unknown survey coverage.
+
+| Catalogue | Retained records | Cells with evidence | Interpretation |
+|---|---:|---:|---|
+| [Goudge et al. paleolakes](https://www.jsg.utexas.edu/goudge/shared-data/) | 425 | 423 | Published open- and closed-basin locations |
+| [Leask and Ehlmann chloride sites](https://data.caltech.edu/records/kasms-vp209) | 642 | 500 | Published Osterloo site points as cross-referenced in the 2021 archive |
+| [USGS SIM 3292 structures](https://pubs.usgs.gov/sim/3292/) | 3,588 | 35,338 | Approximate line length in each cell, with the source interpretation |
+| [IAU/USGS Gazetteer](https://planetarynames.wr.usgs.gov/GIS_Downloads) | 2,054 | 1,974 centres and 40,914 approximate bounds | Published centres and selected adopted feature bounds for chaos, chasmata, fossae, labyrinthi and undae |
+| [USGS dune database](https://pubs.usgs.gov/publication/ofr20181164) | 1,462 | 1,351 | Equatorial and south polar Stability Index worksheet locations |
+| [USGS Cushing cave candidates](https://astrogeology.usgs.gov/search/map/mars_global_cave_candidate_catalog_v1_cushing) | 1,062 | 513 | Candidate entrances and published candidate type |
+| [InSight Marsquake Service](https://www.insight.ethz.ch/en/seismicity/catalog/v14/) | 189 | 25 | Estimated event locations from the EarthScope A/B location-quality query |
+
+[MOCAAS](https://www.ias.universite-paris-saclay.fr/moccas/) describes the aqueous mineral product. Its linked data ZIP returned HTTP 410 during retrieval, so this snapshot has no MOCAAS mineral-class values. The datasets marked Dummy in the workstream request are outside this build.
+
+The loader maps catalogue coordinates to Nside 128 NESTED. It normalizes signed east longitude into [0, 360). The Goudge table labels longitude as east and latitude as north. The table leaves the latitude type unspecified, so the point join assumes the Mars planetocentric convention at this grid scale. Point rows establish a cell association at the supplied location. A candidate entrance, dune site or estimated event origin carries its original observational meaning. The Gazetteer export contains an identical duplicate feature ID that is collapsed. Dune worksheet row numbers disambiguate a published ID repeated at different coordinates.
+
+For the SIM 3292 `Global_Structure` layer, the archive service returns projected lines with a 100 m generalization parameter. The loader subdivides each projected edge into pieces of at most 2 km, inverse-projects to Mars, and bins each geodesic length at its midpoint using the engine's 3,389.5 km sphere. Cell-edge allocation is approximate. Five lines have samples outside the published Mars Robinson projection domain and are quarantined by feature ID. Gazetteer bounds are approximate longitude/latitude rectangles. Their overlap uses 64 equal-area HEALPix child centres per cell, so fractions are multiples of 1/64 and narrow intersections may be missed. The rectangles provide named context and can extend beyond physical features.
+
+The downstream files are in `ranking/`. The full export preserves the original fields and adds `sourced_catalogue_context`. The smaller `cell-ranking.ndjson.gz` contains one `{cell_id, evidence}` object per cell in NESTED order. Point-layer keys hold source ID arrays. `structures` maps IDs to kilometres. `gazetteer_approximate_bounds` maps IDs to sampled fractions for individual published bounds. The feature IDs resolve through `ranking-features.json.gz`, which is keyed by source layer. The Gazetteer centre and bounds fields share its `gazetteer` feature dictionary. The manifest identifies each input and output by SHA-256. Missing keys represent unknown survey coverage. These fields supply catalogue evidence for the separate ranker and carry no model eligibility, documentation tier or route-cost changes.
+
+Rebuild from the repo root after preparing the baseline workspace above. `--fetch` downloads missing pinned files and rejects changed bytes. `--merge` also needs the verified expanded export and its manifest. Omit it to build the standalone supplement.
+
+```sh
+uv run --project documentation --locked --with openpyxl==3.1.5 --with pyshp==3.0.3 python documentation/cell-map/build_ranking_layers.py --fetch --merge
+RW_SCIENCE_VIEW=1 RW_EXPANDED_VIEW=1 RW_RANKING_VIEW=1 uv run --project documentation --locked python documentation/cell-map/build_viewer.py
+```
