@@ -1,7 +1,9 @@
-"""Verify the evidence handoff with the repository's schemas and resolver."""
+"""Verify the handoff files, catalog scope, schemas and resolver decisions."""
 import argparse
 import json
 from pathlib import Path
+
+from handoff_checks import GRID_FILE, read_catalog_searches, ring, verify_checksums
 
 from jsonschema import Draft202012Validator, FormatChecker
 from marsdoc import CapabilityQuery, DocumentationEngine, Package
@@ -17,14 +19,19 @@ def main():
     parser.add_argument("--repo", type=Path, required=True)
     args = parser.parse_args()
     handoff, repo = args.handoff, args.repo
+    checksums = verify_checksums(handoff)
+    searches = read_catalog_searches(handoff / "catalog-search")
     schema_path = repo / "documentation" / "schemas"
     package_raw = (handoff / "evidence.json").read_bytes()
     query_raw = (handoff / "evidence-query.json").read_bytes()
     control_query_raw = (handoff / "control-query.json").read_bytes()
     sources = json.loads((handoff / "source-manifest.json").read_bytes())
     validate_schema(schema_path / "evidence-package.v1.schema.json", json.loads(package_raw))
-    for raw in (query_raw, control_query_raw):
-        validate_schema(schema_path / "capability-query.v1.schema.json", json.loads(raw))
+    for raw, search in zip((query_raw, control_query_raw), searches, strict=True):
+        query = json.loads(raw)
+        validate_schema(schema_path / "capability-query.v1.schema.json", query)
+        if query["geometry"] != {"type": "Polygon", "coordinates": [ring(search["bounds_wsen_deg"])]}:
+            raise ValueError(f"Evidence query does not match catalog bounds: {search['response_path']}")
     validate_schema(repo / "contracts" / "source-manifest.v1.schema.json", sources)
 
     candidate = Package.model_validate_json(package_raw)
@@ -32,6 +39,9 @@ def main():
     product, = candidate.products
     if (source["id"], source["version"]) != (product.id, product.version):
         raise ValueError("Evidence and source-manifest identities differ")
+
+    if source["window_sha256"] != checksums[GRID_FILE]:
+        raise ValueError("Elevation crop does not match the source manifest")
 
     arcadia = DocumentationEngine(candidate).resolve(CapabilityQuery.model_validate_json(query_raw))
     control = DocumentationEngine(

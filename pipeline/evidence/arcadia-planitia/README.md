@@ -20,7 +20,7 @@ The catalog searches were captured on 14 November 2026. The result is limited to
 | `control-query.json` | Same calculation and fallback, with the matched search bounds at the existing Jezero control. |
 | `arcadia-mola-context.png`, `arcadia-mola-elevation.i16le`, `display-metadata.json` | Offline context image, exact signed elevation samples, bounds, affine reference, and mask summary. |
 | `catalog-search/`, `verification.json`, `SHA256SUMS.txt` | Saved USGS search results, resolver and API verification, and exact file hashes. |
-| `build_arcadia_handoff.py`, `verify_handoff.py` | Rebuild and schema/decision verification scripts. |
+| `build_arcadia_handoff.py`, `verify_handoff.py` | Rebuild and verification scripts. Both use `handoff_checks.py`. |
 
 ## Rebuild and verify
 
@@ -30,7 +30,11 @@ From a Periapsis checkout containing the merged Phase 3 atlas tools, install the
 python build_arcadia_handoff.py --atlas <atlas-directory> --workspace <MOLA-cache> --source-config <repo>/pipeline/configs/mola-global-4ppd-topography.json --regions <repo>/web/src/atlas/regions.json --search catalog-search --output <new-directory>
 ```
 
-With the repository’s documentation dependencies installed, from the repository root on `main`:
+For an exact rebuild, use the historical registry receipt identified in `evidence/mola/mola-record.sha256` together with the pinned archive bytes. Follow [the historical cache instructions](https://github.com/AbhimanthaW/Periapsis/blob/0a9f2ecc705a96625d79980c801bcb44bc64f289/docs/development.md#mola-ingestion) and verify the recorded digest with `return-window ingest --offline --expected-record-sha256`. The registry file committed under `evidence/mola/` is identical to this handoff’s `source-record.json`. A fresh acquisition produces the same elevation samples but records new acquisition metadata, so its registry and evidence digests change.
+
+The builder writes 12 files. The handoff also includes the scripts, this README, the captured resolver and API results, and a complete checksum list. The verifier checks the complete handoff, links the raw elevation digest to the source manifest, confirms both evidence queries match the catalog search bounds, and runs the resolver.
+
+With the documentation dependencies installed, run these commands from the root of a checkout containing both the handoff and the planning API:
 
 ```text
 uv run --project documentation --locked --offline python <handoff>/verify_handoff.py <handoff> --repo .

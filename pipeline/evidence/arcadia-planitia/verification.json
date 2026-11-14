@@ -32,7 +32,7 @@
             "definition": "PROJCRS[\"Equirectangular Mars\",BASEGEOGCRS[\"GCS_Mars\",DATUM[\"D_Mars\",ELLIPSOID[\"Mars\",3396000,0,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Reference_Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433,ID[\"EPSG\",9122]]]],CONVERSION[\"unnamed\",METHOD[\"Equidistant Cylindrical (Spherical)\",ID[\"EPSG\",1029]],PARAMETER[\"Latitude of 1st standard parallel\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8823]],PARAMETER[\"Longitude of natural origin\",180,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"Metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"Metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"easting\",east,ORDER[1],LENGTHUNIT[\"Metre\",1]],AXIS[\"northing\",north,ORDER[2],LENGTHUNIT[\"Metre\",1]]]",
             "latitude_type": "planetocentric",
             "longitude_direction": "east",
-            "longitude_domain": "signed",
+            "longitude_domain": "unsigned",
             "equatorial_radius_m": 3396000.0,
             "polar_radius_m": 3396000.0
           },
@@ -215,7 +215,7 @@
       "coarse_elevation_context"
     ],
     "measure": "area_m2",
-    "query_size": 15938808.846014023
+    "query_size": 15938808.84601593
   },
   "well_studied_control": {
     "schema_version": 1,

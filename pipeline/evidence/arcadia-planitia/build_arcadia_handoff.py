@@ -1,6 +1,5 @@
 """Build the Arcadia Planitia evidence handoff from reviewed MOLA source files."""
 import argparse
-from hashlib import sha256
 import json
 from math import pi
 from pathlib import Path
@@ -11,26 +10,18 @@ import numpy as np
 import rasterio
 from rasterio.windows import Window
 
+from handoff_checks import digest, read_catalog_searches, ring
+
 from return_window_pipeline.atlas import validate_global_atlas
 from return_window_pipeline.ingestion import ingest
 from return_window_pipeline.models import SourceSpec
 
 
 ARCHIVE = "https://pds-geosciences.wustl.edu/missions/mgs/megdr.html"
-CATALOG = "https://stac.astrogeology.usgs.gov/docs/data/mars/ctxdtms/"
-
-
-def digest(path):
-    return sha256(path.read_bytes()).hexdigest()
 
 
 def write_json(path, value):
     path.write_bytes((json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False) + "\n").encode())
-
-
-def ring(bounds):
-    west, south, east, north = bounds
-    return [[west, south], [east, south], [east, north], [west, north], [west, south]]
 
 
 def write_display_png(path, values):
@@ -78,20 +69,11 @@ def main():
     atlas = json.loads((args.atlas / "atlas-manifest.json").read_bytes())
     catalog = json.loads(args.regions.read_bytes())
     region, = [entry for entry in catalog["regions"] if entry["id"] == "03"]
-    search = json.loads((args.search / "searches.json").read_bytes())
+    search = read_catalog_searches(args.search)
     candidate, control = search
     center = region["geography"]["center"]
     if region["name"] != "Arcadia Planitia" or candidate["center_lon_lat_deg"] != center:
         raise ValueError("Search does not match Periapsis region 03")
-    for comparison in search:
-        response_path = args.search / comparison["response_path"]
-        raw = json.loads(response_path.read_bytes())
-        if (digest(response_path) != comparison["response_sha256"]
-                or raw["numberMatched"] != comparison["number_matched"]
-                or len(raw["features"]) != comparison["number_returned"]):
-            raise ValueError("Catalog search response differs from the recorded comparison")
-    if candidate["number_matched"] != 0 or candidate["has_next"] or control["number_matched"] <= 0:
-        raise ValueError("Catalog comparison no longer supports this candidate finding")
     with rasterio.open(args.atlas / "elevation.tif") as elevation, rasterio.open(
         args.atlas / "observation-counts.tif"
     ) as counts:
@@ -103,7 +85,12 @@ def main():
             raise ValueError("Display window requires completely valid raster values")
         display_bounds = list(elevation.window_bounds(window))
         transform = list(elevation.window_transform(window))[:6]
+    aoi = candidate["bounds_wsen_deg"]
+    if not (display_bounds[0] < aoi[0] < aoi[2] < display_bounds[2]
+            and display_bounds[1] < aoi[1] < aoi[3] < display_bounds[3]):
+        raise ValueError("Candidate AOI falls outside the verified display window")
     member = next(entry for entry in atlas["source"]["members"] if entry["name"] == "megt90n000cb.img")
+    longitude_domain = {"0_360": "unsigned", "-180_180": "signed"}[spec.reference.longitude_domain]
     native_wkt = source_record["raster"]["crs_wkt"]
     display_wkt = atlas["grid"]["crs_wkt"]
     native_spacing_m = spec.reference.semi_major_m * pi / 720
@@ -129,7 +116,7 @@ def main():
                 "source_url": member["uri"], "processing_level": "gridded_altimetry", "readiness": "usable",
                 "source_crs": {"body": "Mars", "frame": spec.reference.frame, "definition": native_wkt,
                                "latitude_type": "planetocentric", "longitude_direction": "east",
-                               "longitude_domain": "signed", "equatorial_radius_m": spec.reference.semi_major_m,
+                               "longitude_domain": longitude_domain, "equatorial_radius_m": spec.reference.semi_major_m,
                                "polar_radius_m": spec.reference.semi_minor_m},
                 "variables": ["elevation"], "native_spacing_m": native_spacing_m, "effective_scale_m": None,
                 "provenance": [f"MOLA archive raster SHA-256: {member['sha256']}",
@@ -153,10 +140,6 @@ def main():
             }],
         },
     )
-    aoi = candidate["bounds_wsen_deg"]
-    if not (display_bounds[0] < aoi[0] < aoi[2] < display_bounds[2]
-            and display_bounds[1] < aoi[1] < aoi[3] < display_bounds[3]):
-        raise ValueError("Candidate AOI falls outside the verified display window")
     write_json(candidate_dir / "evidence-query.json", query(aoi))
     write_json(candidate_dir / "control-query.json", query(control["bounds_wsen_deg"]))
     write_json(candidate_dir / "source-manifest.json", {
