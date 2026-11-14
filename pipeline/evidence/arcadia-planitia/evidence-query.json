@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -171.90145369,
+          48.9862569
+        ],
+        [
+          -171.79854631,
+          48.9862569
+        ],
+        [
+          -171.79854631,
+          49.0537431
+        ],
+        [
+          -171.90145369,
+          49.0537431
+        ],
+        [
+          -171.90145369,
+          48.9862569
+        ]
+      ]
+    ]
+  },
+  "requested": {
+    "id": "local_elevation_20m",
+    "requirements": [
+      {
+        "variable": "elevation",
+        "product_classes": [
+          "stereo_dtm"
+        ],
+        "max_native_spacing_m": 20
+      }
+    ]
+  },
+  "fallbacks": [
+    {
+      "id": "coarse_elevation_context",
+      "requirements": [
+        {
+          "variable": "elevation",
+          "product_classes": [
+            "laser_altimetry_grid"
+          ],
+          "max_native_spacing_m": 15000
+        }
+      ]
+    }
+  ]
+}

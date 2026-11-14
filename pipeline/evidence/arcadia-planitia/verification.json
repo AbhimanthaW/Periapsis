@@ -1,0 +1,672 @@
+{
+  "schemas_validated": true,
+  "arcadia": {
+    "schema_version": 1,
+    "package_id": "arcadia-mola-context",
+    "package_version": "0.1.0",
+    "method_version": "marsdoc-spherical-v1",
+    "limitations": [
+      "Eligibility covers declared evidence only. Apply site-pack quality and numerical model gates.",
+      "Routes use shorter great-circle arcs and a conservatively buffered local corridor."
+    ],
+    "provenance": [
+      {
+        "dataset": {
+          "id": "mgs-mola-megdr",
+          "mission": "Mars Global Surveyor",
+          "instrument": "MOLA",
+          "modality": "baseline_topography",
+          "product_class": "laser_altimetry_grid",
+          "archive_url": "https://pds-geosciences.wustl.edu/missions/mgs/megdr.html",
+          "version": "1.1",
+          "catalogue_status": "incomplete"
+        },
+        "product": {
+          "id": "mola-meg004-topography",
+          "dataset_id": "mgs-mola-megdr",
+          "version": "1.1",
+          "source_url": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megt90n000cb.img",
+          "source_crs": {
+            "body": "Mars",
+            "frame": "IAU2000_MARS, as declared in the PDS4 product label",
+            "definition": "PROJCRS[\"Equirectangular Mars\",BASEGEOGCRS[\"GCS_Mars\",DATUM[\"D_Mars\",ELLIPSOID[\"Mars\",3396000,0,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Reference_Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433,ID[\"EPSG\",9122]]]],CONVERSION[\"unnamed\",METHOD[\"Equidistant Cylindrical (Spherical)\",ID[\"EPSG\",1029]],PARAMETER[\"Latitude of 1st standard parallel\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8823]],PARAMETER[\"Longitude of natural origin\",180,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"Metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"Metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"easting\",east,ORDER[1],LENGTHUNIT[\"Metre\",1]],AXIS[\"northing\",north,ORDER[2],LENGTHUNIT[\"Metre\",1]]]",
+            "latitude_type": "planetocentric",
+            "longitude_direction": "east",
+            "longitude_domain": "signed",
+            "equatorial_radius_m": 3396000.0,
+            "polar_radius_m": 3396000.0
+          },
+          "processing_level": "gridded_altimetry",
+          "readiness": "usable",
+          "observation_extent_complete": false,
+          "support_extent_complete": false,
+          "variables": [
+            "elevation"
+          ],
+          "native_spacing_m": 14817.845349431858,
+          "effective_scale_m": null,
+          "acquisition": null,
+          "compatibility_key": null,
+          "provenance": [
+            "MOLA archive raster SHA-256: 25f16fb7aaf857898dcf98bc4f841341a24f8b9f7e98453ca083bc45d897ca2c",
+            "Source bundle SHA-256: a845aec8791ba95375d1cecec5b8f6de9f07e2c227bdaf2aec66c8bbf29b9136",
+            "Verified source registry SHA-256: f2e47a2110f8d672633c8d4e67efafc45d3a1a97a2c81193eb01114280269b92",
+            "Verified atlas elevation SHA-256: 73faec5ca5a3dce0f3808c70f80f409e9923d81730b1b966825303a480101e4d",
+            "Exact local display grid SHA-256: 0ef3e689be43aad465ccd3e387ca21777d3908651c4146e3b2d42f90ff5e5e1e"
+          ],
+          "limitations": [
+            "Native angular spacing is 0.25 degrees. The metre value is equatorial nominal posting.",
+            "Valid elevation can include interpolated cells. No effective feature scale is qualified.",
+            "The evidence covers regional elevation context only."
+          ]
+        },
+        "footprints": [
+          {
+            "id": "arcadia-mola-local-elevation-support",
+            "product_id": "mola-meg004-topography",
+            "source_url": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megt90n000cb.img",
+            "status": "canonical_verified",
+            "coverage_kind": "usable_support",
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -171.90145369,
+                    48.9862569
+                  ],
+                  [
+                    -171.79854631,
+                    48.9862569
+                  ],
+                  [
+                    -171.79854631,
+                    49.0537431
+                  ],
+                  [
+                    -171.90145369,
+                    49.0537431
+                  ],
+                  [
+                    -171.90145369,
+                    48.9862569
+                  ]
+                ]
+              ]
+            },
+            "transform": "Canonical planetocentric/east-positive atlas grid. Window selected by the catalog point. Every elevation cell covering the AOI was checked valid; the AOI is inside the display window.",
+            "note": "Bounded claim for elevation context. Aggregate count values are retained separately."
+          }
+        ]
+      }
+    ],
+    "query": {
+      "schema_version": 1,
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -171.90145369,
+              48.9862569
+            ],
+            [
+              -171.79854631,
+              48.9862569
+            ],
+            [
+              -171.79854631,
+              49.0537431
+            ],
+            [
+              -171.90145369,
+              49.0537431
+            ],
+            [
+              -171.90145369,
+              48.9862569
+            ]
+          ]
+        ]
+      },
+      "corridor_width_m": null,
+      "requested": {
+        "id": "local_elevation_20m",
+        "requirements": [
+          {
+            "variable": "elevation",
+            "product_classes": [
+              "stereo_dtm"
+            ],
+            "modalities": [],
+            "processing_levels": [],
+            "max_native_spacing_m": 20.0,
+            "max_effective_scale_m": null,
+            "acquisition_window": null
+          }
+        ]
+      },
+      "fallbacks": [
+        {
+          "id": "coarse_elevation_context",
+          "requirements": [
+            {
+              "variable": "elevation",
+              "product_classes": [
+                "laser_altimetry_grid"
+              ],
+              "modalities": [],
+              "processing_levels": [],
+              "max_native_spacing_m": 15000.0,
+              "max_effective_scale_m": null,
+              "acquisition_window": null
+            }
+          ]
+        }
+      ]
+    },
+    "requested": {
+      "id": "local_elevation_20m",
+      "eligible": false,
+      "variables": [
+        {
+          "variable": "elevation",
+          "qualified_fraction": 0.0,
+          "covered_by_single_product": false,
+          "candidates": [],
+          "issues": [],
+          "reason": "no_relevant_product_supplied"
+        }
+      ],
+      "supporting_product_ids": [],
+      "reason": "requirements_unsatisfied"
+    },
+    "fallbacks": [
+      {
+        "id": "coarse_elevation_context",
+        "eligible": true,
+        "variables": [
+          {
+            "variable": "elevation",
+            "qualified_fraction": 1.0,
+            "covered_by_single_product": true,
+            "candidates": [
+              {
+                "product_id": "mola-meg004-topography",
+                "observed_fraction": 1.0,
+                "support_fraction": 1.0,
+                "native_spacing_m": 14817.845349431858,
+                "effective_scale_m": null,
+                "readiness": "usable",
+                "reasons": []
+              }
+            ],
+            "issues": [],
+            "reason": null
+          }
+        ],
+        "supporting_product_ids": [
+          "mola-meg004-topography"
+        ],
+        "reason": null
+      }
+    ],
+    "supported_fallback_ids": [
+      "coarse_elevation_context"
+    ],
+    "measure": "area_m2",
+    "query_size": 15938808.846014023
+  },
+  "well_studied_control": {
+    "schema_version": 1,
+    "package_id": "jezero-ctx-usgs-archive-checked-window",
+    "package_version": "window-v1",
+    "method_version": "marsdoc-spherical-v1",
+    "limitations": [
+      "Eligibility covers declared evidence only. Apply site-pack quality and numerical model gates.",
+      "Routes use shorter great-circle arcs and a conservatively buffered local corridor."
+    ],
+    "provenance": [
+      {
+        "dataset": {
+          "id": "usgs-jezero-ctx-dem",
+          "mission": "Mars Reconnaissance Orbiter",
+          "instrument": "Context Camera",
+          "modality": "stereo_topography",
+          "product_class": "stereo_dtm",
+          "archive_url": "https://astrogeology.usgs.gov/search/map/mars_2020_science_investigation_ctx_dem_mosaic",
+          "version": "2021-10-14",
+          "catalogue_status": "incomplete"
+        },
+        "product": {
+          "id": "M20_JezeroCrater_CTXDEM_20m:window-r1978-c732",
+          "dataset_id": "usgs-jezero-ctx-dem",
+          "version": "window-v1",
+          "source_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/ScienceInvestigationMaps_JPL/M20_JezeroCrater_CTXDEM_20m.tif",
+          "source_crs": {
+            "body": "Mars",
+            "frame": "Mars 2000",
+            "definition": "PROJCS[\"Jezero_Crater_Projection\",GEOGCS[\"GCS_Mars_2000_Sphere\",DATUM[\"Mars_2000_(Sphere)\",SPHEROID[\"Mars_2000_Sphere\",3396190,0]],PRIMEM[\"Reference_Meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Equirectangular\"],PARAMETER[\"standard_parallel_1\",18.4663],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+            "latitude_type": null,
+            "longitude_direction": null,
+            "longitude_domain": null,
+            "equatorial_radius_m": 3396190.0,
+            "polar_radius_m": 3396190.0
+          },
+          "processing_level": "derived_stereo_dem",
+          "readiness": "usable",
+          "observation_extent_complete": false,
+          "support_extent_complete": true,
+          "variables": [
+            "elevation"
+          ],
+          "native_spacing_m": 20.0,
+          "effective_scale_m": null,
+          "acquisition": null,
+          "compatibility_key": null,
+          "provenance": [
+            "sha256 little-endian float32 source window: 020df24a32a2ab472db7c9ddb2538073130916308edcfb6830fe22d08c3e8903",
+            "sha256 prepared jezero.json: c19aa33379f5b588d9097ba591ccdeabc5ebedf92b740ade5875e7e7e24addc8",
+            "Verified source window [row 1978, col 732], 1024\u00d71024, zero masked pixels."
+          ],
+          "limitations": [
+            "Verified native sampling only. Effective feature scale and tactical slope support are unset.",
+            "Subset of the Jezero DEM. Catalogue coverage beyond the verified window remains unknown."
+          ]
+        },
+        "footprints": [
+          {
+            "id": "jezero-ctx-window-support",
+            "product_id": "M20_JezeroCrater_CTXDEM_20m:window-r1978-c732",
+            "source_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/ScienceInvestigationMaps_JPL/M20_JezeroCrater_CTXDEM_20m.tif",
+            "status": "canonical_verified",
+            "coverage_kind": "usable_support",
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    77.25818606292017,
+                    18.277613303282074
+                  ],
+                  [
+                    77.28090822181275,
+                    18.277613303282074
+                  ],
+                  [
+                    77.30363038070536,
+                    18.277613303282074
+                  ],
+                  [
+                    77.32635253959793,
+                    18.277613303282074
+                  ],
+                  [
+                    77.34907469849053,
+                    18.277613303282074
+                  ],
+                  [
+                    77.3717968573831,
+                    18.277613303282074
+                  ],
+                  [
+                    77.3945190162757,
+                    18.277613303282074
+                  ],
+                  [
+                    77.41724117516829,
+                    18.277613303282074
+                  ],
+                  [
+                    77.43996333406086,
+                    18.277613303282074
+                  ],
+                  [
+                    77.46268549295347,
+                    18.277613303282074
+                  ],
+                  [
+                    77.48540765184605,
+                    18.277613303282074
+                  ],
+                  [
+                    77.50812981073864,
+                    18.277613303282074
+                  ],
+                  [
+                    77.53085196963123,
+                    18.277613303282074
+                  ],
+                  [
+                    77.55357412852382,
+                    18.277613303282074
+                  ],
+                  [
+                    77.5762962874164,
+                    18.277613303282074
+                  ],
+                  [
+                    77.599018446309,
+                    18.277613303282074
+                  ],
+                  [
+                    77.62174060520158,
+                    18.277613303282074
+                  ],
+                  [
+                    77.62174060520158,
+                    18.299165500988316
+                  ],
+                  [
+                    77.62174060520158,
+                    18.32071769869456
+                  ],
+                  [
+                    77.62174060520158,
+                    18.342269896400797
+                  ],
+                  [
+                    77.62174060520158,
+                    18.363822094107043
+                  ],
+                  [
+                    77.62174060520158,
+                    18.385374291813285
+                  ],
+                  [
+                    77.62174060520158,
+                    18.406926489519524
+                  ],
+                  [
+                    77.62174060520158,
+                    18.42847868722577
+                  ],
+                  [
+                    77.62174060520158,
+                    18.450030884932012
+                  ],
+                  [
+                    77.62174060520158,
+                    18.47158308263825
+                  ],
+                  [
+                    77.62174060520158,
+                    18.493135280344497
+                  ],
+                  [
+                    77.62174060520158,
+                    18.51468747805074
+                  ],
+                  [
+                    77.62174060520158,
+                    18.536239675756978
+                  ],
+                  [
+                    77.62174060520158,
+                    18.557791873463223
+                  ],
+                  [
+                    77.62174060520158,
+                    18.579344071169462
+                  ],
+                  [
+                    77.62174060520158,
+                    18.600896268875704
+                  ],
+                  [
+                    77.62174060520158,
+                    18.62244846658195
+                  ],
+                  [
+                    77.599018446309,
+                    18.62244846658195
+                  ],
+                  [
+                    77.5762962874164,
+                    18.62244846658195
+                  ],
+                  [
+                    77.55357412852382,
+                    18.62244846658195
+                  ],
+                  [
+                    77.53085196963123,
+                    18.62244846658195
+                  ],
+                  [
+                    77.50812981073864,
+                    18.62244846658195
+                  ],
+                  [
+                    77.48540765184605,
+                    18.62244846658195
+                  ],
+                  [
+                    77.46268549295347,
+                    18.62244846658195
+                  ],
+                  [
+                    77.43996333406086,
+                    18.62244846658195
+                  ],
+                  [
+                    77.41724117516829,
+                    18.62244846658195
+                  ],
+                  [
+                    77.3945190162757,
+                    18.62244846658195
+                  ],
+                  [
+                    77.3717968573831,
+                    18.62244846658195
+                  ],
+                  [
+                    77.34907469849053,
+                    18.62244846658195
+                  ],
+                  [
+                    77.32635253959793,
+                    18.62244846658195
+                  ],
+                  [
+                    77.30363038070536,
+                    18.62244846658195
+                  ],
+                  [
+                    77.28090822181275,
+                    18.62244846658195
+                  ],
+                  [
+                    77.25818606292017,
+                    18.62244846658195
+                  ],
+                  [
+                    77.25818606292017,
+                    18.600896268875704
+                  ],
+                  [
+                    77.25818606292017,
+                    18.579344071169462
+                  ],
+                  [
+                    77.25818606292017,
+                    18.557791873463223
+                  ],
+                  [
+                    77.25818606292017,
+                    18.536239675756978
+                  ],
+                  [
+                    77.25818606292017,
+                    18.51468747805074
+                  ],
+                  [
+                    77.25818606292017,
+                    18.493135280344497
+                  ],
+                  [
+                    77.25818606292017,
+                    18.47158308263825
+                  ],
+                  [
+                    77.25818606292017,
+                    18.450030884932012
+                  ],
+                  [
+                    77.25818606292017,
+                    18.42847868722577
+                  ],
+                  [
+                    77.25818606292017,
+                    18.406926489519524
+                  ],
+                  [
+                    77.25818606292017,
+                    18.385374291813285
+                  ],
+                  [
+                    77.25818606292017,
+                    18.363822094107043
+                  ],
+                  [
+                    77.25818606292017,
+                    18.342269896400797
+                  ],
+                  [
+                    77.25818606292017,
+                    18.32071769869456
+                  ],
+                  [
+                    77.25818606292017,
+                    18.299165500988316
+                  ],
+                  [
+                    77.25818606292017,
+                    18.277613303282074
+                  ]
+                ]
+              ]
+            },
+            "transform": "USGS GeoTIFF WKT inverse to Mars 2000 spherical geographic lon/lat. Native rectangle inset 20 m and densified before inverse transform.",
+            "note": "Whole prepared window compared with the authoritative raster and mask. Polygon represents inset valid elevation support only."
+          }
+        ]
+      }
+    ],
+    "query": {
+      "schema_version": 1,
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.41442646,
+              18.4262569
+            ],
+            [
+              77.48557354,
+              18.4262569
+            ],
+            [
+              77.48557354,
+              18.4937431
+            ],
+            [
+              77.41442646,
+              18.4937431
+            ],
+            [
+              77.41442646,
+              18.4262569
+            ]
+          ]
+        ]
+      },
+      "corridor_width_m": null,
+      "requested": {
+        "id": "local_elevation_20m",
+        "requirements": [
+          {
+            "variable": "elevation",
+            "product_classes": [
+              "stereo_dtm"
+            ],
+            "modalities": [],
+            "processing_levels": [],
+            "max_native_spacing_m": 20.0,
+            "max_effective_scale_m": null,
+            "acquisition_window": null
+          }
+        ]
+      },
+      "fallbacks": [
+        {
+          "id": "coarse_elevation_context",
+          "requirements": [
+            {
+              "variable": "elevation",
+              "product_classes": [
+                "laser_altimetry_grid"
+              ],
+              "modalities": [],
+              "processing_levels": [],
+              "max_native_spacing_m": 15000.0,
+              "max_effective_scale_m": null,
+              "acquisition_window": null
+            }
+          ]
+        }
+      ]
+    },
+    "requested": {
+      "id": "local_elevation_20m",
+      "eligible": true,
+      "variables": [
+        {
+          "variable": "elevation",
+          "qualified_fraction": 1.0,
+          "covered_by_single_product": true,
+          "candidates": [
+            {
+              "product_id": "M20_JezeroCrater_CTXDEM_20m:window-r1978-c732",
+              "observed_fraction": 1.0,
+              "support_fraction": 1.0,
+              "native_spacing_m": 20.0,
+              "effective_scale_m": null,
+              "readiness": "usable",
+              "reasons": []
+            }
+          ],
+          "issues": [],
+          "reason": null
+        }
+      ],
+      "supporting_product_ids": [
+        "M20_JezeroCrater_CTXDEM_20m:window-r1978-c732"
+      ],
+      "reason": null
+    },
+    "fallbacks": [
+      {
+        "id": "coarse_elevation_context",
+        "eligible": false,
+        "variables": [
+          {
+            "variable": "elevation",
+            "qualified_fraction": 0.0,
+            "covered_by_single_product": false,
+            "candidates": [],
+            "issues": [],
+            "reason": "no_relevant_product_supplied"
+          }
+        ],
+        "supporting_product_ids": [],
+        "reason": "requirements_unsatisfied"
+      }
+    ],
+    "supported_fallback_ids": [],
+    "measure": "area_m2",
+    "query_size": 15938813.70423317
+  }
+}

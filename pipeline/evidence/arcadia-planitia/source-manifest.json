@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "id": "mola-meg004-topography",
+      "version": "1.1",
+      "kind": "source_backed",
+      "recipe_id": "arcadia-mola-native-crop",
+      "attribution": "MGS MOLA Team; David E. Smith, Goddard Space Flight Center; NASA PDS MGS MOLA Topography Derived bundle",
+      "native_spacing_m": 14817.845349431858,
+      "effective_scale_m": null,
+      "limitations": [
+        "Regional topography context only. No independently qualified feature scale."
+      ],
+      "url": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megt90n000cb.img",
+      "source_sha256": "25f16fb7aaf857898dcf98bc4f841341a24f8b9f7e98453ca083bc45d897ca2c",
+      "window_sha256": "0ef3e689be43aad465ccd3e387ca21777d3908651c4146e3b2d42f90ff5e5e1e",
+      "native_crs_wkt": "PROJCRS[\"Equirectangular Mars\",BASEGEOGCRS[\"GCS_Mars\",DATUM[\"D_Mars\",ELLIPSOID[\"Mars\",3396000,0,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Reference_Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433,ID[\"EPSG\",9122]]]],CONVERSION[\"unnamed\",METHOD[\"Equidistant Cylindrical (Spherical)\",ID[\"EPSG\",1029]],PARAMETER[\"Latitude of 1st standard parallel\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8823]],PARAMETER[\"Longitude of natural origin\",180,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"Metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"Metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"easting\",east,ORDER[1],LENGTHUNIT[\"Metre\",1]],AXIS[\"northing\",north,ORDER[2],LENGTHUNIT[\"Metre\",1]]]",
+      "vertical_reference": "MOLA topography: planetary radius minus the GMM3 mgm1025 degree/order 50 areoid, per product label",
+      "transform_policy": "Reindex 0–360 degrees to signed longitude without interpolation, then select native cells."
+    }
+  ]
+}

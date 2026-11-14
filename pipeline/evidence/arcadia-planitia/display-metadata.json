@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "region_id": "03",
+  "name": "Arcadia Planitia",
+  "center_lon_lat_deg": [
+    -171.85,
+    49.02
+  ],
+  "aoi_bounds_wsen_deg": [
+    -171.90145369,
+    48.9862569,
+    -171.79854631,
+    49.0537431
+  ],
+  "display_bounds_wsen_deg": [
+    -173.25,
+    47.75,
+    -170.5,
+    50.5
+  ],
+  "native_crop_affine": [
+    0.25,
+    0.0,
+    -173.25,
+    0.0,
+    -0.25,
+    50.5
+  ],
+  "crs_wkt": "GEOGCRS[\"GCS_Mars\",DATUM[\"D_Mars\",ELLIPSOID[\"Mars\",3396000,0,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Reference_Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433,ID[\"EPSG\",9122]]],CS[ellipsoidal,2],AXIS[\"latitude\",north,ORDER[1],ANGLEUNIT[\"degree\",0.0174532925199433,ID[\"EPSG\",9122]]],AXIS[\"longitude\",east,ORDER[2],ANGLEUNIT[\"degree\",0.0174532925199433,ID[\"EPSG\",9122]]]]",
+  "native_shape": [
+    11,
+    11
+  ],
+  "raw_encoding": "little-endian int16, row major, metres",
+  "mask": "all 121 elevation and observation-count cells are valid",
+  "display_rule": "black to white over cropped elevation range, 48x nearest-neighbor enlargement for viewing",
+  "display_range_m": [
+    -4087,
+    -4025
+  ],
+  "center_elevation_m": -4036,
+  "center_observation_count": 555,
+  "attribution": "MGS MOLA Team; David E. Smith, Goddard Space Flight Center; NASA PDS MGS MOLA Topography Derived bundle"
+}

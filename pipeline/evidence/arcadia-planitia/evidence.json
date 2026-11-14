@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "package_id": "arcadia-mola-context",
+  "version": "0.1.0",
+  "datasets": [
+    {
+      "id": "mgs-mola-megdr",
+      "mission": "Mars Global Surveyor",
+      "instrument": "MOLA",
+      "modality": "baseline_topography",
+      "product_class": "laser_altimetry_grid",
+      "archive_url": "https://pds-geosciences.wustl.edu/missions/mgs/megdr.html",
+      "version": "1.1",
+      "catalogue_status": "incomplete"
+    }
+  ],
+  "products": [
+    {
+      "id": "mola-meg004-topography",
+      "dataset_id": "mgs-mola-megdr",
+      "version": "1.1",
+      "source_url": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megt90n000cb.img",
+      "processing_level": "gridded_altimetry",
+      "readiness": "usable",
+      "source_crs": {
+        "body": "Mars",
+        "frame": "IAU2000_MARS, as declared in the PDS4 product label",
+        "definition": "PROJCRS[\"Equirectangular Mars\",BASEGEOGCRS[\"GCS_Mars\",DATUM[\"D_Mars\",ELLIPSOID[\"Mars\",3396000,0,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Reference_Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433,ID[\"EPSG\",9122]]]],CONVERSION[\"unnamed\",METHOD[\"Equidistant Cylindrical (Spherical)\",ID[\"EPSG\",1029]],PARAMETER[\"Latitude of 1st standard parallel\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8823]],PARAMETER[\"Longitude of natural origin\",180,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"Metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"Metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"easting\",east,ORDER[1],LENGTHUNIT[\"Metre\",1]],AXIS[\"northing\",north,ORDER[2],LENGTHUNIT[\"Metre\",1]]]",
+        "latitude_type": "planetocentric",
+        "longitude_direction": "east",
+        "longitude_domain": "signed",
+        "equatorial_radius_m": 3396000.0,
+        "polar_radius_m": 3396000.0
+      },
+      "variables": [
+        "elevation"
+      ],
+      "native_spacing_m": 14817.845349431858,
+      "effective_scale_m": null,
+      "provenance": [
+        "MOLA archive raster SHA-256: 25f16fb7aaf857898dcf98bc4f841341a24f8b9f7e98453ca083bc45d897ca2c",
+        "Source bundle SHA-256: a845aec8791ba95375d1cecec5b8f6de9f07e2c227bdaf2aec66c8bbf29b9136",
+        "Verified source registry SHA-256: f2e47a2110f8d672633c8d4e67efafc45d3a1a97a2c81193eb01114280269b92",
+        "Verified atlas elevation SHA-256: 73faec5ca5a3dce0f3808c70f80f409e9923d81730b1b966825303a480101e4d",
+        "Exact local display grid SHA-256: 0ef3e689be43aad465ccd3e387ca21777d3908651c4146e3b2d42f90ff5e5e1e"
+      ],
+      "limitations": [
+        "Native angular spacing is 0.25 degrees. The metre value is equatorial nominal posting.",
+        "Valid elevation can include interpolated cells. No effective feature scale is qualified.",
+        "The evidence covers regional elevation context only."
+      ]
+    }
+  ],
+  "footprints": [
+    {
+      "id": "arcadia-mola-local-elevation-support",
+      "product_id": "mola-meg004-topography",
+      "source_url": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megt90n000cb.img",
+      "status": "canonical_verified",
+      "coverage_kind": "usable_support",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -171.90145369,
+              48.9862569
+            ],
+            [
+              -171.79854631,
+              48.9862569
+            ],
+            [
+              -171.79854631,
+              49.0537431
+            ],
+            [
+              -171.90145369,
+              49.0537431
+            ],
+            [
+              -171.90145369,
+              48.9862569
+            ]
+          ]
+        ]
+      },
+      "transform": "Canonical planetocentric/east-positive atlas grid. Window selected by the catalog point. Every elevation cell covering the AOI was checked valid; the AOI is inside the display window.",
+      "note": "Bounded claim for elevation context. Aggregate count values are retained separately."
+    }
+  ]
+}

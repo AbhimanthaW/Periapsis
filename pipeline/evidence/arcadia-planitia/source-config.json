@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "asset_id": "mola-meg004-topography",
+  "source_version": "1.1",
+  "role": "elevation",
+  "provider": "NASA PDS Geosciences Node, Washington University in St. Louis",
+  "attribution": "MGS MOLA Team; David E. Smith, Goddard Space Flight Center; NASA PDS MGS MOLA Topography Derived bundle",
+  "access_rights": "Public archive access; retain source attribution and product documentation",
+  "entrypoint": "megt90n000cb.xml",
+  "pds4_label": "megt90n000cb.xml",
+  "expected_lid": "urn:nasa:pds:mgs_mola_topography_derived:data_meg004:megt90n000cb",
+  "support_entrypoint": "megc90n000cb.xml",
+  "support_expected_lid": "urn:nasa:pds:mgs_mola_topography_derived:data_meg004:megc90n000cb",
+  "support_expected_version": "1.1",
+  "max_member_bytes": 16777216,
+  "reference": {
+    "body": "Mars",
+    "semi_major_m": 3396000.0,
+    "semi_minor_m": 3396000.0,
+    "latitude_type": "planetocentric",
+    "longitude_direction": "east",
+    "longitude_domain": "0_360",
+    "frame": "IAU2000_MARS, as declared in the PDS4 product label",
+    "vertical_unit": "m",
+    "vertical_reference": "MOLA topography: planetary radius minus the GMM3 mgm1025 degree/order 50 areoid, per product label"
+  },
+  "members": [
+    {"name": "megt90n000cb.xml", "uri": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megt90n000cb.xml", "expected_sha256": "e3982cb17458a9d59896b0c21e0485322ccc42f8e6089d9d856a62032775b60b"},
+    {"name": "megt90n000cb.img", "uri": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megt90n000cb.img", "expected_sha256": "25f16fb7aaf857898dcf98bc4f841341a24f8b9f7e98453ca083bc45d897ca2c"},
+    {"name": "megt90n000cb.lbl", "uri": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megt90n000cb.lbl", "expected_sha256": "5a3fe60256afa1c35fea5d551fe0ab0a9198fb2bcd2c2e161d078aa69627ebac"},
+    {"name": "megt90n000cb.hdr", "uri": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megt90n000cb.hdr", "expected_sha256": "0e6bfd34a93f2f4cee6a44be8a39bc4968cbcc3ae06a6d69fb6cbe17ab7665df"},
+    {"name": "megc90n000cb.xml", "uri": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megc90n000cb.xml", "expected_sha256": "32b1df151884c2a212ed108e9e1c75eff8fb4b084ba17bf37338a8b72bba5a57"},
+    {"name": "megc90n000cb.img", "uri": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megc90n000cb.img", "expected_sha256": "7e920ec43497b4beddf974650471600c7afd4916e2a8dd3500d6b14714365661"},
+    {"name": "megc90n000cb.lbl", "uri": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megc90n000cb.lbl", "expected_sha256": "487004de9598296dc910b814ee8a256e7755abed7ade9f1180743208eccb8476"},
+    {"name": "megc90n000cb.hdr", "uri": "https://pds-geosciences.wustl.edu/mgs/urn-nasa-pds-mgs_mola_topography_derived/meg004/megc90n000cb.hdr", "expected_sha256": "0e6bfd34a93f2f4cee6a44be8a39bc4968cbcc3ae06a6d69fb6cbe17ab7665df"}
+  ],
+  "limitations": "Whole-Mars coarse 4-pixel/degree elevation context. Finite topography includes interpolated cells; observation counts are preserved separately. This source does not establish detailed regional routing support. The PDS4 label version is distinct from the original PDS3 product version."
+}
