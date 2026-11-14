@@ -6,7 +6,7 @@
 
 This replaces the earlier 200k plan, which assumed text records. Parser, tiers and never-summed criteria carry over from the [design](README.md).
 
-[Concept decisions](cell-concepts-v1-draft.json) · [Profile scripts](cell-profile/)
+[Build plan](BUILD-PLAN.md) · [Concept decisions](cell-concepts-v1-draft.json) · [Profile scripts](cell-profile/)
 
 ## What the records contain
 
