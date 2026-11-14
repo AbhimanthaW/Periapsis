@@ -4,13 +4,50 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import os
 import re
+import tempfile
+from contextlib import nullcontext
 from pathlib import Path
 
 import numpy as np
 
 from .inputs import N
 from .ledger import load
+
+
+CACHE_RULE_VERSION = "ranking-layers-v3"
+
+
+def _cache_key(directory: Path, layer: str, sources: tuple[str, ...], parameters: dict) -> str:
+    receipt = {"layer": layer, "rules": CACHE_RULE_VERSION,
+               "ledger": hashlib.sha256(Path(__file__).with_name("concepts.json").read_bytes()).hexdigest(),
+               "sources": {name: hashlib.sha256((directory / name).read_bytes()).hexdigest() for name in sources},
+               "parameters": parameters}
+    return hashlib.sha256(json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _load_cache(root: Path, layer: str, key: str) -> dict | None:
+    path = root / f"{layer}-{key}.npz"
+    if not path.exists():
+        return None
+    try:
+        with np.load(path, allow_pickle=False) as stored:
+            return {name: stored[name] for name in stored.files}
+    except (OSError, ValueError):
+        return None
+
+
+def _save_cache(root: Path, layer: str, key: str, **arrays):
+    root.mkdir(parents=True, exist_ok=True)
+    target = root / f"{layer}-{key}.npz"
+    with tempfile.NamedTemporaryFile(dir=root, suffix=".npz", delete=False) as stream:
+        temporary = Path(stream.name)
+        np.savez_compressed(stream, **arrays)
+    try:
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def quant(value: float) -> int:
@@ -25,6 +62,20 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
                    ice_max: float = 0.5, rocky_lo: float = 350, rocky_hi: float = 500,
                    structure_max: float = 10, bounds_max: float = 0.5):
     concepts = load()
+    cache_root = directory.parent / "ranking-layer-cache"
+    keys = {
+        "base": _cache_key(directory, "base", ("cells-enriched.ndjson.gz",),
+                           {"ice_max": ice_max, "rocky_lo": rocky_lo, "rocky_hi": rocky_hi}),
+        "catalogue": _cache_key(directory, "catalogue",
+                                ("cell-ranking.ndjson.gz", "ranking-features.json.gz"),
+                                {"structure_max": structure_max, "bounds_max": bounds_max}),
+    }
+    if with_demo:
+        from marsdoc import synthetic_science
+        keys["demo"] = _cache_key(directory, "demo", ("cells-enriched.ndjson.gz",),
+                                  {"seed": 20261114, "fixture": "synthetic-science-v1",
+                                   "fixture_code_sha256": hashlib.sha256(
+                                       Path(synthetic_science.__file__).read_bytes()).hexdigest()})
     ids = {item["id"]: i for i, item in enumerate(concepts)}
     shape = (len(ids), N)
     real = np.zeros(shape, dtype=np.uint8)
@@ -33,6 +84,11 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
     demo = np.zeros(shape, dtype=np.uint8)
     demo_covered = np.zeros(shape, dtype=np.bool_)
     demo_receipt = {"synthetic": True, "seed": 20261114}
+    demo_cache = _load_cache(cache_root, "demo", keys["demo"]) if with_demo else None
+    if demo_cache is not None:
+        demo[:] = demo_cache["support"]
+        demo_covered[:] = demo_cache["covered"]
+        demo_receipt = json.loads(str(demo_cache["receipt"].item()))
     filters = {name: np.zeros(N, dtype=np.bool_) for name in
                ("polar", "volcanic", "sparse", "sample-rock", "investigate-ice", "remote-survey")}
     records = np.zeros((N, 4), dtype=np.uint16)
@@ -43,13 +99,27 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
         for key, values in json.load(stream).items():
             feature_ids[key] = {value["id"]: value for value in values}
 
+    target_real, target_covered, target_reported = real, covered, reported
+
     def put(cid, i, value=1.0, *, observed=True):
         j = ids[cid]
-        real[j, i] = max(int(real[j, i]), quant(value))
-        covered[j, i] = observed
-        reported[j, i] = value > 0
+        target_real[j, i] = max(int(target_real[j, i]), quant(value))
+        target_covered[j, i] = observed
+        target_reported[j, i] = value > 0
 
-    with gzip.open(directory / "cells-enriched.ndjson.gz", "rt", encoding="utf-8") as stream:
+    base_cache = _load_cache(cache_root, "base", keys["base"])
+    if base_cache is not None:
+        real[:] = base_cache["support"]
+        covered[:] = base_cache["covered"]
+        reported[:] = base_cache["reported"]
+        records[:] = base_cache["records"]
+        latitudes[:] = base_cache["latitudes"]
+        unit_ages[:] = base_cache["unit_ages"]
+        for name in filters:
+            filters[name][:] = base_cache[f"filter_{name}"]
+    source = (gzip.open(directory / "cells-enriched.ndjson.gz", "rt", encoding="utf-8")
+              if base_cache is None else nullcontext(()))
+    with source as stream:
         for i, line in enumerate(stream):
             row = json.loads(line)
             science = row["science_at_centroid"]
@@ -114,7 +184,15 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
                     len(science["crism_mtrdr_product_ids"]))):
                 records[i, k] = min(65535, int(value or 0))
 
+    if base_cache is None:
+        _save_cache(cache_root, "base", keys["base"], support=real, covered=covered,
+                    reported=reported, records=records, latitudes=latitudes, unit_ages=unit_ages,
+                    **{f"filter_{name}": value for name, value in filters.items()})
     record_counts = dict(zip(ids, ((real >= 128) & covered).sum(axis=1).tolist()))
+    catalogue_real = np.zeros_like(real)
+    catalogue_covered = np.zeros_like(covered)
+    catalogue_reported = np.zeros_like(reported)
+    target_real, target_covered, target_reported = catalogue_real, catalogue_covered, catalogue_reported
 
     point_map = {"lake": "paleolakes", "chlorides": "chlorides",
                  "hydrated-minerals": "hydrated_mineral_sites", "dunes": "dunes",
@@ -129,7 +207,14 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
              "caldera": [("Volcanic", "Caldera rim")], "crater-rim": [("Impact", "Crater rim")],
              "yardang": [("Eolian", "Yardangs")]}
     bounds = {"CH": "chaos", "CM": "canyon", "FO": "graben", "LB": "canyon", "UN": "dunes"}
-    with gzip.open(directory / "cell-ranking.ndjson.gz", "rt", encoding="utf-8") as stream:
+    catalogue_cache = _load_cache(cache_root, "catalogue", keys["catalogue"])
+    if catalogue_cache is not None:
+        catalogue_real[:] = catalogue_cache["support"]
+        catalogue_covered[:] = catalogue_cache["covered"]
+        catalogue_reported[:] = catalogue_cache["reported"]
+    source = (gzip.open(directory / "cell-ranking.ndjson.gz", "rt", encoding="utf-8")
+              if catalogue_cache is None else nullcontext(()))
+    with source as stream:
         for i, line in enumerate(stream):
             evidence = json.loads(line)["evidence"]
             for cid, key in point_map.items():
@@ -151,7 +236,14 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
                 if cid:
                     put(cid, i, ramp(float(fraction), 0, bounds_max))
 
-    if with_demo:
+    if catalogue_cache is None:
+        _save_cache(cache_root, "catalogue", keys["catalogue"], support=catalogue_real,
+                    covered=catalogue_covered, reported=catalogue_reported)
+    real = np.maximum(real, catalogue_real)
+    covered |= catalogue_covered
+    reported |= catalogue_reported
+
+    if with_demo and demo_cache is None:
         # Fixed seed and fixed geographic centres. These are software fixtures,
         # never observations. Restriction to unit ages is for visual plausibility.
         rng = np.random.default_rng(20261114)
@@ -164,6 +256,23 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
                 longitudes[i] = json.loads(line)["longitude_deg_east"]
         lon = np.deg2rad(longitudes.astype(np.float64))
         lat = np.deg2rad(latitudes.astype(np.float64))
+        # Additional fixed-seed delta controls make the headline DEMO objective
+        # large enough to exercise a top-20 rank. They are synthetic locations,
+        # selected from mapped old terrain only for a plausible software test.
+        old = np.flatnonzero(unit_ages[:, 0] & (np.abs(latitudes) < 55))
+        for index in rng.permutation(old):
+            point = (float(longitudes[index]), float(latitudes[index]))
+            separation = [3389.5 * np.arccos(np.clip(
+                np.sin(lat[index]) * np.sin(np.deg2rad(y))
+                + np.cos(lat[index]) * np.cos(np.deg2rad(y)) * np.cos(lon[index] - np.deg2rad(x)),
+                -1, 1)) for x, y in controls["delta"]]
+            if min(separation) >= 500:
+                controls["delta"].append(point)
+            if len(controls["delta"]) == 8:
+                break
+        if len(controls["delta"]) != 8:
+            raise ValueError("unable to place the fixed-seed DEMO delta controls")
+        demo_receipt["delta_controls"] = controls["delta"]
         for k, item in enumerate(x for x in concepts if x["status"] == "demo"):
             distance = np.full(N, np.inf)
             for c_lon, c_lat in controls.get(item["id"], [centres[k]]):
@@ -210,4 +319,7 @@ def compile_layers(directory: Path, with_demo: bool = False, *,
                 j = ids[cid]
                 demo[j, index] = max(int(demo[j, index]), quant(value))
                 demo_covered[j, index] = True
-    return concepts, real, covered, reported, demo, demo_covered, filters, records, record_counts, demo_receipt
+    if with_demo and demo_cache is None:
+        _save_cache(cache_root, "demo", keys["demo"], support=demo, covered=demo_covered,
+                    receipt=np.asarray(json.dumps(demo_receipt, sort_keys=True)))
+    return concepts, real, covered, reported, demo, demo_covered, filters, records, record_counts, demo_receipt, keys

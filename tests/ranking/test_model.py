@@ -2,7 +2,7 @@
 import base64
 from concurrent.futures import ThreadPoolExecutor
 import json
-import sqlite3
+import shutil
 from pathlib import Path
 import threading
 import urllib.error
@@ -11,7 +11,7 @@ import urllib.request
 import numpy as np
 import pytest
 
-from ranking.build import build, propagate
+from ranking.build import build, compile_ranking, propagate
 from ranking.engine import Engine, groups
 from ranking.lexicon import Parser
 from ranking.pack import Pack
@@ -58,6 +58,7 @@ def test_known_lake_and_coverage(service, demo_service):
     detail = service.detail("HPX128:24")
     assert detail["record"]["sourced_catalogue_context"]["paleolakes"] == ["OBL-185"]
     assert detail["concepts"]["lake"]["state"] == "Present"
+    assert service.detail("HPX128:196607")["record"]["cell_id"] == "HPX128:196607"
     engine = service.engine
     lake = engine.ids["lake"]
     coverage = np.unpackbits(engine.pack["covered"][lake], count=196608)
@@ -68,6 +69,8 @@ def test_known_lake_and_coverage(service, demo_service):
         coverage = np.unpackbits(pack[bits], axis=1, count=196608).astype(bool)
         assert not np.any((pack[matrix] > 0) & ~coverage)
         assert "cells.sqlite" in pack.manifest["files"]
+        assert isinstance(pack[matrix], np.memmap)
+        assert sum(path.stat().st_size for path in pack.directory.iterdir()) < 20_000_000
 
     assert not engine.pack.manifest["synthetic_layers"]
     expected = {
@@ -153,15 +156,13 @@ def test_real_arcadia_ice_and_cerberus_graben(service):
     lon, lat = Grid(128).centroids(np.arange(196608)).T
     arcadia = (lon >= 165.8) & (lon <= 210.4) & (lat >= 33.9) & (lat <= 64.2)
     assert np.any(arcadia & (engine.pack["support"][engine.ids["ice-shallow"]] >= 128))
-    with sqlite3.connect(engine.database, uri=True) as db:
-        records = db.execute("SELECT nested_index, evidence FROM catalogue")
-        assert any(
-            engine.pack["support"][engine.ids["graben"], index] >= 128
-            and any(engine.features["structures"][fid]["interpretation"] == "Graben axis"
-                    for fid in json.loads(evidence).get("structures", {}))
-            for index, evidence in records
-            if 157 <= lon[index] <= 174 and 6 <= lat[index] <= 12
-        )
+    assert any(
+        engine.pack["support"][engine.ids["graben"], index] >= 128
+        and any(engine.features["structures"][fid]["interpretation"] == "Graben axis"
+                for fid in evidence.get("structures", {}))
+        for index, evidence in engine.catalogue.items()
+        if 157 <= lon[index] <= 174 and 6 <= lat[index] <= 12
+    )
 
 
 def test_cache_isolates_parse_and_limit(service):
@@ -200,12 +201,44 @@ def test_pack_rejects_missing_or_changed_detail_store(service, tmp_path):
     original = service.engine.pack.directory
     for path in original.iterdir():
         if path.name != "cells.sqlite":
-            (tmp_path / path.name).symlink_to(path.resolve())
+            shutil.copy2(path, tmp_path / path.name)
     with pytest.raises(FileNotFoundError):
         Pack(tmp_path)
     (tmp_path / "cells.sqlite").write_text("different detail store")
     with pytest.raises(ValueError, match="cells.sqlite failed SHA-256"):
         Pack(tmp_path)
+    shutil.copy2(original / "cells.sqlite", tmp_path / "cells.sqlite")
+    (tmp_path / "catalogue-context.json.gz").write_text("different catalogue")
+    with pytest.raises(ValueError, match="catalogue-context.json.gz failed SHA-256"):
+        Pack(tmp_path)
+
+
+def test_layer_cache_isolates_structure_threshold():
+    inputs = Path("data/ranking-inputs")
+    baseline, baseline_meta = compile_ranking(inputs, False)
+    changed, changed_meta = compile_ranking(inputs, False, structure_max=8)
+    first = baseline_meta["layer_cache_keys"]
+    second = changed_meta["layer_cache_keys"]
+    assert first["base"] == second["base"]
+    assert first["catalogue"] != second["catalogue"]
+    assert (inputs.parent / "ranking-layer-cache" / f"base-{first['base']}.npz").exists()
+    assert (inputs.parent / "ranking-layer-cache" / f"catalogue-{second['catalogue']}.npz").exists()
+    ice = baseline_meta["concept_order"].index("ice")
+    graben = baseline_meta["concept_order"].index("graben")
+    assert np.array_equal(baseline["support"][ice], changed["support"][ice])
+    assert np.any(baseline["support"][graben] != changed["support"][graben])
+
+
+@pytest.mark.parametrize("with_demo", [False, True], ids=["release", "demo"])
+def test_rebuild_determinism(tmp_path, with_demo):
+    inputs = Path("data/ranking-inputs")
+    if not inputs.exists():
+        pytest.skip("Pinned release assets are required")
+    first, second = tmp_path / "first", tmp_path / "second"
+    build(inputs, first, with_demo=with_demo, release=not with_demo)
+    build(inputs, second, with_demo=with_demo, release=not with_demo)
+    assert (first / "manifest.json").read_bytes() == (second / "manifest.json").read_bytes()
+    assert Pack(first).manifest["files"] == Pack(second).manifest["files"]
 
 
 @pytest.mark.parametrize("density", [0.01, 0.15, 0.50, 0.85, 1.0])
@@ -273,5 +306,6 @@ def test_top_golden_area_order(demo_service):
 
     expected = json.loads(Path(__file__).with_name("golden_areas.json").read_text())
     actual = top_areas(demo_service.engine)
+    assert all(len(matches) == 20 for matches in actual.values())
     assert {objective: [[tile, cells[0]] for tile, cells in matches]
             for objective, matches in actual.items()} == expected

@@ -49,7 +49,7 @@ def main():
         "score": median_ms(score),
         "states": median_ms(states),
         "tiles": median_ms(lambda: scores.reshape(-1, 16).max(axis=1)),
-        "group": median_ms(lambda: groups(selected, pack["neighbours"], scores, 500)),
+        "group": median_ms(lambda: groups(selected, pack["neighbours"], scores, 500, engine.cross_edges)),
     }
     print({"direct_cells": int(selected.sum()), "ancient_ice_stage_ms": timings})
     objectives = ("ancient ice", "water", "tectonic grabens", "ancient lakes shallow ice lava flow chlorides")

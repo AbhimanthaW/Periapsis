@@ -58,27 +58,29 @@ def propagate(concepts, support, covered):
 
 def detail_store(source: Path, target: Path):
     with closing(sqlite3.connect(target)) as connection, connection:
-        connection.execute("CREATE TABLE cells (nested_index INTEGER PRIMARY KEY, record BLOB NOT NULL)")
-        connection.execute("CREATE TABLE catalogue (nested_index INTEGER PRIMARY KEY, evidence TEXT NOT NULL)")
+        connection.execute("CREATE TABLE blocks (block_id INTEGER PRIMARY KEY, record BLOB NOT NULL)")
+        catalogue = {}
         with gzip.open(source, "rb") as stream:
-            records, catalogue = [], []
+            records = []
             for index, line in enumerate(stream):
-                records.append((index, zlib.compress(line.rstrip(b"\n"), level=6)))
+                records.append(line.rstrip(b"\n"))
                 evidence = json.loads(line)["sourced_catalogue_context"]
                 if evidence:
-                    catalogue.append((index, json.dumps(evidence, sort_keys=True, separators=(",", ":"))))
-                if len(records) == 1000:
-                    connection.executemany("INSERT INTO cells VALUES (?,?)", records)
-                    connection.executemany("INSERT INTO catalogue VALUES (?,?)", catalogue)
+                    catalogue[index] = evidence
+                if len(records) == 1024:
+                    connection.execute("INSERT INTO blocks VALUES (?,?)",
+                                       (index // 1024, zlib.compress(b"\n".join(records), level=6)))
                     records.clear()
-                    catalogue.clear()
-            connection.executemany("INSERT INTO cells VALUES (?,?)", records)
-            connection.executemany("INSERT INTO catalogue VALUES (?,?)", catalogue)
+            if records:
+                connection.execute("INSERT INTO blocks VALUES (?,?)",
+                                   (index // 1024, zlib.compress(b"\n".join(records), level=6)))
+    context = json.dumps(catalogue, sort_keys=True, separators=(",", ":")).encode()
+    target.with_name("catalogue-context.json.gz").write_bytes(gzip.compress(context, compresslevel=9, mtime=0))
 
 
 def compile_ranking(inputs: Path, with_demo: bool, **thresholds):
     (concepts, real, covered, reported, demo, demo_covered, filters, records,
-     record_counts, demo_receipt) = compile_layers(inputs, with_demo, **thresholds)
+     record_counts, demo_receipt, layer_keys) = compile_layers(inputs, with_demo, **thresholds)
     real_covered = covered.copy()
     if with_demo:
         source_support = real.copy()
@@ -103,7 +105,8 @@ def compile_ranking(inputs: Path, with_demo: bool, **thresholds):
     demo_counts = ((combined >= 128) & combined_covered).sum(axis=1)
     demo_idf = np.log1p((N - demo_counts + 0.5) / (demo_counts + 0.5))
     demo_weights = np.rint(demo_idf * np.array([0.35 if item["facet"] == "age" else 1.0 for item in concepts]) * 65536).astype(np.uint32)
-    metadata = {"version": "cell-ranking-v2", "record_concept_counts": record_counts,
+    metadata = {"version": "cell-ranking-v3", "record_concept_counts": record_counts,
+        "layer_cache_keys": layer_keys,
         "synthetic_layers": ([{**demo_receipt, "concepts": [x["id"] for x in concepts if x["status"] == "demo"]}]
                              if with_demo else []),
         "concept_order": [x["id"] for x in concepts],
