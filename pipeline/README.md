@@ -57,3 +57,18 @@ Each candidate contains the global GeoTIFFs, point index, atlas manifest, exact 
 The software versions are producer-reported. For a release handoff, record the builder commit and the SHA-256 of the original `release-manifest.json` separately from the candidate. Pass that trusted lowercase digest to `verify-atlas-release --expected-manifest-sha256 <digest>` in addition to the arguments above to check the exact manifest, including the recorded software versions.
 
 Candidates record browser runtime compatibility (G10) as unevaluated until the Atlas consumes the package offline.
+
+## Dust outlook (MDAD storm masks)
+
+The Explore region panel shows a dust outlook for each region: the historical chance that a mapped dust storm covers the region's 100 km core disc within the next 7 sols, by season, and a model estimate for a quiet week and for a storm in the surrounding 800 km ring. The model is a numpy logistic regression on the seasonal baseline plus current and recent storm coverage. It is validated leave-one-Mars-year-out. The browser shows model values only when pooled Brier skill over the baseline is at least 0.02 and positive in most held-out years; otherwise it shows the baseline and says the model was withheld. The record ends at MY32, so this is not a live forecast.
+
+Source: [MDAD v1.1](https://doi.org/10.5281/zenodo.7480334), MY28–32. Download the five `MYxx.tar.gz` files and extract each into its own folder, for example `MY28/`. Install the extra with `pip install -e ".[dust]"`. Then run from `pipeline/`:
+
+```powershell
+$work = Join-Path $env:TEMP "return-window-dust"
+.\.venv\Scripts\python.exe -m return_window_pipeline.dust inspect "$work\MY29"
+.\.venv\Scripts\python.exe -m return_window_pipeline.dust extract "$work\MY28" "$work\MY29" "$work\MY30" "$work\MY31" "$work\MY32" --regions ..\web\src\atlas\regions.json --output "$work\series"
+.\.venv\Scripts\python.exe -m return_window_pipeline.dust train "$work\series" --artifact ..\web\mission-preview\src\data\dust-outlook.json
+```
+
+`inspect` prints the file layout and scores each candidate grid convention against the storm-outline CSVs. `extract` stops unless one convention clearly wins in every year. Commit `dust-outlook.json` together with `series\dust-series-manifest.json` (input checksums, convention scores) and paste the `train` output (per-year skill) into the PR. Fixture tests: `python -m pytest tests/test_dust_outlook.py`.

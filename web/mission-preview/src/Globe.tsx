@@ -4,6 +4,7 @@ import { ArrowBendDownLeft, Crosshair, Minus, Plus, Stack } from '@phosphor-icon
 import { allRegions, exclusions, isExcluded, methods } from './regions'
 import type { Exclusion, Method, Region } from './regions'
 import { Badge, IconButton, Metrics, rankingHref, regionHref } from './ui'
+import { DustOutlookSection } from './DustOutlook'
 
 interface GlobeProps {
   selected: Region
@@ -112,6 +113,7 @@ function RegionSummary({ region }: { region: Region }) {
         <dt>Terrain model</dt><dd className="caution">none</dd>
       </Metrics>
     </section>
+    <DustOutlookSection key={region.id} regionId={region.id} />
     <div className="summary-actions">
       <a className="button primary" href={regionHref(region.id)}>Investigate</a>
       <a className="button" href={rankingHref}>Compare</a>

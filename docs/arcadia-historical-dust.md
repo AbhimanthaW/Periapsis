@@ -1,5 +1,7 @@
 # Return Window historical dust context
 
+> **Update 15 Nov 2026:** the team approved a validated dust outlook model for the Explore region panel (`pipeline/src/return_window_pipeline/dust/`, see the pipeline README). It ships model values only if it beats the seasonal baseline on held-out Mars years. The historical-count method below remains the fallback and the basis of the baseline.
+
 **GO for a P2 historical context feature after the Arcadia elevation demo passes offline. The weather prediction model remains out of scope.** Yumeth owns extraction, evidence packaging, and the PR. Isath owns placement and wording review. The release owner signs off on the pinned source, release artifact, and offline replay.
 
 This plan targets Arcadia Planitia (`03`) and its existing advisory workflow. It was checked against repository snapshot `a6f4b42435e40bd056a718cbf00876b32f382dfa`, which includes the Marswalk weather feed. Arcadia dust masks have yet to be extracted. No local count, usable-year total, or release readiness is asserted. [Repository snapshot](https://github.com/AbhimanthaW/Periapsis/commit/a6f4b42435e40bd056a718cbf00876b32f382dfa) · [Arcadia handoff](https://github.com/AbhimanthaW/Periapsis/tree/a6f4b42435e40bd056a718cbf00876b32f382dfa/pipeline/evidence/arcadia-planitia)
