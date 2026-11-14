@@ -60,6 +60,12 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run check:data && npm run check:atlas && npm run build
+      - name: Verify mission frontend
+        working-directory: web/mission-preview
+        run: |
+          npm ci
+          npm run build
+          npm run test:sites
 
   science:
     needs: scope

@@ -7,3 +7,5 @@ See [development setup](docs/development.md), [source provenance](docs/source-pr
 The local review branch also provides [mission pack validation](contracts/README.md), an external [Jezero elevation preview](evidence/jezero/README.md), and [offline CLI checks](docs/offline-readiness.md).
 
 The [offline HEALPix cell map](documentation/cell-map/README.md) adds global and regional science context to 196,608 cells. Its build tools and source receipts are versioned with the repository.
+
+The [Return Window mission frontend](web/mission-preview/README.md) includes the 24-state prototype and [visual review gallery](web/mission-preview/qa/gallery.md).

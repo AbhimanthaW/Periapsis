@@ -33,8 +33,27 @@ richer mission option fields describe future solver and UI integration.
 | --- | --- |
 | `GET /healthz` | HTTP 200 with `{"status":"ready"}` after startup validation. |
 | `GET /api/v1/site` | Synthetic pack and scenario IDs, fixed inputs, initial remaining time, predefined closure cells, checkpoint and shelter cells, and grid shape and affine. |
-| `POST /api/v1/plan` | Accepts a strict v1 JSON request. Returns the existing simulation output plus request ID, schema version and route index order. |
+| `POST /api/v1/plan` | Accepts a strict v1 JSON request. Returns the existing simulation output plus request ID, schema version and route index order. With `--engine marswalk`, the same fields come from the Marswalk planner, plus `engine` and the full `marswalk` plan. |
 | `GET /api/v1/evidence` | Separate result from the documentation resolver, with reported provenance and supported fallbacks. The API returns `classification: provenance_unverified` because it does not independently verify the package's provenance. Returns HTTP 503 with `EVIDENCE_NOT_CONFIGURED` until a package and query are configured. |
+
+### Marswalk engine behind the plan endpoint
+
+`runtime.mission.simulate` stays the default planner. To serve the same endpoint from
+`runtime.marswalk`, start the service with:
+
+```sh
+uv run --project documentation --locked --offline python -m runtime.planning_api --engine marswalk
+```
+
+The fixture uses the Marswalk control profile: 4-neighbour moves at 1 s/m plus 2 s per metre
+climbed. That is the fixture's own cost rule, so every v1 field the mission view reads is
+unchanged. `test_marswalk_engine_matches_mission_contract` covers all fixture closure
+combinations, both orders for two closures, and representative remaining times, including
+the return and science feasibility thresholds. Equal-time routes may use different cells.
+The response adds `engine: "marswalk"` and `marswalk`, the full
+`marswalk-plan-v1` object: candidates, ledgers, Pareto front, terrain counts, assumptions
+and solver statistics. The mission view's schema ignores both fields until the UI reads them.
+This engine choice does not change the pack contract. Routing remains synthetic only.
 
 ```sh
 curl -sS http://127.0.0.1:8000/api/v1/site

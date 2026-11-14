@@ -1,0 +1,76 @@
+{
+  "version": "cell-concepts-v1-draft",
+  "status": "Approved by Claude on delegated authority from the science-model owner, 14 November 2026. Thresholds are data-derived drafts. Flagged items need a check against the cited source before release.",
+  "source": {
+    "file": "cells-enriched.ndjson.gz",
+    "release": "mars-cell-map-v0.1.0",
+    "sha256": "d5c0d6a7889cf5e1a28d026505271c5ccda8b7f89ca0aaacf6f62dfc2bd994df",
+    "cells": 196608
+  },
+  "passed": [
+    {"id": "age-noachian", "forms": ["ancient", "noachian", "oldest", "early mars"], "rule": "SIM 3292 unit code has N in its age prefix; support 1.0 if Noachian only, 0.6 if it spans to Hesperian or Amazonian", "cells": 92493, "cells_strict": 85897},
+    {"id": "age-hesperian", "forms": ["hesperian"], "rule": "unit code has H in its age prefix", "cells": 90034},
+    {"id": "age-amazonian", "forms": ["young", "recent", "amazonian"], "rule": "unit code has A in its age prefix; support 1.0 if Amazonian only, 0.6 if mixed", "cells": 52102, "cells_strict": 19924},
+    {"id": "highland", "forms": ["highland", "highlands", "cratered terrain", "ancient crust"], "rule": "unit group = Highland Units", "cells": 86397},
+    {"id": "massif", "forms": ["massif", "basin rim", "mountains"], "rule": "unit in eNhm, mNhm", "cells": 5151, "broader": ["highland"]},
+    {"id": "lowland", "forms": ["lowland", "lowlands", "northern plains"], "rule": "unit group = Lowland Units", "cells": 25776},
+    {"id": "transition", "forms": ["dichotomy", "dichotomy boundary", "transition zone"], "rule": "unit group = Transition Units", "cells": 18972},
+    {"id": "outflow", "forms": ["outflow", "outflow channel", "flood", "megaflood", "catastrophic flood"], "rule": "unit = Hto", "cells": 1753, "broader": ["water", "transition"]},
+    {"id": "basin", "forms": ["basin", "impact basin", "basin floor"], "rule": "unit group = Basin Units", "cells": 3325},
+    {"id": "impact", "forms": ["impact", "crater", "ejecta", "cratering"], "rule": "unit = AHi", "cells": 10732, "note": "Only craters large enough to be mapped at 1:20M."},
+    {"id": "volcanic", "forms": ["volcanic", "volcanism", "volcanology", "lava", "lava flow", "igneous"], "rule": "unit group = Volcanic Units", "cells": 42505},
+    {"id": "volcanic-edifice", "forms": ["volcano", "shield volcano", "edifice", "caldera"], "rule": "unit in Ave, Hve, Nve", "cells": 1923, "broader": ["volcanic"]},
+    {"id": "volcanic-field", "forms": ["volcanic field", "small shields", "vents"], "rule": "unit in lHvf, lAvf", "cells": 1024, "broader": ["volcanic"]},
+    {"id": "young-volcanic", "forms": ["young volcanism", "recent volcanism", "young lava"], "rule": "unit in lAv, lAvf, Av, Ave", "cells": 9008, "broader": ["volcanic", "age-amazonian"]},
+    {"id": "polar-deposits", "forms": ["polar deposits", "polar layered deposits", "polar"], "rule": "unit group = Polar Units", "cells": 6403},
+    {"id": "polar-cap", "forms": ["polar cap", "ice cap", "residual cap"], "rule": "unit = lApc", "cells": 940, "broader": ["polar-deposits", "ice"]},
+    {"id": "polar-dunes", "forms": ["polar dunes", "erg", "dune field"], "rule": "unit = lApd", "cells": 410, "broader": ["polar-deposits"]},
+    {"id": "ice", "forms": ["ice", "water ice", "ground ice", "subsurface ice", "buried ice"], "rule": "max SWIM consistency over the three depth ranges; support 0 at <=0, linear to 1.0 at >=0.5; evaluated only where SWIM is not null (|lat| < 59.7 deg)", "cells": 53304, "cells_strict": 18620, "note": "cells = consistency > 0.25, cells_strict = > 0.5"},
+    {"id": "ice-shallow", "forms": ["shallow ice", "near surface ice", "accessible ice"], "rule": "SWIM 0-1 m consistency, same mapping", "cells": 33705, "cells_strict": 13573, "broader": ["ice"]},
+    {"id": "ice-deep", "forms": ["deep ice", "ice sheet", "massive ice"], "rule": "max of SWIM 1-5 m and >5 m consistency, same mapping", "cells": 48436, "cells_strict": 6926, "broader": ["ice"]},
+    {"id": "rocky-surface", "forms": ["bedrock", "outcrop", "exposed rock", "rocky", "indurated"], "rule": "measured TES night thermal inertia; support 0 below 350, linear to 1.0 at 500 tiu; interpolated samples not evaluated", "cells": 8748, "cells_strict": 1543},
+    {"id": "dust-mantled", "forms": ["dust mantle", "dust covered", "dusty"], "rule": "measured thermal inertia < 100 and albedo >= 0.23", "cells": 32516},
+    {"id": "dark-coarse-surface", "forms": ["dark sand", "sand", "coarse sediment", "dark terrain"], "rule": "measured thermal inertia >= 200 and albedo < 0.15", "cells": 40803},
+    {"id": "low-elevation", "forms": ["deep basin", "low elevation", "lowest"], "rule": "MOLA elevation < -4000 m", "cells": 27727},
+    {"id": "high-elevation", "forms": ["high elevation", "summit", "high altitude"], "rule": "MOLA elevation > 4000 m", "cells": 8326}
+  ],
+  "passed_with_flag": [
+    {"id": "glacial-apron", "forms": ["glacial", "glacier", "debris apron", "lobate debris apron", "debris covered glacier"], "rule": "unit = ANa (support 1.0); unit = lAa (support 0.6)", "cells": 901, "broader": ["ice"], "flag": "ANa sits at 37-49 deg latitude, where lobate debris aprons occur. lAa sits on the Tharsis Montes flanks. The glacial reading of both units must be confirmed in the SIM 3292 unit descriptions."},
+    {"id": "mass-wasting", "forms": ["landslide", "aureole", "mass wasting"], "rule": "unit = Aa", "cells": 1357, "flag": "Aa clusters around Olympus Mons and Valles Marineris. Confirm the aureole and landslide interpretation in SIM 3292."},
+    {"id": "water", "forms": ["water", "aqueous", "hydrology"], "rule": "no layer of its own; supported only through narrower concepts outflow and ice", "cells": null, "flag": "A water objective currently ranks flood channels and ice. It cannot see lakes, rivers, deltas or alteration minerals."}
+  ],
+  "not_passed_no_layer": [
+    {"ids": ["delta", "alluvial-fan", "lacustrine", "fluvial", "valley-network", "inverted-channel"], "needs": "A valley-network map and a delta and paleolake catalogue joined to cells."},
+    {"ids": ["phyllosilicate", "sulfate", "carbonate", "chloride", "silica", "olivine", "hydrated-minerals", "aqueous-alteration", "mineralogy"], "needs": "A mineral-detection catalogue with mineral classes. The CRISM field in the records only says a targeted observation exists."},
+    {"ids": ["tectonic", "canyon", "chaos", "periglacial", "layered-deposits", "lava-tube"], "needs": "IAU gazetteer feature footprints (Fossa, Chasma, Chaos, and so on) or SIM 3292 structure lines joined to cells."},
+    {"ids": ["seismic", "magnetism", "geophysics"], "needs": "A crustal magnetic field map and marsquake source locations."},
+    {"ids": ["habitability", "stratigraphy", "sedimentary", "groundwater", "hydrothermal", "climate", "ocean"], "needs": "These are interpretations. They need a reviewed rule that combines other layers, or curated site lists."}
+  ],
+  "rejected": [
+    {"field": "crism_mtrdr_product_ids", "as": "evidence of hydrated minerals", "reason": "Presence of a targeted observation is coverage, not a detection. Used in the Records column only. 1,962 cells."},
+    {"field": "tes_dust_my25_sol001", "as": "dust or aeolian activity", "reason": "One nine-day window in 2000 on a 6 x 3 degree grid. Environment context only."},
+    {"field": "tes_lambert_albedo", "as": "composition on its own", "reason": "Ambiguous alone. Used only together with thermal inertia."},
+    {"field": "terrain / science_environment tiers", "as": "documentation ranking", "reason": "All 196,608 cells are Unclassified with identical bounds in all but four cells."},
+    {"field": "hirise / ctx record counts", "as": "science interest", "reason": "Counts reflect targeting choices. Used in the Records column only."},
+    {"field": "named_feature_anchors", "as": "region evidence", "reason": "56 single points, one cell each, no footprints."},
+    {"field": "tes_night_thermal_inertia where status is archive_interpolated", "as": "measured surface property", "reason": "14,577 cells are interpolated and 249 have no positive sample. Treated as not evaluated."}
+  ],
+  "sparse_rule": {
+    "no_metadata": "No cell. Every record has MOLA elevation and albedo.",
+    "sparse": "No geologic unit, OR neither a measured thermal-inertia sample nor a SWIM value.",
+    "sparse_cells": 3304,
+    "share": 0.0168,
+    "per_concept": "Each concept also carries its own evaluated mask. A cell outside a layer's coverage is not evaluated for that concept and is never scored zero."
+  },
+  "grouping_rule": {
+    "connectivity": "8 neighbours from the exact HEALPix nested neighbour function",
+    "area": "Connected matching cells, split at Nside-32 parent tiles (16 cells, about 108 km across)",
+    "point_layers": "CRISM, HiRISE and DTM hits stay as points attached to an area. They are not grouped."
+  },
+  "exclusions": {"polar": "|lat| >= 60 deg or unit group = Polar Units", "volcanic": "unit group = Volcanic Units"},
+  "method_gates": {
+    "sample-rock": "rocky-surface support > 0, or not dust-mantled where thermal inertia is measured; otherwise not established",
+    "investigate-ice": "ice support >= 0.5, or polar-cap, or glacial-apron",
+    "remote-survey": "always compatible; show CTX and HiRISE record counts"
+  }
+}
