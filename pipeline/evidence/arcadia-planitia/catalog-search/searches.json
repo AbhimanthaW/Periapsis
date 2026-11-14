@@ -1,0 +1,50 @@
+[
+  {
+    "site": "arcadia-ctx",
+    "center_lon_lat_deg": [
+      -171.85,
+      49.02
+    ],
+    "bounds_wsen_deg": [
+      -171.90145369,
+      48.9862569,
+      -171.79854631,
+      49.0537431
+    ],
+    "request_url": "https://stac.astrogeology.usgs.gov/api/search?collections=mro_ctx_controlled_usgs_dtms&bbox=-171.90145369%2C48.9862569%2C-171.79854631%2C49.0537431&limit=5",
+    "response_url": "https://stac.astrogeology.usgs.gov/api/search?collections=mro_ctx_controlled_usgs_dtms&bbox=-171.90145369%2C48.9862569%2C-171.79854631%2C49.0537431&limit=5",
+    "number_matched": 0,
+    "number_returned": 0,
+    "has_next": false,
+    "response_path": "arcadia-ctx.json",
+    "response_sha256": "c4fdca1ec8faf71943f98be7c39297f1c803197227507a1e57b336dfc6c856db",
+    "sample_product_ids": []
+  },
+  {
+    "site": "well-studied-control-ctx",
+    "center_lon_lat_deg": [
+      77.45,
+      18.46
+    ],
+    "bounds_wsen_deg": [
+      77.41442646,
+      18.4262569,
+      77.48557354,
+      18.4937431
+    ],
+    "request_url": "https://stac.astrogeology.usgs.gov/api/search?collections=mro_ctx_controlled_usgs_dtms&bbox=77.41442646%2C18.4262569%2C77.48557354%2C18.4937431&limit=5",
+    "response_url": "https://stac.astrogeology.usgs.gov/api/search?collections=mro_ctx_controlled_usgs_dtms&bbox=77.41442646%2C18.4262569%2C77.48557354%2C18.4937431&limit=5",
+    "number_matched": 24,
+    "number_returned": 5,
+    "has_next": true,
+    "response_path": "well-studied-control-ctx.json",
+    "response_sha256": "f33447e9e68db0ea0433ea84b62860a86c6eae9c60acab17085f1bb43f7ebef8",
+    "sample_product_ids": [
+      "P18_007925_1987_XN_18N282W__P19_008650_1987_XI_18N282W",
+      "P02_001820_1984_XI_18N282W__P06_003442_1987_XI_18N282W",
+      "N01_062952_1988_XN_18N282W__N01_062662_1988_XN_18N282W",
+      "N01_062886_1988_XN_18N282W__N02_063308_1988_XN_18N282W",
+      "N01_062741_1988_XN_18N282W__N03_063387_1988_XN_18N282W"
+    ]
+  }
+]
