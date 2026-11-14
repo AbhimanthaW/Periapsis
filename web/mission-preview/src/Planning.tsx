@@ -18,10 +18,11 @@ const crewRows = [
   ['Water','1.5 L','1.5 L'], ['Food','600 kcal','600 kcal'], ['Max continuous EVA','3:00 h','2:30 h'],
 ]
 
-export function AdvisoryScienceTasks({ proposal, profile, onProfile }: {
+export function AdvisoryScienceTasks({ proposal, profile, onProfile, rehearsalHref }: {
   proposal?: AdvisoryProposal
   profile: Profile
   onProfile: (profile: Profile) => void
+  rehearsalHref?: string
 }) {
   return <article className="science-advisory glass" aria-labelledby="science-advisory-title">
     <header>
@@ -34,6 +35,7 @@ export function AdvisoryScienceTasks({ proposal, profile, onProfile }: {
     </header>
     <div className="method-actions">
       <a className="button" href={globeHref}>Return to Explore</a>
+      {rehearsalHref && <a className="button primary" href={rehearsalHref}>Enter simulated Marswalk</a>}
       {proposal && <Segmented items={profiles} value={profile} onChange={onProfile} label="Advisory profile" />}
     </div>
     {proposal ? <MethodReview proposal={proposal} /> : <p role="status">

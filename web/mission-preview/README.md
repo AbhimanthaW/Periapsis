@@ -4,26 +4,15 @@ Return Window is a local React + TypeScript walkthrough. Explore, Ranked Areas a
 
 ## Launch
 
-Use Node 22 or later. Build or reuse a local release bundle using the [offline runbook](../../docs/offline-readiness.md). From the repository root, launch its ranking and Marswalk services:
+Run the [repository-root launcher](../../README.md#launch) and open [Return Window](http://127.0.0.1:8000/). This connects the mission UI to the ranking, Marswalk and hazard services over loopback.
 
-```sh
-uv run --project documentation --locked --offline python -m runtime.release serve data/offline-release --port 8015
-```
+For Vite development, start the root launcher first, then run `npm ci` and `npm run dev -- --host 127.0.0.1` in this directory. Vite proxies the cell and ranking APIs to port 8000. Set `RW_PLANNING_API_ORIGIN` to use another port. Use the root launch to verify the packaged mission workflow.
 
-In a second terminal, from `web/mission-preview`:
-
-```sh
-npm ci
-RW_PLANNING_API_ORIGIN=http://127.0.0.1:8015 VITE_MARSWALK_ORIGIN=http://127.0.0.1:8015 npm run dev -- --host 127.0.0.1 --port 4173 --strictPort
-```
-
-Open [Return Window](http://127.0.0.1:4173/). Start with a science objective or choose a globe landmark to inspect its containing cell. The ranking uses the actual release pack and returns up to 20 areas per query. Edits to target terms replace the objective text sent for ranking; the original objective stays visible. Sort reorders the returned areas only. The named places on the globe are approximate orientation indicators. The app starts with no cell or Mars base selected. **Set Mars base** accepts signed Mars coordinates and opens the separate simulated Marswalk workspace from the saved location. The target and base are independent.
-
-The basemaps and synthetic rehearsals load without the cell service. With the service offline, cell lookups and ranking show a retry state. No static fallback claims to rank the whole grid.
+The app opens with no cell or Mars base selected. Start with a science objective or choose a globe landmark to find its containing cell. The local ranking service returns up to 20 areas per query. Editing the interpreted target terms updates the ranking query. **Set Mars base** accepts Mars coordinates for the separate synthetic Marswalk. The base and science target can differ.
 
 ## Primary demo · Arcadia Planitia
 
-Open [the Arcadia demo](http://127.0.0.1:4173/#demo/arcadia) or choose **Arcadia demo** in the keyboard shortcuts dialog. The walkthrough loads the pinned approximately 4 × 4 km evidence query, displays the regional MOLA context, and explains why local 20 m stereo elevation and routing are withheld. For the editable objective and method exclusions, use **Review methods** in Explore and load the Arcadia scenario. [Arcadia evidence and replay guide](../../docs/objective-methods/README.md)
+Open [the Arcadia demo](http://127.0.0.1:8000/#demo/arcadia) or choose **Demo** in the packaged Explore screen. The walkthrough loads the pinned approximately 4 × 4 km evidence query, displays the regional MOLA context, and explains why local 20 m stereo elevation and routing are withheld. For the editable objective and method exclusions, use **Review methods** in Explore and load the Arcadia scenario. [Arcadia evidence and replay guide](../../docs/objective-methods/README.md)
 
 ## Synthetic mission rehearsals
 

@@ -63,7 +63,7 @@ export default function Mission() {
   const { view, regionId, profile } = selection
   const region = byRegion.get(regionId)
   const simulation = view === 'simulation'
-  const exploreHref = region ? '/explore?' + new URLSearchParams({ region: region.id }) : '/explore'
+  const exploreHref = region ? import.meta.env.BASE_URL + 'explore?' + new URLSearchParams({ region: region.id }) : import.meta.env.BASE_URL + 'explore'
   const setView = (view: View) => update({ ...selection, view })
   useEffect(() => {
     document.title = `${simulation ? 'Simulated Marswalk' : 'Site investigation'} · Return Window`
@@ -71,7 +71,7 @@ export default function Mission() {
   return (
     <main className="mission-app" data-view={view}>
       <header className="mission-masthead">
-        <a className="mission-brand" href={exploreHref}>Return Window</a>
+        <a className="mission-brand" href={exploreHref}>Return Window · Legacy</a>
         <div className="mission-crumbs">
           {simulation ? (
             <>

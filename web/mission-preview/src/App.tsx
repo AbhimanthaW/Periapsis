@@ -10,7 +10,7 @@ import { Monitoring } from './Monitoring'
 import { HazardMission } from './hazards/HazardMission'
 import { useHazardReplay } from './hazards/replay'
 import { Ranking } from './Ranking'
-import { CELL_COUNT, JEZERO_ANCHOR, getCell, indicatorPoint, initialBase, isCellId, locateCell, persistBase, rankCells } from './cells'
+import { CELL_COUNT, JEZERO_ANCHOR, cellHref, getCell, indicatorPoint, initialBase, isCellId, locateCell, persistBase, rankCells } from './cells'
 import type { CellContext, CellSelection, CellSort, RankingState } from './cells'
 import { Investigation } from './Investigation'
 import {
@@ -56,10 +56,6 @@ function useScreen() {
 }
 
 export default function App() {
-  useEffect(() => {
-    if (import.meta.env.BASE_URL !== '/demo/') return
-    if (location.hash.startsWith('#demo/arcadia')) location.replace('/explore?demo=1')
-  }, [])
   const { region, regionId, cellId, screen, view, arcadiaDemo, missionStage, routeProfile } = useScreen()
   const [selection, setSelection] = useState<CellSelection>()
   const [cellContext, setCellContext] = useState<CellContext>()
@@ -86,11 +82,10 @@ export default function App() {
   const [localProfile, setProfile] = useState<Profile>('Rover')
   const profile = missionStage ? routeProfile : localProfile
   const [mission, setMission] = useState(initialMission)
-  const packaged = import.meta.env.BASE_URL === '/demo/'
-  const sourceSelection = new URLSearchParams(location.search)
-  const sourceRegion = sourceSelection.get('region')
-  const sourceCell = sourceSelection.get('cell')
-  const sourceProfile = sourceSelection.get('profile')
+  const packaged = import.meta.env.VITE_PACKAGED_RELEASE === '1'
+  const source = new URLSearchParams(location.search)
+  const sourceRegion = source.get('region')
+  const sourceCell = source.get('cell')
   const hazardView = missionStage && view === 'hazards' && region?.id === '43'
   const hazards = useHazardReplay(hazardView)
   const [layer, setLayer] = useState<'viking' | 'mola'>('viking')
@@ -222,8 +217,8 @@ export default function App() {
     cell: base.cell.id, base: base.coordinates.join(','), objective: rankQuery, method,
     exclude: excludes.join(','), layer,
   })
-  const walkOrigin = packaged ? '' : (import.meta.env.VITE_MARSWALK_ORIGIN ?? 'http://127.0.0.1:4175')
-  const walkHref = walkParams ? walkOrigin + '/explore?' + walkParams : undefined
+  const walkPath = packaged ? '/marswalk' : (import.meta.env.VITE_MARSWALK_ORIGIN ?? 'http://127.0.0.1:4175') + '/explore'
+  const walkHref = walkParams && (walkPath + '?' + walkParams)
   function updateBase(next?: typeof base) {
     setBase(next)
     persistBase(next)
@@ -284,14 +279,13 @@ export default function App() {
       </a>
       <nav className="mission-nav" aria-label="Mission stages">
         <a href={globeHref} aria-current={activeNav === 'globe' && !advisoryScreen ? 'page' : undefined}>Explore</a>
-        {packaged && (arcadiaDemo || (hazardView && sourceRegion)) &&
-          <a href={'/mission?' + new URLSearchParams({
-            region: hazardView && sourceRegion ? sourceRegion : arcadiaDemo ? arcadiaScenario.regionId : fixture.id,
-            profile: hazardView && sourceProfile ? sourceProfile : (arcadiaDemo ? reviewProfile : profile) === 'Rover' ? 'rover' : 'human',
-          })}>Atlas evidence workspace</a>}
-        {packaged && hazardView && sourceCell && <a href={'/explore?' + sourceSelection}>Return to cell evidence</a>}
+        {packaged && hazardView && sourceRegion &&
+          <a href={'/legacy/mission?' + new URLSearchParams({
+            legacy: '1', region: sourceRegion, profile: source.get('profile') ?? 'human',
+          })}>Legacy Atlas evidence</a>}
+        {packaged && hazardView && isCellId(sourceCell) && <a href={'/' + cellHref(sourceCell)}>Return to cell evidence</a>}
         {!advisoryScreen && screen !== 'site-withheld' && ['Route', 'Analysis', 'Monitor'].map(item => {
-          if (browseSlice && item === 'Route' && walkHref) return <a key={item} href={walkHref}>Route</a>
+          if (browseSlice && walkHref && (packaged || item === 'Route')) return <a key={item} href={walkHref + '&walk=' + item.toLowerCase()}>{item}</a>
           if (browseSlice && !displayRegion && activeCell?.id !== JEZERO_ANCHOR) return <button key={item} aria-haspopup="dialog"
             onClick={() => { setEntryStage(item); missionEntry.current?.showModal() }}>{item}</button>
           return <a key={item} href={missionHref(item.toLowerCase(), profile, fixture, hazardView ? 'hazards' : '')}
@@ -311,7 +305,7 @@ export default function App() {
       </nav>}
       {screen==='route'&&!hazardView&&<IconButton className="icon-button compact-header-menu" aria-label="Planning menu" onClick={()=>mobileTools.current?.showModal()}><List size={17}/></IconButton>}
       <div className="topbar-end">
-        {packaged && screen === 'globe' && <a className="button primary" href="/explore?demo=1">Demo</a>}
+        {packaged && screen === 'globe' && <a className="button primary" href={arcadiaDemoHref()}>Demo</a>}
         {screen === 'globe' && <span className="event-name">NASA Space Apps Challenge 2026</span>}
         {screen === 'ranking' && ranking.status === 'ready' && ranking.result && <span className="mono muted ranking-pack">
           {CELL_COUNT.toLocaleString('en-US')} cells in grid · {ranking.result.pack.version}
@@ -364,13 +358,14 @@ export default function App() {
       {screen === 'site-withheld' && <section className="paper-screen">
         <h1>Regional planning withheld{region && ' · ' + region.name}</h1>
         <p>A qualified local terrain pack is required. The available mission and hazard replays use a separate simulated grid.</p>
-        {packaged && regionId && <a className="button" href={'/mission?' + new URLSearchParams({
-          region: regionId, profile: routeProfile === 'Rover' ? 'rover' : 'human',
-        })}>Investigate Atlas region</a>}
+        {packaged && regionId && <a className="button" href={'/legacy/mission?' + new URLSearchParams({
+          legacy: '1', region: regionId, profile: routeProfile === 'Rover' ? 'rover' : 'human',
+        })}>Investigate region in Legacy Atlas</a>}
         <a className="button" href="#route/rover/43">Open the Jezero simulation</a>
       </section>}
       {advisoryScreen && <AdvisoryScienceTasks proposal={arcadiaDemo || arcadiaLoaded ? proposal : undefined}
-        profile={reviewProfile} onProfile={setReviewProfile} />}
+        profile={reviewProfile} onProfile={setReviewProfile}
+        rehearsalHref={packaged && arcadiaDemo ? '/marswalk?demo=1' : undefined} />}
     </main>
 
     <dialog ref={mobileTools} className="dialog" aria-labelledby="planning-menu-title">

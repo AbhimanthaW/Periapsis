@@ -10,9 +10,9 @@ At **Arcadia Planitia**, NASA’s MOLA altimetry supports regional elevation con
 
 [Run the demo](#run-the-demo) · [System architecture](#system-architecture) · [Planetary science](#planetary-science-and-evidence) · [Marswalk models](#marswalk-terrain-mobility-and-planning) · [Weather and hazards](#weather-and-hazards) · [Data inventory](#data-source-inventory) · [Validation](#validation-and-limits)
 
-![Return Window Explore reference capture showing Viking imagery, named landmarks and the objective panel](UI%20screenshots/01%20Planetary%20Explore.png)
+![Return Window Explore reference capture showing Viking imagery, named landmarks and the objective panel](UI%20screenshots/01%20Planetary%20Explore.webp)
 
-*Explore reference capture. The earlier named-region interaction is pictured here. Use **Ranked cells** in the connected demo to query the sourced HEALPix ranking service.*
+*Explore reference capture. The earlier named-region interaction is pictured here. Use **Ranked areas** in the connected demo to query the sourced HEALPix ranking service.*
 
 ## Run the demo
 
@@ -20,32 +20,20 @@ The challenge, **Interplanetary Survival Guide: Martian Map**, asks for a layere
 
 ### Launch
 
-Use Node 22, Python 3.12, uv and the GitHub CLI. The first build downloads pinned ranking inputs, installs dependencies, builds the web clients and prepares the station model from a synthetic fixture. Subsequent launches can use loopback alone. Keep the bundle, its manifest and matching checkout together. For a second machine, provision the locked Python environment on that machine before disconnecting. [Offline runbook](docs/offline-readiness.md) · [Development setup](docs/development.md)
+Install Node.js 22.12 or later in the Node 22 series and uv. Clone the repository or extract the GitHub ZIP, open a terminal in that folder, and run:
 
 ```sh
-uv sync --project documentation --locked --python 3.12
-npm ci --prefix web
-npm ci --prefix web/mission-preview
-
-gh release download mars-cell-map-v0.1.0 --repo AbhimanthaW/Periapsis \
-  --dir data/ranking-inputs --pattern cells-enriched.ndjson.gz
-gh release download mars-cell-map-v0.2.0 --repo AbhimanthaW/Periapsis \
-  --dir data/ranking-inputs --pattern cell-ranking.ndjson.gz \
-  --pattern ranking-features.json.gz --pattern cells-enriched-sourced.ndjson.gz \
-  --pattern sourced-catalogue-manifest.json
-
-uv run --project documentation --locked --offline python -m runtime.release build data/offline-release
-uv run --project documentation --locked --offline python -m runtime.release serve data/offline-release
+uv run --project documentation --locked --python 3.12 python -m runtime.release launch
 ```
 
-Open [Explore](http://127.0.0.1:8000/explore) or [Operations](http://127.0.0.1:8000/demo/). The build destination must be new. The release service checks its recorded source files and packaged hashes before binding to loopback. [Release builder](runtime/release.py)
+Once the terminal reports that Return Window is ready, open [Return Window](http://127.0.0.1:8000/). The first launch needs internet access to install dependencies and download the pinned ranking inputs. The same command reuses the verified release on subsequent launches. The older exploration UI is available at [Legacy Atlas](http://127.0.0.1:8000/legacy/). [Offline runbook](docs/offline-readiness.md) · [Development setup](docs/development.md)
 
 ### Judge walkthrough
 
-1. **Explore.** Choose **Demo**. Inspect the Arcadia cell and switch between Viking colour and MOLA relief. Open **Ranked cells** and try “ancient lakes with hydrothermal activity.” Inspect the evidence for the evaluated concepts and the skipped term.
-2. **Investigate the evidence.** Arcadia has regional MOLA context and a refusal for the requested local elevation. Compare Jezero (HPX128:96848) as an elevation control, or HPX128:0 as a sparse evidence case.
-3. **Enter simulated Marswalk.** Inspect the initial route proposal, including direct return, science detour, dwell and time above reserve. In **Monitor**, approve the proposal, record departure, report a simulated crew position and close the middle corridor.
-4. **Replan to the same base.** Inspect the changed return and remaining margin in **Route** and **Analysis**. Review the proposed revision before accepting it. The dedicated hazard replay adds stale data, reopening and explicit approval of a changed route.
+1. **Explore.** Switch between Viking colour and MOLA relief. Enter “ancient lakes with hydrothermal activity,” apply the objective and open **Ranked areas**. Inspect the evaluated concepts and the unsupported term. Choose a result and open its cell investigation.
+2. **Inspect Arcadia evidence.** Return to Explore and choose **Demo**. The regional MOLA image gives elevation context. The methods panel explains why the reviewed footprint lacks qualifying local elevation at 20 m.
+3. **Enter simulated Marswalk.** Open the labeled rehearsal and compare the direct return and science detour in **Analysis**. In **Monitor**, approve the route, record departure, report a simulated crew position and close the middle corridor.
+4. **Replan to the same base.** Choose **Recalculate return** and review the revised route before approving it. The separate **Hazard drill** shows stale data, reopening and operator approval of a changed route.
 
 [Browser workflow and verification](docs/offline-readiness.md#release-acceptance) · [Route proposal integration](https://github.com/AbhimanthaW/Periapsis/pull/41) · [All UI reference captures](UI%20screenshots)
 
@@ -224,9 +212,9 @@ The crewed rover requires a separate pedestrian return graph. For every sampled 
 
 The solver preserves completed work, reevaluates remaining science prerequisites, and applies hard constraints for return, closures, time, weather and applicable battery and walkback policy. It forms a Pareto front over travel and dwell time, reserve margin, task priority, steep exposure and energy when available. With an admissible direct return, it prefers eligible science by priority, then margin, or recommends returning. Bounded two-task and alternate-corridor searches cover selected alternatives. A failed fastest route can leave slower feasible routes outside the search bound. Valid requests can return `NO_RETURN_ROUTE`, `RETURN_OVER_RESERVE` or `INSUFFICIENT_TERRAIN_EVIDENCE`, with the reason and no actionable recommendation. [Planner](runtime/marswalk/plan.py) · [Candidate rules](runtime/marswalk/optimization.py)
 
-![Rover failure reference capture showing a simulated switch to walking and the walkback time check](UI%20screenshots/06e%20Rover%20failure%20and%20walkback.png)
+![Rover failure reference capture showing a simulated switch to walking and the walkback time check](UI%20screenshots/06e%20Rover%20failure%20and%20walkback.webp)
 
-*Earlier simulated monitor capture. The rover model and walkback checks also have independent runtime entry points. See the [route comparison](UI%20screenshots/03b%20Route%20comparison.png) and [astronaut planning reference](UI%20screenshots/04%20Astronaut%20Route%20Planning.png).*
+*Earlier simulated monitor capture. The rover model and walkback checks also have independent runtime entry points. See the [route comparison](UI%20screenshots/03b%20Route%20comparison.webp) and [astronaut planning reference](UI%20screenshots/04%20Astronaut%20Route%20Planning.webp).*
 
 ## Crew resources and Trade-off Envelope
 
@@ -484,7 +472,7 @@ uv run --project documentation --locked --offline python -m runtime.mission simu
 uv run --project documentation --locked --offline python -m runtime.marswalk demo
 ```
 
-Use the [ranking build and sensitivity instructions](ranking/README.md) for the pinned release and DEMO packs, and the [browser check instructions](web/mission-preview/README.md#reproduce-explore-slice-verification) for Playwright. The current review baseline `8e35f53` adds the UI capture gallery. Its GitHub Verify run stops on the existing 2 MB tracked-file rule before model jobs run. The preceding application baseline `d4b9db1` passed Verify. [Screenshot commit check](https://github.com/AbhimanthaW/Periapsis/actions/runs/43749701359) · [Preceding application check](https://github.com/AbhimanthaW/Periapsis/actions/runs/43748429500)
+Use the [ranking build and sensitivity instructions](ranking/README.md) for the pinned release and DEMO packs, and the [browser check instructions](web/mission-preview/README.md#reproduce-explore-slice-verification) for Playwright. [GitHub Verify runs](https://github.com/AbhimanthaW/Periapsis/actions/workflows/verify.yml)
 
 ## Paper and team
 

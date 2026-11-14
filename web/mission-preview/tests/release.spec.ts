@@ -17,7 +17,7 @@ test('offline Atlas named selection migrates to a canonical cell', async ({ page
 })
 
 test('switches between the primary evidence demo, engineering control and sparse regions', async ({ page }) => {
-  await page.goto('/mission?legacy=1')
+  await page.goto('/legacy/mission?legacy=1')
   const evidence = page.getByRole('complementary', { name: 'Evidence' })
   const select = page.getByLabel('Atlas region')
   await expect(select.locator('option')).toHaveCount(56)
@@ -52,7 +52,7 @@ test('rejects an inconsistent query and preserves survey fallback during an API 
     json.local_evidence.query_sha256 = '0'.repeat(64)
     await route.fulfill({ response, json })
   })
-  await page.goto('/mission?legacy=1&region=43')
+  await page.goto('/legacy/mission?legacy=1&region=43')
   await expect(page.getByRole('alert')).toContainText('Evidence identity mismatch')
   await expect(page.getByText('Supported fallback', { exact: true })).toHaveCount(0)
   await page.route('**/api/v1/regions/28', route => route.abort())
@@ -61,12 +61,12 @@ test('rejects an inconsistent query and preserves survey fallback during an API 
   await expect(page.getByRole('heading', { name: 'Atlas research context' })).toBeVisible()
   await expect(page.getByRole('alert')).toContainText('Planning service unreachable')
   await expect(page.getByText('Tactical routing withheld.', { exact: true })).toBeVisible()
-  await page.goto('/mission?legacy=1&region=unknown')
+  await page.goto('/legacy/mission?legacy=1&region=unknown')
   await expect(page.getByRole('alert')).toContainText('Unknown Atlas region')
 })
 
 test('uses the sourced ranking pack and discloses terms excluded from the result', async ({ page }) => {
-  await page.goto('/explore?panel=ranking')
+  await page.goto('/legacy/explore?panel=ranking')
   const objective = page.getByLabel('Science objective')
   await objective.fill('ancient lakes with hydrothermal activity')
   await page.getByRole('button', { name: 'Rank areas' }).click()
@@ -81,7 +81,7 @@ test('uses the sourced ranking pack and discloses terms excluded from the result
 })
 
 test('replays the four planning outcomes separately from the current region', async ({ page }) => {
-  await page.goto('/mission?legacy=1&region=25')
+  await page.goto('/legacy/mission?legacy=1&region=25')
   await page.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
   await expect(page.getByTestId('simulation-tag')).toBeVisible()
   await expect(page.getByTestId('return-seconds')).toHaveText('40 s')
@@ -100,16 +100,18 @@ test('replays the four planning outcomes separately from the current region', as
 })
 
 test('serves the offline Arcadia showcase and keeps operator control over simulated reroutes', async ({ page }) => {
-  await page.goto('/demo/#globe')
+  await page.goto('/')
   await page.getByRole('link', { name: 'Demo', exact: true }).click()
-  await expect(page.getByRole('heading', { name: /Arcadia Planitia.*HPX128:43896/ })).toBeVisible()
-  await expect(page).toHaveURL(/\/explore\?cell=HPX128%3A43896/)
+  await expect(page).toHaveURL(/\/#demo\/arcadia$/)
   await page.reload()
-  await expect(page.getByLabel('Basemap')).toHaveValue('mola')
-  await expect(page.getByRole('heading', { name: 'coarse_elevation_context' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'local_elevation_20m' })).toBeVisible()
-  await expect(page.getByText('Tactical routing withheld.', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
+  await expect(page.getByRole('heading', { name: 'Arcadia Planitia Science Tasks' })).toBeVisible()
+  const context = page.getByRole('img', { name: 'Coarse MOLA elevation context around the Arcadia query area' })
+  await expect(context).toBeVisible()
+  await expect.poll(() => context.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0)
+  await expect(page.getByText(/Routing withheld.*validated terrain pack/)).toBeVisible()
+  await page.getByRole('link', { name: 'Enter simulated Marswalk' }).click()
+  await expect(page).toHaveURL(/\/marswalk\?demo=1$/)
+  await page.reload()
   await expect(page.getByRole('region', { name: 'Planning result' })).toContainText('science-a')
   await expect(page.getByRole('region', { name: 'Mars surface context' })).toBeVisible()
   await page.getByText('Computed route · routing algorithm', { exact: true }).click()
@@ -130,11 +132,12 @@ test('serves the offline Arcadia showcase and keeps operator control over simula
   await page.getByRole('button', { name: 'Hold position' }).click()
   await expect(page.getByRole('button', { name: 'Resume B' })).toBeDisabled()
   await page.getByRole('link', { name: 'Return to cell evidence' }).click()
-  await expect(page).toHaveURL(/cell=HPX128%3A43896/)
+  await expect(page).toHaveURL(/\/#cell\/HPX128:43896$/)
+  await expect(page.getByRole('heading', { name: 'HPX128:43896' })).toBeVisible()
 })
 
 test('unknown API paths and missing assets return explicit 404 responses', async ({ request }) => {
-  for (const path of ['/api/v1/unknown', '/api/v1/regions/nope', '/demo/maps/no-such-map.webp']) {
+  for (const path of ['/api/v1/unknown', '/api/v1/regions/nope', '/maps/no-such-map.webp', '/legacy/assets/missing.js', '/unknown']) {
     const response = await request.get(path)
     expect(response.status()).toBe(404)
     expect(response.headers()['content-type']).toContain('application/json')
@@ -155,12 +158,12 @@ test('the released pack provides a matching anchor cell for all Atlas regions', 
 })
 
 test('blocks planning deep links without moving a rehearsal to the selected site', async ({ page }) => {
-  await page.goto('/demo/#route/rover/08')
+  await page.goto('/#route/rover/08')
   await expect(page.getByRole('heading', { name: /Regional planning withheld.*Utopia Planitia/ })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Open the Jezero simulation' })).toBeVisible()
-  await page.getByRole('link', { name: 'Investigate Atlas region' }).click()
-  await expect(page).toHaveURL(/cell=HPX128%3A/)
-  await expect(page.getByText('Utopia Planitia · approximate research label', { exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'Investigate region in Legacy Atlas' }).click()
+  await expect(page).toHaveURL(/\/legacy\/mission\?/)
+  await expect(page.getByRole('heading', { name: 'Utopia Planitia' })).toBeVisible()
 })
 
 test('the packaged station and hazard API returns six labeled simulated steps', async ({ request }) => {
@@ -178,7 +181,7 @@ test('the packaged station and hazard API returns six labeled simulated steps', 
 })
 
 test('the globe rotates, switches basemaps and passes its picked cell to the base picker', async ({ page }) => {
-  await page.goto('/explore')
+  await page.goto('/legacy/explore')
   const globe = page.locator('canvas')
   await expect(globe).toBeVisible()
   const box = await globe.boundingBox()
@@ -200,8 +203,7 @@ test('the globe rotates, switches basemaps and passes its picked cell to the bas
 })
 
 test('selects a different base and uses current crew position to replan to it', async ({ page }) => {
-  await page.goto('/explore?demo=1')
-  await page.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
+  await page.goto('/marswalk?demo=1')
   await page.getByText('Simulation controls', { exact: true }).click()
   await page.getByLabel('Synthetic base').selectOption('0,2')
   await page.getByRole('button', { name: 'Calculate sortie' }).click()
@@ -225,7 +227,7 @@ test('selects a different base and uses current crew position to replan to it', 
 })
 
 test('ranked areas open the backend best cell from the normal Explore flow', async ({ page }) => {
-  await page.goto('/explore')
+  await page.goto('/legacy/explore')
   await page.getByRole('button', { name: 'Ranked cells', exact: true }).click()
   await page.getByRole('button', { name: 'Rank areas' }).click()
   const result = page.getByRole('button', { name: /Investigate HPX128:/ }).first()
@@ -235,13 +237,12 @@ test('ranked areas open the backend best cell from the normal Explore flow', asy
 })
 
 test('invalid plan responses are cleared and can be retried', async ({ page }) => {
-  await page.goto('/explore?demo=1')
   await page.route('**/api/v2/plan', async route => {
     const response = await route.fetch()
     const json = await response.json()
     await route.fulfill({ response, json: { ...json, revision: json.revision + 1 } })
   }, { times: 1 })
-  await page.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
+  await page.goto('/marswalk?demo=1')
   await expect(page.getByRole('alert')).toContainText('different scenario')
   await expect(page.getByRole('region', { name: 'Planning result' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Retry calculation' }).click()
@@ -256,10 +257,8 @@ test('rehearsal playback is accessible without a camera', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Pause playback' })).toBeVisible()
 })
 
-test('the packaged Operations UI opens unselected and connects ranking and mission steps', async ({ page }) => {
-  await page.goto('/explore')
-  await page.getByRole('link', { name: 'Operations UI' }).click()
-  await expect(page).toHaveURL(/\/demo\/$/)
+test('the default mission interface starts unselected and connects ranking and investigation', async ({ page }) => {
+  await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Explore Mars' })).toBeVisible()
   await expect(page.locator('.globe-marker[aria-pressed="true"]')).toHaveCount(0)
 
@@ -272,28 +271,34 @@ test('the packaged Operations UI opens unselected and connects ranking and missi
     await expect(trigger).toBeFocused()
   }
 
+  await page.getByLabel('Objective', { exact: true }).fill('ancient lakes with hydrothermal activity')
+  await page.getByRole('button', { name: 'Apply objective' }).click()
   await page.getByRole('link', { name: 'Ranked areas', exact: true }).click()
+  await expect(page.getByText('hydrothermal · unsupported', { exact: true })).toBeVisible()
   await expect(page.getByText(/196,608 cells in grid/)).toBeVisible()
   await expect(page.getByText(/Exploratory ranking/)).toBeVisible()
   await page.getByRole('region', { name: 'Cell ranking table' }).locator('tbody button').first().click()
   await page.getByRole('link', { name: /^Investigate / }).click()
+  await expect(page.getByRole('complementary', { name: 'Region investigation panel' })).toBeVisible()
+  await page.reload()
   await expect(page.getByRole('complementary', { name: 'Region investigation panel' })).toBeVisible()
   await page.getByRole('link', { name: 'Explore', exact: true }).click()
   await expect(page.getByRole('main', { name: 'Planetary Explore' })).toBeVisible()
 })
 
 test('a base entered in east longitude reaches the planner as the equivalent signed point', async ({ page }) => {
-  await page.goto('/demo/')
+  await page.goto('/')
   await page.getByRole('button', { name: 'Set Mars base' }).click()
   const dialog = page.getByRole('dialog', { name: 'Mars base coordinates' })
   await dialog.getByLabel('Latitude').fill('49.02')
   await dialog.getByLabel('Longitude').fill('188.15')
   await dialog.getByRole('button', { name: 'Set base', exact: true }).click()
-  await page.getByRole('link', { name: 'Route', exact: true }).click()
-  await expect(page.getByRole('heading', { name: /HPX128:43896/ })).toBeVisible()
   const calculation = page.waitForResponse(response => response.url().endsWith('/api/v2/plan'))
   const ranking = page.waitForResponse(response => response.url().endsWith('/api/v1/rank'))
-  await page.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
+  const tile = page.waitForResponse(response => response.url().includes('/legacy/atlas/viking/') && response.ok())
+  await page.getByRole('link', { name: 'Route', exact: true }).click()
+  await expect(page).toHaveURL(/\/marswalk\?/)
+  expect((await tile).headers()['content-type']).toBe('image/webp')
   const response = await calculation
   expect(response.ok()).toBe(true)
   const plan = await response.json()
@@ -337,4 +342,28 @@ test('a base entered in east longitude reaches the planner as the equivalent sig
   await page.getByRole('slider', { name: 'Route playback step' }).press('ArrowRight')
   await expect(page.getByText('Step 2 / ' + expected.length)).toBeVisible()
   await expect(page.getByTestId('route-playback-marker')).toHaveAttribute('cx', String(11 + expected[1][1] * 10))
+})
+
+test('direct links retain the intended interface on refresh and isolate the legacy UI', async ({ page, request }) => {
+  const health = await request.get('/healthz')
+  expect(await health.json()).toEqual({ status: 'ready' })
+
+  await page.goto('/explore')
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole('main', { name: 'Planetary Explore' })).toBeVisible()
+
+  await page.goto('/demo/#monitor/rover/43/hazards')
+  await expect(page).toHaveURL(/\/#monitor\/rover\/43\/hazards$/)
+  await page.reload()
+  await expect(page.getByText('Update 1 / 6 · Local compute')).toBeVisible()
+
+  await page.goto('/marswalk?demo=1&walk=monitor')
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Approve route', exact: true })).toBeEnabled()
+
+  await page.goto('/legacy')
+  await expect(page).toHaveURL(/\/legacy\/$/)
+  await expect(page.getByRole('link', { name: 'Return Window · Legacy' })).toBeVisible()
+  await page.getByRole('link', { name: 'Mission interface' }).click()
+  await expect(page.getByRole('main', { name: 'Planetary Explore' })).toBeVisible()
 })

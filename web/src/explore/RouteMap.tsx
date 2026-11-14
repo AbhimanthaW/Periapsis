@@ -4,7 +4,9 @@ import type { Layer, Point } from './Globe'
 const wrap = (longitude: number) => ((longitude + 180) % 360 + 360) % 360 - 180
 const modulo = (value: number, period: number) => ((value % period) + period) % period
 
-export function RouteMap({ base, target, layer }: { base: Point; target?: Point; layer: Layer }) {
+export function RouteMap({ base, target, layer, tileBase = import.meta.env.BASE_URL + 'atlas/' }: {
+  base: Point; target?: Point; layer: Layer; tileBase?: string
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState([840, 520])
   const [failedLayers, setFailedLayers] = useState<Layer[]>([])
@@ -35,7 +37,7 @@ export function RouteMap({ base, target, layer }: { base: Point; target?: Point;
   const tiles = []
   for (let row = Math.max(0, Math.floor((90 - north) / step)); row < Math.min(rows, Math.ceil((90 - north + height) / step)); row++) {
     for (let col = Math.floor((west + 180) / step); col < Math.ceil((west + width + 180) / step); col++) {
-      tiles.push(<image key={col + '/' + row} href={'/atlas/' + layer + '/' + zoom + '/' + modulo(col, cols) + '/' + row + '.webp'}
+      tiles.push(<image key={col + '/' + row} href={tileBase + layer + '/' + zoom + '/' + modulo(col, cols) + '/' + row + '.webp'}
         x={x(-180 + col * step)} y={y(90 - row * step)} width={step / width * size[0] + .35} height={step / height * size[1] + .35}
         preserveAspectRatio="none" onError={() => setFailedLayers(previous => previous.includes(layer) ? previous : [...previous, layer])}/>)
     }

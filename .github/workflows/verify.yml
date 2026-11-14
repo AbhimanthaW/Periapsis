@@ -60,8 +60,6 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - run: npm ci
-      - run: npm run check:atlas && npm run build
       - name: Verify mission frontend
         working-directory: web/mission-preview
         run: |
@@ -69,6 +67,8 @@ jobs:
           npm run build
           npm run test:sites
           npm run test:methods
+      - run: npm ci
+      - run: npm run check:atlas && npm run build
 
   science:
     needs: scope

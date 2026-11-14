@@ -43,7 +43,7 @@ function loadMosaic(layer: Layer) {
     const row = Math.floor(index / 4)
     image.onload = () => { context.drawImage(image, col * 256, row * 256); resolve() }
     image.onerror = reject
-    image.src = '/atlas/' + layer + '/1/' + col + '/' + row + '.webp'
+    image.src = import.meta.env.BASE_URL + 'atlas/' + layer + '/1/' + col + '/' + row + '.webp'
   }))).then(() => context.getImageData(0, 0, canvas.width, canvas.height))
 }
 
