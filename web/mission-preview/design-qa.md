@@ -8,6 +8,8 @@ The original PNGs are in `/Users/abhimantha-personal/Desktop/Return Window/Retur
 
 Playwright captured 23 screens at 1440 × 900 CSS pixels and 03d at 768 × 1024. All captures use Chromium and device scale factor 2. The desktop originals and captures are 2880 × 1800 physical pixels. The compact original and capture are 1536 × 2048. Each side-by-side uses the same reduction for both panes. The diff compares aligned original-size RGB pixels and amplifies absolute channel differences threefold.
 
+Some committed gallery PNGs are resized to fit the repository's 2 MB file limit. Run Playwright to regenerate full-resolution captures before running the comparison script.
+
 ## Comparison history
 
 | Group | Initial findings | Adjustments and final evidence |
