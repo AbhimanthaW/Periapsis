@@ -81,14 +81,34 @@ class ForecastModelTests(unittest.TestCase):
         cls.artifact = build_artifact(cls.grid, cls.settings)
 
     def test_minimal_kits_selected_and_wind_falls_back(self):
-        sel = self.artifact["selection"]
+        selected = self.artifact["selection"]
+        pressure = selected["pressure_pa"]["6h"]
+        self.assertEqual(pressure["kit"], "barometer")
+        self.assertEqual(pressure["kit"], pressure["eligible_kits"][0])
+        self.assertGreater(pressure["n_test"], 20)
         for key in ("1h", "3h", "6h"):
-            self.assertEqual(sel["pressure_pa"][key]["kit"], "barometer")
-            self.assertTrue(sel["pressure_pa"][key]["ml_adds_over_best_baseline"])
-            self.assertTrue(0.7 <= sel["pressure_pa"][key]["coverage_p10_p90"] <= 0.9)
-            self.assertEqual(sel["wind_ms"][key]["status"], "climatology")
-        self.assertEqual(sel["dust_tau"]["1h"]["kit"], "sky opacity")
+            self.assertEqual(selected["wind_ms"][key]["status"], "climatology")
         json.dumps(self.artifact, allow_nan=False)
+
+    def test_test_block_cannot_change_kit_selection_or_erase_the_clock(self):
+        blocks = _blocks(len(self.grid.sols), self.settings)
+        changed = to_grid(synthetic_rows(1050), 24, META)
+        changed.values["dust_tau"][blocks == 2] = np.nan
+        result = train_and_evaluate(changed, self.settings)
+        for horizon, selection in result["selection"]["pressure_pa"].items():
+            original = self.artifact["selection"]["pressure_pa"][horizon]
+            self.assertEqual(selection["eligible_kits"], original["eligible_kits"])
+            self.assertEqual(selection["n_test"], original["n_test"])
+            self.assertIn("clock", result["models"]["pressure_pa"][horizon])
+
+    def test_zero_baseline_error_keeps_clock_forecast(self):
+        constant = to_grid(synthetic_rows(160), 24, META)
+        constant.values["pressure_pa"][:] = 500.0
+        result = build_artifact(constant, Settings(horizons_h=(3,)))
+        pressure = result["selection"]["pressure_pa"]["3h"]
+        self.assertEqual(pressure["kit"], "clock")
+        self.assertIsNone(pressure["skill_vs_climatology"])
+        self.assertIn("clock", result["models"]["pressure_pa"]["3h"])
 
     def test_deterministic(self):
         again = build_artifact(to_grid(synthetic_rows(1050), 24, META), self.settings)

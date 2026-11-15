@@ -185,6 +185,7 @@ def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, de
 
     inputs = {
         "assessed_utc": utc_text(now),
+        "authority": authority,
         "snapshot": {"mission_id": snapshot.mission_id, "revision": snapshot.revision},
         "telemetry_age_s": _r(telemetry_age), "weather_bundle": None, "weather_state": weather_state,
         "envelope_sha256": envelope.sha256,

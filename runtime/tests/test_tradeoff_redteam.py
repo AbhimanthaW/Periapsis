@@ -145,6 +145,22 @@ def test_stale_or_missing_telemetry_means_green_only():
         run(telemetry=unlabelled)
 
 
+def test_acceptance_is_bound_to_the_assessed_decision_window():
+    result, envelope = run(decision_window_s=30)
+    amber = option(result, "science:transect")
+    delegate = [{"role": "habitat_operator", "id": "SIM-HO-01", "reason": "simulated", "signed_utc": NOW}]
+    short = {**OK, "decision_window_s": 30, "signatures": delegate}
+    refused = accept(amber, envelope, **{**short, "now_utc": "2021-02-18T20:44:19Z"})
+    assert refused["status"] == "refused" and "decision window has expired" in refused["reason"]
+    extended = accept(amber, envelope, **{**short, "decision_window_s": 60})
+    assert extended["status"] == "refused" and "authority inputs changed" in extended["reason"]
+
+    record = accept(amber, envelope, **short)
+    assert record["status"] == "accepted" and record["expires_utc"] == "2021-02-18T20:44:19Z"
+    assert not is_executable(amber, record, now_utc="2021-02-18T20:43:48Z")
+    assert not is_executable(amber, record, now_utc="2021-02-18T20:44:19Z")
+
+
 def test_an_old_assessment_cannot_be_accepted_later():
     record = _accept(now_utc="2021-02-18T20:50:00Z",
                      signatures=[{**s, "signed_utc": "2021-02-18T20:49:00Z"} for s in SIGNATURES])
