@@ -1,0 +1,179 @@
+{
+ "_note": "SIMULATED observations for the forecast CLI example, built from the climatology of the model trained on pipeline/examples/weather/synthetic-station.csv plus a rising pressure anomaly. Not a mission record.",
+ "provenance": "simulated",
+ "now_utc": "2026-11-15T09:30:00Z",
+ "observations": [
+  {
+   "variable": "pressure_pa",
+   "value": 683.2,
+   "time_utc": "2026-11-15T06:25:03Z"
+  },
+  {
+   "variable": "air_temp_k",
+   "value": 184.68,
+   "time_utc": "2026-11-15T06:25:03Z"
+  },
+  {
+   "variable": "wind_ms",
+   "value": 8.01,
+   "time_utc": "2026-11-15T06:25:03Z"
+  },
+  {
+   "variable": "pressure_pa",
+   "value": 686.35,
+   "time_utc": "2026-11-15T06:45:36Z"
+  },
+  {
+   "variable": "air_temp_k",
+   "value": 190.13,
+   "time_utc": "2026-11-15T06:45:36Z"
+  },
+  {
+   "variable": "wind_ms",
+   "value": 9.79,
+   "time_utc": "2026-11-15T06:45:36Z"
+  },
+  {
+   "variable": "pressure_pa",
+   "value": 687.02,
+   "time_utc": "2026-11-15T07:06:09Z"
+  },
+  {
+   "variable": "air_temp_k",
+   "value": 190.13,
+   "time_utc": "2026-11-15T07:06:09Z"
+  },
+  {
+   "variable": "wind_ms",
+   "value": 10.01,
+   "time_utc": "2026-11-15T07:06:09Z"
+  },
+  {
+   "variable": "pressure_pa",
+   "value": 687.69,
+   "time_utc": "2026-11-15T07:26:42Z"
+  },
+  {
+   "variable": "air_temp_k",
+   "value": 190.13,
+   "time_utc": "2026-11-15T07:26:42Z"
+  },
+  {
+   "variable": "wind_ms",
+   "value": 10.24,
+   "time_utc": "2026-11-15T07:26:42Z"
+  },
+  {
+   "variable": "pressure_pa",
+   "value": 689.67,
+   "time_utc": "2026-11-15T07:47:15Z"
+  },
+  {
+   "variable": "air_temp_k",
+   "value": 196.03,
+   "time_utc": "2026-11-15T07:47:15Z"
+  },
+  {
+   "variable": "wind_ms",
+   "value": 11.22,
+   "time_utc": "2026-11-15T07:47:15Z"
+  },
+  {
+   "variable": "pressure_pa",
+   "value": 690.34,
+   "time_utc": "2026-11-15T08:07:48Z"
+  },
+  {
+   "variable": "air_temp_k",
+   "value": 196.03,
+   "time_utc": "2026-11-15T08:07:48Z"
+  },
+  {
+   "variable": "wind_ms",
+   "value": 11.45,
+   "time_utc": "2026-11-15T08:07:48Z"
+  },
+  {
+   "variable": "pressure_pa",
+   "value": 691.01,
+   "time_utc": "2026-11-15T08:28:21Z"
+  },
+  {
+   "variable": "air_temp_k",
+   "value": 196.03,
+   "time_utc": "2026-11-15T08:28:21Z"
+  },
+  {
+   "variable": "wind_ms",
+   "value": 11.67,
+   "time_utc": "2026-11-15T08:28:21Z"
+  },
+  {
+   "variable": "pressure_pa",
+   "value": 694.43,
+   "time_utc": "2026-11-15T08:48:54Z"
+  },
+  {
+   "variable": "air_temp_k",
+   "value": 201.92,
+   "time_utc": "2026-11-15T08:48:54Z"
+  },
+  {
+   "variable": "wind_ms",
+   "value": 12.82,
+   "time_utc": "2026-11-15T08:48:54Z"
+  },
+  {
+   "variable": "pressure_pa",
+   "value": 695.11,
+   "time_utc": "2026-11-15T09:09:27Z"
+  },
+  {
+   "variable": "air_temp_k",
+   "value": 201.92,
+   "time_utc": "2026-11-15T09:09:27Z"
+  },
+  {
+   "variable": "wind_ms",
+   "value": 13.04,
+   "time_utc": "2026-11-15T09:09:27Z"
+  },
+  {
+   "variable": "pressure_pa",
+   "value": 695.78,
+   "time_utc": "2026-11-15T09:30:00Z"
+  },
+  {
+   "variable": "air_temp_k",
+   "value": 201.92,
+   "time_utc": "2026-11-15T09:30:00Z"
+  },
+  {
+   "variable": "wind_ms",
+   "value": 13.26,
+   "time_utc": "2026-11-15T09:30:00Z"
+  }
+ ],
+ "feed": {
+  "provenance": "simulated",
+  "required": false,
+  "max_age_s": 1800,
+  "stations": [
+   {
+    "id": "habitat-mast",
+    "provenance": "simulated"
+   }
+  ],
+  "messages": [
+   {
+    "station_id": "habitat-mast",
+    "variable": "wind_speed",
+    "value": 13.26,
+    "unit": "m/s",
+    "kind": "observed",
+    "time_utc": "2026-11-15T09:30:00Z",
+    "provenance": "simulated"
+   }
+  ]
+ }
+}

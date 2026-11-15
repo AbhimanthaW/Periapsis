@@ -279,3 +279,24 @@ def test_malformed_weather_returns_a_structured_http_error(call):
     for weather in invalid:
         status, body = call("/api/v1/plan", plan_request(site, weather=weather))
         assert status == 400 and body["error"] == "INVALID_WEATHER", weather
+
+
+def test_hazard_endpoint_is_opt_in(call):
+    status, body = call("/api/v1/hazard-replay/0")
+    assert (status, body["error"]) == (503, "HAZARD_REPLAY_NOT_CONFIGURED")
+
+
+@pytest.fixture
+def hazard_options(tmp_path):
+    return {"hazard_model": tmp_path / "missing-model.json"}
+
+
+@pytest.mark.parametrize("call", ["hazard_options"], indirect=True)
+def test_hazard_routes_with_model_artifact_missing(call):
+    status, frame = call("/api/v1/hazard-replay/3")
+    assert status == 200
+    assert frame["weather"]["status"] == "warning"
+    assert frame["routes"]["rover"][0]["status"] == "blocked"
+    assert frame["forecast"]["status"] == "unavailable"
+    assert call("/api/v1/hazard-replay/6")[0] == 404
+    assert call("/api/v1/hazard-replay/missing")[0] == 404

@@ -2,11 +2,13 @@ import { useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { ArrowBendDownLeft, Crosshair, Minus, Plus, Stack } from '@phosphor-icons/react'
 import { allRegions, exclusions, isExcluded, methods } from './regions'
-import type { Exclusion, Method, Region } from './regions'
+import type { Exclusion, Method, Profile, Region } from './regions'
 import { Badge, IconButton, Metrics, rankingHref, regionHref } from './ui'
+import { missionHref } from './mission'
 
 interface GlobeProps {
   selected: Region
+  profile: Profile
   shortlist: Region[]
   objective: string
   terms: string[]
@@ -86,7 +88,7 @@ function ObjectiveControls({ objective, terms, method, excludes, setMethod, setT
   </section>
 }
 
-function RegionSummary({ region }: { region: Region }) {
+function RegionSummary({ region, profile }: { region: Region; profile: Profile }) {
   const jezero = region.id === '43'
   return <aside className="region-summary glass" aria-label="Selected region">
     <div className="summary-heading">
@@ -115,6 +117,7 @@ function RegionSummary({ region }: { region: Region }) {
     <div className="summary-actions">
       <a className="button primary" href={regionHref(region.id)}>Investigate</a>
       <a className="button" href={rankingHref}>Compare</a>
+      {jezero && <a className="button region-hazard-link" href={missionHref('monitor', profile, region, 'hazards')}>Hazard drill</a>}
     </div>
   </aside>
 }
@@ -150,7 +153,7 @@ export function Globe(props: GlobeProps) {
         })}
       </div>
     </div>
-    <RegionSummary region={selected} />
+    <RegionSummary region={selected} profile={props.profile} />
     <div className="explore-center">
       <section className="shortlist glass" aria-label="Top matching regions">
         {shortlist.map((region, index) => <button key={region.id} type="button"

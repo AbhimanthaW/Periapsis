@@ -1,0 +1,9 @@
+{
+  "station_id": "synthetic-north-48",
+  "name": "SYNTHETIC example station (northern mid-latitude)",
+  "lat_deg": 48.0,
+  "lon_east_deg": -171.85,
+  "provenance": "simulated",
+  "local_time": "LTST",
+  "sources": [{"title": "Seeded generator return_window_pipeline.forecast.synthetic (illustrative amplitudes, not a mission record)", "url": null, "products": []}]
+}

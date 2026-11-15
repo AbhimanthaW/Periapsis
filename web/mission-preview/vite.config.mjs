@@ -11,6 +11,9 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     allowedHosts: ["terminal.local"],
+    proxy: {
+      "/api/v1/hazard-replay": "http://127.0.0.1:" + (process.env.HAZARD_RUNTIME_PORT || "8000"),
+    },
     warmup: {
       clientFiles: ["./src/main.tsx"],
     },
