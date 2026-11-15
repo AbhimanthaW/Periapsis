@@ -1,0 +1,169 @@
+{
+  "feed_id": "dust-devil-crossing-v1",
+  "provenance": "simulated",
+  "note": "SIMULATED live hazard feed on the synthetic Marswalk demo map (160 x 160 squares, 5 m). Centres are map metres (easting, northing) on the terrain grid. Not Mars data. The dust devil first drifts north-west, then turns south at +5 min onto the walking route.",
+  "start_utc": "2021-02-18T20:43:49Z",
+  "scenario": {
+    "start_cell": [
+      36,
+      109
+    ],
+    "remaining_s": 5400,
+    "no_science": true
+  },
+  "storms": [
+    {
+      "storm_id": "dd-1",
+      "observed_utc": "2021-02-18T20:43:49Z",
+      "centre_m": [
+        487.5,
+        647.0
+      ],
+      "radius_m": 40.0,
+      "velocity_mps": [
+        -0.6,
+        0.3
+      ],
+      "wind_mps": 24.0,
+      "dust_tau": 2.5,
+      "kind": "observed",
+      "provenance": "simulated"
+    },
+    {
+      "storm_id": "dd-1",
+      "observed_utc": "2021-02-18T20:46:19Z",
+      "centre_m": [
+        397.5,
+        692.0
+      ],
+      "radius_m": 40.0,
+      "velocity_mps": [
+        -0.6,
+        0.3
+      ],
+      "wind_mps": 24.0,
+      "dust_tau": 2.5,
+      "kind": "observed",
+      "provenance": "simulated"
+    },
+    {
+      "storm_id": "dd-1",
+      "observed_utc": "2021-02-18T20:48:49Z",
+      "centre_m": [
+        307.5,
+        737.0
+      ],
+      "radius_m": 40.0,
+      "velocity_mps": [
+        0.0,
+        -0.8
+      ],
+      "wind_mps": 24.0,
+      "dust_tau": 2.5,
+      "kind": "observed",
+      "provenance": "simulated"
+    },
+    {
+      "storm_id": "dd-1",
+      "observed_utc": "2021-02-18T20:51:19Z",
+      "centre_m": [
+        307.5,
+        617.0
+      ],
+      "radius_m": 40.0,
+      "velocity_mps": [
+        0.0,
+        -0.8
+      ],
+      "wind_mps": 24.0,
+      "dust_tau": 2.5,
+      "kind": "observed",
+      "provenance": "simulated"
+    },
+    {
+      "storm_id": "dd-1",
+      "observed_utc": "2021-02-18T20:53:49Z",
+      "centre_m": [
+        307.5,
+        497.0
+      ],
+      "radius_m": 40.0,
+      "velocity_mps": [
+        0.0,
+        -0.8
+      ],
+      "wind_mps": 24.0,
+      "dust_tau": 2.5,
+      "kind": "observed",
+      "provenance": "simulated"
+    },
+    {
+      "storm_id": "dd-1",
+      "observed_utc": "2021-02-18T20:56:19Z",
+      "centre_m": [
+        307.5,
+        377.0
+      ],
+      "radius_m": 40.0,
+      "velocity_mps": [
+        0.0,
+        -0.8
+      ],
+      "wind_mps": 24.0,
+      "dust_tau": 2.5,
+      "kind": "observed",
+      "provenance": "simulated"
+    },
+    {
+      "storm_id": "dd-1",
+      "observed_utc": "2021-02-18T20:58:49Z",
+      "centre_m": [
+        307.5,
+        257.0
+      ],
+      "radius_m": 40.0,
+      "velocity_mps": [
+        0.0,
+        -0.8
+      ],
+      "wind_mps": 24.0,
+      "dust_tau": 2.5,
+      "kind": "observed",
+      "provenance": "simulated"
+    },
+    {
+      "storm_id": "dd-1",
+      "observed_utc": "2021-02-18T21:01:19Z",
+      "centre_m": [
+        307.5,
+        137.0
+      ],
+      "radius_m": 40.0,
+      "velocity_mps": [
+        0.0,
+        -0.8
+      ],
+      "wind_mps": 24.0,
+      "dust_tau": 2.5,
+      "kind": "observed",
+      "provenance": "simulated"
+    },
+    {
+      "storm_id": "dd-1",
+      "observed_utc": "2021-02-18T21:03:49Z",
+      "centre_m": [
+        307.5,
+        17.0
+      ],
+      "radius_m": 40.0,
+      "velocity_mps": [
+        0.0,
+        -0.8
+      ],
+      "wind_mps": 24.0,
+      "dust_tau": 2.5,
+      "kind": "observed",
+      "provenance": "simulated"
+    }
+  ]
+}

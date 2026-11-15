@@ -1,0 +1,28 @@
+{
+  "feed_id": "stale-after-one-reading-v1",
+  "provenance": "simulated",
+  "note": "SIMULATED live hazard feed on the synthetic Marswalk demo map (160 x 160 squares, 5 m). Centres are map metres (easting, northing) on the terrain grid. Not Mars data.",
+  "start_utc": "2021-02-18T20:43:49Z",
+  "scenario": {
+    "remaining_s": 3600
+  },
+  "storms": [
+    {
+      "storm_id": "dd-2",
+      "observed_utc": "2021-02-18T20:43:49Z",
+      "centre_m": [
+        600.0,
+        700.0
+      ],
+      "radius_m": 30.0,
+      "velocity_mps": [
+        0.0,
+        0.0
+      ],
+      "wind_mps": 22.0,
+      "dust_tau": 2.2,
+      "kind": "observed",
+      "provenance": "simulated"
+    }
+  ]
+}
