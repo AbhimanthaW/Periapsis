@@ -277,8 +277,8 @@ export default function App() {
 
   return <div className={`shell screen-${screen}${hazardView ? ' hazard-shell' : ''}${contrast ? ' high-contrast' : ''}`}>
     {screen !== 'evidence' && !(screen === 'route' && ['states','constraints'].includes(view)) && <header className="topbar">
-        <a className="wordmark" href={globeHref}>
-        {!browseSlice && <img className="brand-logo" src="./brand/nasa-logo.png" alt="" />}
+        <a className="wordmark" href={globeHref} aria-label="Return Window">
+        <img className="brand-logo" src={import.meta.env.BASE_URL + 'brand/nasa-logo.svg'} width="110" height="92" alt="" />
         <span className="wordmark-full">Return Window</span><span className="wordmark-short" aria-hidden="true">RW</span>
       </a>
       <nav className="mission-nav" aria-label="Mission stages">
