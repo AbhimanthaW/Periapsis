@@ -9,3 +9,5 @@ When implementing from a selected generated mock, treat that image as the source
 Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
 
 Arcadia Planitia is the primary demo region. Its pinned MOLA handoff supports regional context and an evidence decision. Keep tactical routing gated until a qualifying local terrain pack is available. Jezero is the comparison control and the setting for separate simulation rehearsals.
+
+For Explore, Ranked Areas, and Investigation, launch unselected. Named landmarks orient the operator; ranking and investigation use HEALPix Nside 128 cells. Keep a user-entered Mars base separate from the science target. The base is the starting location passed to the simulated Marswalk workspace.

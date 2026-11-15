@@ -1,27 +1,36 @@
-import { DustOutlookSection } from './DustOutlook'
 import { useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { ArrowBendDownLeft, Crosshair, Minus, Plus, Stack } from '@phosphor-icons/react'
-import { allRegions, exclusions, isExcluded, methods, profiles } from './regions'
+import { allRegions, exclusions, methods, profiles } from './regions'
+import { CELL_COUNT, JEZERO_ANCHOR, areaLabel, cellHref, formatPoint } from './cells'
+import type { CellContext, CellSelection, MarsBase, RankedArea } from './cells'
+import { BaseLocation } from './BaseLocation'
 import type { Exclusion, Method, Profile, Region } from './regions'
-import { Badge, IconButton, Metrics, rankingHref, regionHref, Segmented } from './ui'
+import { Badge, IconButton, Metrics, rankingHref, Segmented } from './ui'
 import { MethodReview } from './objective-methods/MethodReview'
 import { arcadiaScenario } from './objective-methods/arcadia'
 import type { GoalId } from './objective-methods/catalog'
 import type { AdvisoryProposal } from './objective-methods/recommend'
-import { missionHref } from './mission'
 
 interface GlobeProps {
-  selected: Region
-  profile: Profile
-  shortlist: Region[]
+  selected?: CellSelection
+  targetsEdited: boolean
+  context?: CellContext
+  shortlist: RankedArea[]
+  selectionError: string
+  locating: boolean
+  base?: MarsBase
+  setBase: (base?: MarsBase) => void
+  rank: () => void
+  retrySelection: () => void
+  selectIndicator: (indicator: Region) => void
+  select: (cell: CellSelection) => void
   objective: string
   terms: string[]
   method: Method
   excludes: Exclusion[]
   layer: 'viking' | 'mola'
   zoom: number
-  select: (id: string) => void
   setLayer: (layer: 'viking' | 'mola') => void
   setZoom: (zoom: number) => void
   setMethod: (method: Method) => void
@@ -41,7 +50,7 @@ interface GlobeProps {
 }
 
 function ObjectiveControls({
-  objective, terms, method, excludes, setMethod, setTerms, applyObjective, toggleFilter,
+  objective, terms, targetsEdited, method, excludes, setMethod, setTerms, applyObjective, toggleFilter, base, setBase, rank,
   proposal, reviewRegionName, arcadiaLoaded, arcadiaVisited, loadArcadia, restoreArcadia,
   useSelectedRegion, onConfirmGoals, onProfile, reviewHref,
 }: GlobeProps) {
@@ -67,19 +76,17 @@ function ObjectiveControls({
       <input id="objective" required value={draft} onChange={event => setDraft(event.target.value)}
         maxLength={160} spellCheck={false} />
       <IconButton aria-label="Apply objective" title="Apply objective" type="submit"><ArrowBendDownLeft size={11} /></IconButton>
-      <button type="button" className="button compact review-methods-trigger" aria-haspopup="dialog"
-        onClick={() => { setReviewSession(current => current + 1); review.current?.showModal() }}>Review methods</button>
     </form>
     <div className="objective-options">
       <div className="objective-row">
-        <span className="caption">Read as</span>
+        <span className="caption">{targetsEdited ? 'Targets' : 'Read as'}</span>
         <div className="chips interpreted" aria-live="polite">
           {terms.map(term => <span key={term} className="chip active">{term}</span>)}
           <button className="chip" type="button" aria-haspopup="dialog" onClick={() => {
             setTargetDraft(terms.join('\n'))
             editor.current?.showModal()
           }}>Edit targets</button>
-          <Badge>EST</Badge>
+          {!targetsEdited && <Badge>EST</Badge>}
         </div>
       </div>
       <div className="objective-row preferences">
@@ -94,13 +101,19 @@ function ObjectiveControls({
             aria-pressed={excludes.includes(item)} onClick={() => toggleFilter(item)}>{item}</button>)}
         </div>
       </div>
-      <a className="button compact" href={rankingHref} title="Open the local sample ranking">Sample ranking</a>
+      <div className="explore-actions">
+        <a className="button compact" href={rankingHref} onClick={rank}>Ranked areas</a>
+        <BaseLocation base={base} onChange={setBase} />
+        <button type="button" className="button compact review-methods-trigger" aria-haspopup="dialog"
+          onClick={() => { setReviewSession(current => current + 1); review.current?.showModal() }}>Review methods</button>
+      </div>
     </div>
     <dialog ref={editor} className="dialog" aria-labelledby="targets-title">
       <form onSubmit={saveTargets}>
         <h2 id="targets-title">Edit targets</h2>
+        <p>Ranking uses these terms in place of the objective text. Clear the list to use the objective again.</p>
         <label htmlFor="target-terms">Target terms, one per line</label>
-        <textarea id="target-terms" value={targetDraft} rows={5} maxLength={500}
+        <textarea id="target-terms" value={targetDraft} rows={5} maxLength={300}
           onChange={event => setTargetDraft(event.target.value)} />
         <div className="dialog-actions">
           <button className="button" type="button" onClick={() => editor.current?.close()}>Cancel</button>
@@ -131,43 +144,55 @@ function ObjectiveControls({
   </section>
 }
 
-function RegionSummary({ region, profile }: { region: Region; profile: Profile }) {
-  const jezero = region.id === '43'
-  return <aside className="region-summary glass" aria-label="Selected region">
+function RegionSummary({ selected, context, locating, selectionError, retrySelection, rank }: GlobeProps) {
+  const cell = context?.cell
+  const evidence = context?.cell_context
+  const jezero = selected?.id === JEZERO_ANCHOR
+  return <aside className="region-summary glass" aria-label="Selected cell" aria-busy={locating}>
     <div className="summary-heading">
-      <h1>{region.name}</h1>
-      <span className="mono muted">{region.id}</span>
+      <h1>{selected?.label ?? selected?.id ?? 'Explore Mars'}</h1>
     </div>
-    <div className="region-coords"><span className="muted">{region.type}</span>
-      <span className="mono">{region.coords}</span><Badge>OBS</Badge></div>
-    <section className="summary-section">
-      <div className="section-heading"><span className="caption">Survey</span><Badge>EST</Badge></div>
-      <Metrics>
-        <dt>Science</dt><dd>{region.scienceSummary}</dd>
-        <dt>Records</dt><dd>{typeof region.records === 'number' ? region.records === 5 ? 'Very high' : 'High' : region.records}</dd>
-        <dt>Traversal</dt><dd>{region.traversalSummary}</dd>
-      </Metrics>
-    </section>
-    <section className="summary-section data-summary">
-      <div className="section-heading"><span className="caption">Data</span><Badge>OBS</Badge></div>
-      <Metrics>
-        <dt>Viking colour</dt><dd className="mono">232 m</dd>
-        <dt>MOLA relief</dt><dd className="mono">463 m</dd>
-        <dt>CTX optical</dt><dd className="mono">{jezero ? '6 m · subset' : '—'}</dd>
-        <dt>Terrain model</dt><dd className="caution">none</dd>
-      </Metrics>
-    </section>
-    <DustOutlookSection key={region.id} regionId={region.id} />
-    <div className="summary-actions">
-      <a className="button primary" href={regionHref(region.id)}>Investigate</a>
-      <a className="button" href={rankingHref}>Compare</a>
-      {jezero && <a className="button region-hazard-link" href={missionHref('monitor', profile, region, 'hazards')}>Hazard drill</a>}
-    </div>
+    {selected && <div className="region-coords">{selected.label && <span className="mono">{selected.id}</span>}
+      {cell && <span className="mono muted">{formatPoint(cell.centroid)}</span>}<Badge>GRID</Badge></div>}
+    {locating && <p role="status" className="muted">Locating the Mars cell…</p>}
+    {selectionError && <div className="selection-error"><p role="alert">{selectionError}</p>
+      <button className="button compact" onClick={retrySelection}>Retry</button></div>}
+    {!selected ? <>
+      <p className="muted selection-empty">Choose a landmark on the globe or search for areas with a science objective.</p>
+      <section className="summary-section data-summary">
+        <div className="section-heading"><span className="caption">Search grid</span><Badge>GRID</Badge></div>
+        <Metrics><dt>HEALPix cells</dt><dd className="mono">{CELL_COUNT.toLocaleString('en-US')}</dd><dt>Resolution</dt><dd className="mono">Nside 128</dd></Metrics>
+      </section>
+    </> : <>
+      <section className="summary-section cell-evidence-summary">
+        <div className="section-heading"><span className="caption">Cell evidence</span><Badge>{evidence ? 'OBS' : 'N/A'}</Badge></div>
+        <Metrics>
+          <dt>Science</dt><dd>{evidence?.science_environment.tier ?? 'Unavailable'}</dd>
+          <dt>Terrain</dt><dd>{evidence?.terrain.tier ?? 'Unavailable'}</dd>
+          <dt>Elevation</dt><dd className="mono">{evidence?.mola_elevation_m == null ? '—' : evidence.mola_elevation_m.toLocaleString('en-US') + ' m'}</dd>
+          <dt>MOLA points</dt><dd className="mono">{evidence?.mola_observation_count?.toLocaleString('en-US') ?? '—'}</dd>
+          <dt>Cell area</dt><dd className="mono">{cell ? cell.area_km2.toFixed(1) + ' km²' : '—'}</dd>
+        </Metrics>
+      </section>
+      <section className="summary-section data-summary">
+        <div className="section-heading"><span className="caption">Data</span><Badge>OBS</Badge></div>
+        <Metrics>
+          <dt>Viking colour</dt><dd className="mono">232 m</dd>
+          <dt>MOLA relief</dt><dd className="mono">463 m</dd>
+          <dt>CTX optical</dt><dd className="mono">{jezero ? '6 m · subset' : '—'}</dd>
+          <dt>Local routing</dt><dd className="caution">Withheld</dd>
+        </Metrics>
+      </section>
+      <div className="summary-actions">
+        <a className="button primary" href={cellHref(selected.id)}>Investigate</a>
+        <a className="button" href={rankingHref} onClick={rank}>Compare</a>
+      </div>
+    </>}
   </aside>
 }
 
 export function Globe(props: GlobeProps) {
-  const { selected, shortlist, excludes, select, layer, setLayer, zoom, setZoom } = props
+  const { selected, shortlist, select, selectIndicator, layer, setLayer, zoom, setZoom } = props
   const [layerMenu, setLayerMenu] = useState(false)
   const layerButton = useRef<HTMLButtonElement>(null)
   function changeZoom(change: number) {
@@ -184,29 +209,36 @@ export function Globe(props: GlobeProps) {
       <div className="globe-disc" style={{ '--zoom': zoom } as React.CSSProperties}>
         <img src={`./maps/mars-${layer}.webp`} alt="" draggable={false} />
         {allRegions.map(region => {
-          const rank = shortlist.findIndex(item => item.id === region.id) + 1
-          const active = selected.id === region.id
-          const excluded = isExcluded(region, excludes)
-          return <button key={region.id} type="button" className={`globe-marker${rank ? ' ranked' : ''}${region.id === '46' ? ' label-left' : ''}`}
+          const active = selected?.markerId === region.id
+          return <button key={region.id} type="button" className={`globe-marker${region.id === '46' ? ' label-left' : ''}`}
             style={{ left: region.position[0] / 7.74 + '%', top: region.position[1] / 7.74 + '%' }}
-            disabled={excluded} aria-label={region.name + (excluded ? ' · Excluded' : '')}
-            aria-pressed={active} onClick={() => select(region.id)}>
+            aria-label={region.name} title={region.name + ' · map landmark'}
+            aria-pressed={active} onClick={() => selectIndicator(region)}>
             <span className="marker-dot" />
-            <span className="marker-label">{rank > 0 && <span>{rank}</span>}{region.name}</span>
+            <span className="marker-label">{region.name}</span>
           </button>
         })}
       </div>
     </div>
-    <RegionSummary region={selected} profile={props.profile} />
+    <RegionSummary {...props} />
     <div className="explore-center">
-      <section className="shortlist glass" aria-label="Top matching regions">
-        {shortlist.map((region, index) => <button key={region.id} type="button"
-          aria-pressed={selected.id === region.id} onClick={() => select(region.id)}>
-          <span className="shortlist-name"><span>{index + 1}</span>{region.name}</span>
-          <span className="shortlist-coords">{region.type} · {region.coords}</span>
-          <span className="shortlist-match mono">“{region.phrase}”</span>
-        </button>)}
-      </section>
+      {shortlist.length > 0
+        ? <section className="shortlist glass" aria-label="Top ranked cells">
+          {shortlist.map(area => <button key={area.best_cell} type="button"
+            aria-pressed={selected?.id === area.best_cell} onClick={() => select({ id: area.best_cell, label: area.label ?? undefined })}>
+            <span className="shortlist-name"><span>{area.rank}</span>{areaLabel(area)}</span>
+            <span className="shortlist-coords">{area.label ? area.best_cell : 'HEALPix Nside 128'}</span>
+            <span className="shortlist-match mono">{area.tier} match{area.sparse ? ' · sparse' : ''}</span>
+          </button>)}
+        </section>
+        : <section className="shortlist glass" aria-label="Map landmarks">
+          {allRegions.slice(0, 3).map(region => <button key={region.id} type="button"
+            aria-pressed={selected?.markerId === region.id} onClick={() => selectIndicator(region)}>
+            <span className="shortlist-name">{region.name}</span>
+            <span className="shortlist-coords">{region.type} · {region.coords}</span>
+            <span className="shortlist-match mono">Map landmark</span>
+          </button>)}
+        </section>}
       <ObjectiveControls {...props} />
     </div>
     <div className="layer-control" onKeyDown={event => {

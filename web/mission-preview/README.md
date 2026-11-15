@@ -1,21 +1,29 @@
 # Return Window
 
-Return Window is a local React + TypeScript walkthrough of the 24 exploration, planning, analysis, and monitoring references. The app uses bundled optical basemaps and deterministic sample scenarios.
+Return Window is a local React + TypeScript walkthrough. Explore, Ranked Areas and Investigation query the local 196,608-cell Mars pack. Planning, analysis and monitoring retain their separately labelled rehearsal scenarios. The app uses bundled Viking, MOLA and CTX imagery.
 
 ## Launch
 
-Use Node 22 or later. In the repository's `web/mission-preview` directory, run:
+Use Node 22 or later. Build or reuse a local release bundle using the [offline runbook](../../docs/offline-readiness.md). From the repository root, launch its ranking and Marswalk services:
+
+```sh
+uv run --project documentation --locked --offline python -m runtime.release serve data/offline-release --port 8015
+```
+
+In a second terminal, from `web/mission-preview`:
 
 ```sh
 npm ci
-npm run dev -- --host 127.0.0.1 --port 4173
+RW_PLANNING_API_ORIGIN=http://127.0.0.1:8015 VITE_MARSWALK_ORIGIN=http://127.0.0.1:8015 npm run dev -- --host 127.0.0.1 --port 4173 --strictPort
 ```
 
-Open [Return Window](http://127.0.0.1:4173/). [The visual gallery](qa/gallery.md) links all 24 original PNGs, matching app states, fresh browser captures, side-by-side views, focused crops, and pixel diffs.
+Open [Return Window](http://127.0.0.1:4173/). Start with a science objective or choose a globe landmark to inspect its containing cell. The ranking uses the actual release pack and returns up to 20 areas per query. Edits to target terms replace the objective text sent for ranking; the original objective stays visible. Sort reorders the returned areas only. The named places on the globe are approximate orientation indicators. The app starts with no cell or Mars base selected. **Set Mars base** accepts signed Mars coordinates and opens the separate simulated Marswalk workspace from the saved location. The target and base are independent.
+
+The basemaps and synthetic rehearsals load without the cell service. With the service offline, cell lookups and ranking show a retry state. No static fallback claims to rank the whole grid.
 
 ## Primary demo · Arcadia Planitia
 
-Open [the Arcadia demo](http://127.0.0.1:4173/#demo/arcadia) or choose **Arcadia demo** from Explore. The walkthrough loads the pinned approximately 4 × 4 km evidence query, displays the regional MOLA context, and explains why local 20 m stereo elevation and routing are withheld. For the editable objective and method exclusions, use **Review methods** in Explore and load the Arcadia scenario. [Arcadia evidence and replay guide](../../docs/objective-methods/README.md)
+Open [the Arcadia demo](http://127.0.0.1:4173/#demo/arcadia) or choose **Arcadia demo** in the keyboard shortcuts dialog. The walkthrough loads the pinned approximately 4 × 4 km evidence query, displays the regional MOLA context, and explains why local 20 m stereo elevation and routing are withheld. For the editable objective and method exclusions, use **Review methods** in Explore and load the Arcadia scenario. [Arcadia evidence and replay guide](../../docs/objective-methods/README.md)
 
 ## Synthetic mission rehearsals
 
@@ -24,18 +32,20 @@ Open [the Arcadia demo](http://127.0.0.1:4173/#demo/arcadia) or choose **Arcadia
 - **Review states** — Click the timing control beside the planning model status to see loading, unavailable, infeasible, and failed cases. Open Returns or Crew constraints in astronaut planning to inspect the limit violation. Open Analysis to inspect model runs, provenance, and revisions. The report supports selected-section JSON export, trace CSV, and the browser's PDF print dialog.
 - **Layout** — Open Edit layout beside the mission navigation tools. Place or drag modules into the drop area, collapse or remove modules, switch presets, and save a custom preset during the session. At 768 px the planning menu provides access to the compact view's secondary controls.
 
-Mission state and custom presets live in the current page session. Direct links in a fresh tab open the reference fixtures. The ranking starts with five sample rows, and the full-registry count is retained from the reference. This pass uses no backend. Jezero supplies the detailed local imagery control. Route paths, criteria, faults, and telemetry are scenario fixtures. The no-footage state is intentional.
+Mission state and custom presets live in the current page session. Direct links in a fresh tab can open a cell or an explicit rehearsal fixture. Jezero supplies the detailed local imagery control. Route paths, criteria, faults, and telemetry in the rehearsal are scenario fixtures. The no-footage state is intentional.
 
-## Reproduce verification
+## Reproduce Explore slice verification
+
+With the connected preview running as above:
 
 ```sh
 npm run build
 npx playwright install chromium --only-shell
-npm run test:ui
-python3 qa/compare.py
+RW_EXPLORE_QA_DIR=/tmp/rw-explore-qa RW_MARSWALK_QA=1 npm run test:ui -- explore.spec.ts
+python3 qa/compare-explore.py "/path/to/Return Window — Martian Map operations UI-png-2" /tmp/rw-explore-qa
 ```
 
-The comparison step requires Pillow. Pass the reference directory as the first argument if it has moved. [See verification and remaining differences](design-qa.md).
+The comparison command requires Pillow and writes side-by-side views, focused crops and pixel diffs for the three 2× captures. [See the Explore slice QA report](qa/explore-slice.md). The [24-state gallery](qa/gallery.md) is retained as historical evidence for the earlier pass.
 
 ## Map assets
 
@@ -47,7 +57,7 @@ The globe and Jezero terrain imagery came from the offline atlas assets in commi
 
 ## Hazard drill
 
-Open **Hazard drill** in Explore or on Jezero's Route, Analysis, or Monitor page.
+Open **Jezero hazard drill** in the keyboard shortcuts dialog after selecting Jezero, or use **Hazard drill** on Jezero’s Route, Analysis, or Monitor page.
 **Play drill** advances the six recorded simulation updates every 10 seconds.
 **Next update** steps through them manually. Playback continues while you change
 mission pages. Use **Analysis** for data provenance and **Monitor** to approve

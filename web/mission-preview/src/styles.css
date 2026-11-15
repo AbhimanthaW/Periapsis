@@ -280,6 +280,7 @@ button.chip:hover { background: #f6e7db30; }
 .summary-section { padding: 12px 0 16px; border-top: 1px solid var(--line); }
 .summary-section .section-heading { margin-bottom: 11px; }
 .summary-section .metrics { grid-template-columns: 71px 1fr; line-height: 17px; gap: 7px 14px; font-size: 12.5px; }
+.cell-evidence-summary .metrics { grid-template-columns: 86px minmax(0, 1fr); }
 .data-summary { padding-bottom: 0; }
 .data-summary .metrics { grid-template-columns: auto 1fr; gap: 7px 12px; }
 @media (min-width: 1181px) and (min-height: 801px) {
@@ -664,4 +665,63 @@ button.chip:hover { background: #f6e7db30; }
   .tabs { gap: 15px; }
   .data-table th, .data-table td { padding-inline: 5px; }
   .limits .metrics { grid-template-columns: 88px 1fr; }
+}
+
+/* Explore, ranked areas and cell investigation use the same mission surfaces. */
+.mission-nav button:hover { background: #ffffff19; color: var(--text); }
+.explore-actions, .rank-actions, .shortcut-links { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.explore-actions .button { text-decoration: none; }
+.base-trigger { gap: 5px; }
+.base-readout { font-size: 11px; }
+.base-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.base-fields label { min-width: 0; }
+.base-fields input {
+  display: block; width: 100%; margin-top: 6px; padding: 9px;
+  background: #0d0a09; border: 1px solid var(--line-strong); border-radius: 7px; font-family: var(--mono);
+}
+.dialog .base-error, .ranking-feedback { color: var(--caution); }
+.base-clear { margin-right: auto; }
+#targets-title + p { margin-bottom: 14px; }
+.shortcut-links { margin-top: 12px; }
+.region-summary .selection-empty { line-height: 1.5; margin: 0 0 17px; }
+.summary-heading h1, .shortlist-name { overflow-wrap: anywhere; }
+.selection-error, .ranking-feedback, .investigation-message { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.investigation-message { padding: 10px 20px; border-bottom: 1px solid var(--line); }
+.region-summary .selection-error { margin-block: 8px 12px; }
+.investigation-base { display: grid; gap: 16px; margin-block: 8px 1px; }
+.investigation-base .metrics { margin-top: 7px; }
+.routing-note { margin-top: 18px; line-height: 1.45; }
+.cell-ranking .ranking-table { min-width: 1050px; }
+.cell-ranking .ranking-table .col-rank { width: 2.75%; }
+.cell-ranking .ranking-table .col-name { width: 11.35%; }
+.cell-ranking .ranking-table .col-cell { width: 9.5%; }
+.cell-ranking .ranking-table .col-tier { width: 9.35%; }
+.cell-ranking .ranking-table .col-score { width: 7.4%; }
+.cell-ranking .ranking-table .col-concepts { width: 21.9%; }
+.cell-ranking .ranking-table .col-ctx { width: 6.6%; }
+.cell-ranking .ranking-table .col-hirise { width: 7.3%; }
+.cell-ranking .ranking-table .col-dtm { width: 4.85%; }
+.cell-ranking .ranking-table .col-crism { width: 6.4%; }
+.cell-ranking .ranking-table .col-method { width: 12.6%; }
+.cell-ranking .ranking-table :is(th, td):is(:nth-child(5), :nth-child(7), :nth-child(8), :nth-child(9), :nth-child(10)) { text-align: right; }
+.cell-ranking .ranking-table th, .cell-ranking .ranking-table td { padding-block: 7px; }
+.cell-ranking .ranking-table tbody tr { height: 36px; cursor: pointer; }
+.cell-ranking .ranking-table tbody td:last-child { text-align: left; }
+.cell-ranking .ranking-table tbody th { overflow-wrap: anywhere; }
+.cell-ranking .sparse-label { font-weight: 430; font-size: 11px; }
+.ranking-notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px; margin-top: 10px; }
+.ranking-notes h2 { margin-bottom: 10px; }
+.cell-rank-sort { display: flex; align-items: center; gap: 10px; margin: -8px 0 5px; }
+.cell-ranking .ranking-footer { align-items: center; }
+.rank-actions .button { font-family: var(--mono); }
+.rank-actions button:disabled { opacity: .45; }
+.ranking-pack { text-align: right; }
+@media (max-width: 960px) {
+  .ranking-notes { gap: 16px 32px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 690px) {
+  .ranking-notes { gap: 18px; grid-template-columns: 1fr; }
+  .cell-ranking .ranking-footer { align-items: flex-start; }
+  .base-fields { gap: 8px; }
+  .dialog-actions { flex-wrap: wrap; }
 }

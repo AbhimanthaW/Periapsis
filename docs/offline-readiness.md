@@ -31,7 +31,7 @@ On the presentation machine, keep the matching checkout and provision its locked
 uv run --project documentation --locked --offline python -m runtime.release serve data/offline-release
 ```
 
-Open [Explore](http://127.0.0.1:8000/explore) or [the Research Atlas](http://127.0.0.1:8000/atlas). To use another loopback port, pass `--port`. Launch verifies the checkout and every packaged file before binding the port. Local API failures return JSON errors. External citations are optional links.
+Open [Explore](http://127.0.0.1:8000/explore), [the Operations UI](http://127.0.0.1:8000/demo/) or [the Research Atlas](http://127.0.0.1:8000/atlas). To use another loopback port, pass `--port`. Launch verifies the checkout and every packaged file before binding the port. Local API failures return JSON errors. External citations are optional links.
 
 ## Release acceptance
 

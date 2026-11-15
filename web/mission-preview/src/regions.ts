@@ -1,12 +1,10 @@
 export const methods = ['Sample rock', 'Investigate ice', 'Remote survey'] as const
 export const exclusions = ['Polar', 'Volcanic'] as const
 export const profiles = ['Rover', 'Astronaut'] as const
-export const sorts = ['Match', 'Science', 'Records', 'Traversal'] as const
 
 export type Method = (typeof methods)[number]
 export type Exclusion = (typeof exclusions)[number]
 export type Profile = (typeof profiles)[number]
-export type Sort = (typeof sorts)[number]
 
 export interface Region {
   id: string
@@ -111,30 +109,4 @@ export function interpretObjective(objective: string): string[] {
     tokens.some(word => /^(volcan|lava|basalt)/.test(word)) && 'Volcanic deposits',
   ].filter((term): term is string => typeof term === 'string')
   return terms.length ? terms : [...new Set(tokens)].slice(0, 4)
-}
-
-export const isExcluded = (region: Region, excludes: Exclusion[]) =>
-  region.exclusion !== undefined && excludes.includes(region.exclusion)
-
-export function matchStrength(region: Region, terms: string[]) {
-  const targets = [...region.targets, ...words(region.phrase)]
-  return words(terms.join(' ')).reduce((total, word) =>
-    total + Number(targets.some(target => word.startsWith(target) || target.startsWith(word))), 0)
-}
-
-export function rankRegions(terms: string[], method: Method, excludes: Exclusion[], sort: Sort, profile: Profile) {
-  const value = (region: Region) => {
-    switch (sort) {
-      case 'Science': return region.science
-      case 'Records': return typeof region.records === 'number' ? region.records : 0
-      case 'Traversal': {
-        const difficulty = region.traversal[profile]
-        return typeof difficulty === 'number' ? 10 - difficulty : 0
-      }
-      case 'Match': return matchStrength(region, terms) * 2 + Number(region.preferred === method)
-    }
-  }
-  const extraMatches = contextRegions.filter(region => matchStrength(region, terms) > 0 || isExcluded(region, excludes))
-  return [...regions, ...extraMatches].sort((left, right) =>
-    Number(isExcluded(left, excludes)) - Number(isExcluded(right, excludes)) || value(right) - value(left))
 }

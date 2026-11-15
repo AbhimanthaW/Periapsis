@@ -254,3 +254,28 @@ test('rehearsal playback is accessible without a camera', async ({ page }) => {
   await page.getByRole('button', { name: 'Play playback' }).click()
   await expect(page.getByRole('button', { name: 'Pause playback' })).toBeVisible()
 })
+
+test('the packaged Operations UI opens unselected and connects ranking and mission steps', async ({ page }) => {
+  await page.goto('/explore')
+  await page.getByRole('link', { name: 'Operations UI' }).click()
+  await expect(page).toHaveURL(/\/demo\/$/)
+  await expect(page.getByRole('heading', { name: 'Explore Mars' })).toBeVisible()
+  await expect(page.locator('.globe-marker[aria-pressed="true"]')).toHaveCount(0)
+
+  const nav = page.getByRole('navigation', { name: 'Mission stages' })
+  for (const stage of ['Route', 'Analysis', 'Monitor']) {
+    const trigger = nav.getByRole('button', { name: stage, exact: true })
+    await trigger.press('Enter')
+    await expect(page.getByRole('dialog', { name: stage + ' workspace' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(trigger).toBeFocused()
+  }
+
+  await page.getByRole('link', { name: 'Ranked areas', exact: true }).click()
+  await expect(page.getByText(/196,608 cells searched/)).toBeVisible()
+  await page.getByRole('region', { name: 'Cell ranking table' }).locator('tbody button').first().click()
+  await page.getByRole('link', { name: /^Investigate / }).click()
+  await expect(page.getByRole('complementary', { name: 'Region investigation panel' })).toBeVisible()
+  await page.getByRole('link', { name: 'Explore', exact: true }).click()
+  await expect(page.getByRole('main', { name: 'Planetary Explore' })).toBeVisible()
+})

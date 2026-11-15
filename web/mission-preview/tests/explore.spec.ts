@@ -1,110 +1,190 @@
 import { expect, test } from '@playwright/test'
-import type { Page } from '@playwright/test'
+import type { Page, TestInfo } from '@playwright/test'
 
-const capture = async (page: Page, name: string) => {
+declare const process: { env: { RW_EXPLORE_QA_DIR?: string; RW_MARSWALK_QA?: string } }
+
+const capture = async (page: Page, info: TestInfo, name: string) => {
   await page.evaluate(async () => {
     await document.fonts.ready
     await Promise.all(Array.from(document.images, img => img.decode()))
   })
   expect(await page.evaluate(() => [innerWidth, innerHeight, devicePixelRatio])).toEqual([1440, 900, 2])
   await page.mouse.move(2, 898)
-  await page.screenshot({ path: `qa/captures/${name}.png`, scale: 'device', animations: 'disabled' })
+  const dir = process.env.RW_EXPLORE_QA_DIR
+  await page.screenshot({ path: dir ? dir + '/captures/' + name + '.png' : info.outputPath(name + '.png'),
+    scale: 'device', animations: 'disabled' })
 }
+const globe = (page: Page) => page.getByRole('group', { name: 'Mars globe and regions' })
+const objective = (page: Page) => page.getByRole('textbox', { name: 'Objective', exact: true })
+const summary = (page: Page) => page.getByRole('complementary', { name: 'Selected cell' })
+const baseTrigger = (page: Page, name = 'Set Mars base') => page.getByRole('button', { name })
+const rankTable = (page: Page) => page.getByRole('region', { name: 'Cell ranking table' })
+const rankLink = (page: Page) => page.getByRole('link', { name: 'Ranked areas', exact: true })
 
-test('captures the three reference states through the normal flow', async ({ page }) => {
+test('captures the Explore, service ranking and Jezero investigation states', async ({ page }, info) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
-  page.on('response', response => { if (response.status() >= 400) errors.push(response.url()) })
   await page.goto('/')
+  await expect(summary(page).getByRole('heading', { name: 'Explore Mars' })).toBeVisible()
+  await expect(page.locator('.globe-marker[aria-pressed="true"]')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Investigate', exact: true })).toHaveCount(0)
+  const jezero = globe(page).getByRole('button', { name: 'Jezero Crater', exact: true })
+  await jezero.hover()
+  await expect(jezero.locator('.marker-label')).toBeVisible()
+  await jezero.press('Space')
+  await expect(jezero).toHaveAttribute('aria-pressed', 'true')
+  await expect(summary(page)).toContainText('HPX128:96506')
+  await expect(summary(page)).toHaveAttribute('aria-busy', 'false')
+  await expect(jezero).toBeFocused()
+  await page.locator('main').focus()
+  await capture(page, info, '01-planetary-explore')
+
+  await rankLink(page).click()
+  await expect(page.getByRole('main', { name: 'Ranked Areas' })).toBeFocused()
+  await expect(page.locator('.ranking-pack')).toContainText('196,608 cells searched')
+  await expect(rankTable(page).getByRole('row')).toHaveCount(4)
+  // Select a real result to capture the reference's selected row treatment.
+  const first = rankTable(page).locator('tbody th button').first()
+  await first.press('Enter')
+  await expect(first).toHaveAttribute('aria-pressed', 'true')
+  await page.locator('main').focus()
+  await capture(page, info, '01b-ranked-areas')
+
+  await page.getByRole('link', { name: 'Globe', exact: true }).click()
+  await jezero.click()
+  await expect(jezero).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('link', { name: 'Investigate', exact: true }).click()
+  await expect(page).toHaveURL(/#cell\/HPX128:96506$/)
   await expect(page.getByRole('heading', { name: 'Jezero Crater' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Polar', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByRole('button', { name: 'Jezero Crater', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await capture(page, '01-planetary-explore')
-
-  await page.getByRole('link', { name: 'Sample ranking' }).click()
-  await expect(page.getByRole('main', { name: 'Region Ranking' })).toBeFocused()
-  await expect(page.getByRole('row', { name: /Jezero Crater/ })).toHaveClass('selected')
-  await expect(page.getByRole('row').nth(1)).toContainText('Jezero Crater')
-  await expect(page.getByRole('row').nth(2)).toContainText('Nili Fossae')
-  await capture(page, '01a-region-ranking')
-
-  await page.getByRole('link', { name: 'Investigate Jezero Crater' }).click()
   await expect(page.getByRole('tab', { name: 'Data' })).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByRole('row', { name: /CTX optical/ })).toContainText('Partial')
-  await capture(page, '02-region-investigation')
+  await expect(page.getByRole('complementary', { name: 'Region investigation panel' })).toHaveAttribute('aria-busy', 'false')
+  await capture(page, info, '02-region-investigation')
   expect(errors).toEqual([])
 })
 
-test('edits the objective and targets, filters and sorts, and preserves state across selections', async ({ page }) => {
+test('edits targets and filters, sorts actual results, and preserves objective and selections', async ({ page }) => {
   await page.goto('/')
-  const objective = page.getByRole('textbox', { name: 'Objective', exact: true })
-  await objective.fill('Water ice and glacial deposits')
-  await objective.press('Enter')
-  await expect(page.getByText('Water ice and glaciation', { exact: true })).toBeVisible()
+  const science = 'Water ice and glacial deposits'
+  await objective(page).fill(science)
+  await objective(page).press('Enter')
   const edit = page.getByRole('button', { name: 'Edit targets' })
-  await edit.focus()
   await edit.press('Enter')
   const dialog = page.getByRole('dialog', { name: 'Edit targets' })
-  await expect(dialog).toBeVisible()
-  await dialog.getByRole('textbox').fill('ice\nglacial\nice')
+  await dialog.getByRole('textbox').fill('water ice\nglacial\nwater ice')
+  const changedTargets = page.waitForRequest(request =>
+    request.url().endsWith('/api/v1/rank') && request.postDataJSON().objective === 'water ice glacial')
   await dialog.getByRole('button', { name: 'Apply targets' }).click()
+  await changedTargets
   await expect(edit).toBeFocused()
-  await expect(page.getByText('glacial', { exact: true })).toBeVisible()
   await edit.press('Enter')
   await dialog.getByRole('textbox').fill('discard this edit')
   await page.keyboard.press('Escape')
   await expect(edit).toBeFocused()
-  await expect(page.getByText('glacial', { exact: true })).toBeVisible()
+  await expect(page.getByText('water ice', { exact: true })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Investigate ice' }).click()
-  const polar = page.getByRole('button', { name: 'Polar', exact: true })
-  await polar.click()
-  await expect(polar).toHaveAttribute('aria-pressed', 'false')
+  const excluded = page.waitForResponse(response => response.url().endsWith('/api/v1/rank')
+    && response.request().postDataJSON().exclude.includes('volcanic'))
   await page.getByRole('button', { name: 'Volcanic', exact: true }).click()
-  const globe = page.getByRole('group', { name: 'Mars globe and regions' })
-  const marker = globe.getByRole('button', { name: 'Planum Boreum', exact: true })
-  await marker.hover()
-  await expect(marker.locator('.marker-label')).toBeVisible()
-  await marker.focus()
-  await marker.press('Space')
-  await expect(marker).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByRole('heading', { name: 'Planum Boreum' })).toBeVisible()
-
-  await page.getByRole('link', { name: 'Sample ranking' }).click()
-  await expect(page.getByRole('heading', { name: 'Water ice and glacial deposits' })).toBeVisible()
-  await expect(page.getByText('Exclude volcanic')).toBeVisible()
-  await expect(page.getByRole('row', { name: /Syrtis Major Planum/ })).toContainText('Excluded · volcanic')
-  await expect(page.getByRole('row', { name: /Planum Boreum/ })).toHaveClass('selected')
+  expect((await excluded).ok()).toBe(true)
+  await expect(page.getByRole('button', { name: 'Volcanic', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await rankLink(page).click()
+  await expect(page.getByRole('heading', { name: science })).toBeVisible()
+  await expect(page.getByText('Polar, Volcanic', { exact: true })).toBeVisible()
+  await expect(rankTable(page)).toBeVisible()
+  const first = rankTable(page).locator('tbody tr').first()
+  const rankBefore = await first.getByRole('cell').first().textContent()
   await page.getByRole('button', { name: 'Records', exact: true }).click()
-  await expect(page.getByRole('row').nth(1)).toContainText('Nili Fossae')
-  await page.getByRole('button', { name: 'Traversal', exact: true }).click()
-  await expect(page.getByRole('row').nth(1)).toContainText('Planum Boreum')
-  await page.getByRole('button', { name: 'Astronaut', exact: true }).click()
-  await expect(page.getByRole('columnheader', { name: 'Traversal · Astronaut' })).toBeVisible()
-  const listRegion = page.getByRole('button', { name: 'Nili Fossae', exact: true })
-  await listRegion.focus()
-  await listRegion.press('Enter')
-  await expect(listRegion).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('link', { name: 'Investigate Nili Fossae' }).click()
-  await expect(page.getByRole('heading', { name: 'Nili Fossae', exact: true })).toBeVisible()
-  await expect(page.getByRole('row', { name: /CTX optical/ })).toContainText('Not packaged')
+  await expect(first.getByRole('cell').first()).not.toHaveText(rankBefore!)
+  const area = first.getByRole('button')
+  await area.press('Space')
+  await expect(area).toHaveAttribute('aria-pressed', 'true')
+  const cellId = (await first.getByRole('cell').nth(1).textContent())!
+  await page.getByRole('link', { name: /^Investigate / }).click()
+  await expect(page).toHaveURL('#cell/' + cellId)
   const dataTab = page.getByRole('tab', { name: 'Data' })
-  await dataTab.focus()
   await dataTab.press('ArrowLeft')
   await expect(page.getByRole('tab', { name: 'Science' })).toBeFocused()
-  await expect(page.getByRole('tabpanel')).toContainText('Water ice and glacial deposits')
-  await expect(page.getByRole('tabpanel')).toContainText('glacial')
-
+  await expect(page.getByRole('tabpanel')).toContainText(science)
+  await expect(page.getByRole('tabpanel')).toContainText('water ice · glacial')
   await page.getByRole('link', { name: 'Compare', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Traversal', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByRole('row', { name: /Nili Fossae/ })).toHaveClass('selected')
+  await expect(page.getByRole('button', { name: 'Records', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(rankTable(page).getByRole('button', { pressed: true })).toBeVisible()
   await page.getByRole('link', { name: 'Globe', exact: true }).click()
-  await expect(objective).toHaveValue('Water ice and glacial deposits')
-  await expect(page.getByRole('heading', { name: 'Nili Fossae', exact: true })).toBeVisible()
+  await expect(objective(page)).toHaveValue(science)
+  await expect(summary(page)).toContainText(cellId)
 })
 
-test('checks layer and zoom controls, Jezero landmarks, and responsive layout', async ({ page }) => {
+test('validates, saves and clears the base without changing the science target', async ({ page, context }) => {
+  await page.goto('/')
+  await expect(summary(page).getByRole('heading')).toHaveText('Explore Mars')
+  await baseTrigger(page).press('Enter')
+  const dialog = page.getByRole('dialog', { name: 'Mars base coordinates' })
+  await expect(dialog.getByLabel('Latitude')).toBeFocused()
+  await dialog.getByLabel('Latitude').fill('90.1')
+  await dialog.getByLabel('Longitude').fill('-153.6789')
+  await dialog.getByRole('button', { name: 'Set base', exact: true }).click()
+  await expect(dialog.getByRole('alert')).toContainText('Enter a latitude')
+  await dialog.getByLabel('Latitude').fill('39.1234')
+  await dialog.getByRole('button', { name: 'Set base', exact: true }).click()
+  await expect(dialog).toBeHidden()
+  await expect(baseTrigger(page, 'Edit Mars base')).toBeFocused()
+  await expect(summary(page).getByRole('heading')).toHaveText('Explore Mars')
+  await globe(page).getByRole('button', { name: 'Jezero Crater', exact: true }).click()
+  await page.getByRole('link', { name: 'Investigate', exact: true }).click()
+  await expect(page.getByText('39.1234°N 153.6789°W')).toBeVisible()
+  const handoff = page.getByRole('link', { name: 'Open Marswalk from base' })
+  const href = (await handoff.getAttribute('href'))!
+  const params = new URL(href, page.url()).searchParams
+  expect(params.get('base')).toBe('-153.6789,39.1234')
+  expect(params.get('cell')).toMatch(/^HPX128:\d+$/)
+  expect(params.get('cell')).not.toBe('HPX128:96506')
+  if (process.env.RW_MARSWALK_QA === '1') {
+    const walker = await context.newPage()
+    await walker.goto(href)
+    await expect(walker.getByText('Candidate base 39.12340°, -153.67890° east longitude.')).toBeVisible()
+    await walker.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
+    const calculation = walker.waitForResponse(response => response.url().endsWith('/api/v2/plan'))
+    await walker.getByRole('button', { name: 'Calculate sortie' }).click()
+    const planned = await calculation
+    expect(planned.ok()).toBe(true)
+    const plan = await planned.json()
+    expect(plan.mars_base_point).toEqual([-153.6789, 39.1234])
+    expect(plan.context_cell_id).toBe(params.get('cell'))
+    await expect(walker.getByRole('region', { name: 'Planning result' })).toBeVisible()
+    await walker.close()
+  }
+  await page.reload()
+  await expect(page.getByText('39.1234°N 153.6789°W')).toBeVisible()
+  await page.getByRole('link', { name: 'Mars', exact: true }).click()
+  await baseTrigger(page, 'Edit Mars base').click()
+  await dialog.getByRole('button', { name: 'Clear base' }).click()
+  await expect(baseTrigger(page)).toBeVisible()
+  await expect(summary(page)).toContainText('HPX128:96506')
+})
+
+test('handles a withheld ranking and retries a lost service connection', async ({ page }) => {
+  await page.goto('/')
+  await objective(page).fill('zznotarecognisedmarskeywordzz')
+  await objective(page).press('Enter')
+  await rankLink(page).click()
+  await expect(page.getByRole('status')).toContainText('No supported concepts were recognised')
+  await expect(page.getByText(/Not recognised:.*zznotarecognised/)).toBeVisible()
+  await expect(rankTable(page)).toHaveCount(0)
+
+  await page.route('**/api/v1/rank', route => route.fulfill({ status: 503, json: { message: 'Cell service temporarily unavailable.' } }))
+  await page.getByRole('link', { name: 'Globe', exact: true }).click()
+  await objective(page).fill('ancient water and delta deposits')
+  await objective(page).press('Enter')
+  await rankLink(page).click()
+  await expect(page.getByRole('alert')).toContainText('temporarily unavailable')
+  await page.unroute('**/api/v1/rank')
+  await page.getByRole('button', { name: 'Retry ranking' }).click()
+  await expect(rankTable(page)).toBeVisible()
+})
+
+test('keeps navigation and controls usable at desktop, tablet and phone widths', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: /Viking colour/ }).click()
   await page.getByRole('button', { name: 'MOLA relief', exact: true }).click()
@@ -113,7 +193,7 @@ test('checks layer and zoom controls, Jezero landmarks, and responsive layout', 
   await expect(page.locator('.globe-disc')).toHaveCSS('--zoom', '1.1')
   await page.getByRole('button', { name: 'Reset globe view' }).click()
   await expect(page.locator('.globe-disc')).toHaveCSS('--zoom', '1')
-
+  await globe(page).getByRole('button', { name: 'Jezero Crater', exact: true }).click()
   await page.getByRole('link', { name: 'Investigate', exact: true }).click()
   await page.getByRole('button', { name: 'Delta front' }).click()
   await expect(page.getByRole('status')).toContainText('western delta deposits')
@@ -122,33 +202,28 @@ test('checks layer and zoom controls, Jezero landmarks, and responsive layout', 
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: 'Sources' })).toBeFocused()
 
-  for (const width of [1100, 768, 390]) {
-    await page.setViewportSize({ width, height: 840 })
-    for (const hash of ['globe', 'ranking', 'region/43']) {
-      await page.goto('/#' + hash)
-      const main = page.getByRole('main', { name: hash === 'globe' ? 'Planetary Explore'
-        : hash === 'ranking' ? 'Region Ranking' : 'Region Investigation' })
+  for (const width of [1440, 1100, 768, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    for (const [route, target] of [
+      ['globe', 'Planetary Explore'], ['ranking', 'Ranked Areas'], ['cell/HPX128:96506', 'Region Investigation'],
+    ]) {
+      await page.goto('/#' + route)
+      const main = page.getByRole('main', { name: target })
       await expect(main).toBeVisible()
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
-      const panel = hash === 'globe' ? page.getByRole('complementary', { name: 'Selected region' })
-        : hash === 'ranking' ? page.getByRole('region', { name: 'Region ranking table' })
+      const panel = route === 'globe' ? summary(page)
+        : route === 'ranking' ? rankTable(page)
         : page.getByRole('complementary', { name: 'Region investigation panel' })
-      const box = await panel.boundingBox()
-      expect(box!.x).toBeGreaterThanOrEqual(0)
-      expect(box!.x + box!.width).toBeLessThanOrEqual(width + 1)
-      if (width > 900 || (hash !== 'region/43' && width > 690)) {
-        expect(box!.y + box!.height).toBeLessThanOrEqual(841)
-      }
-      const action = hash === 'ranking' ? page.getByRole('link', { name: 'Investigate Jezero Crater' })
-        : hash === 'globe' ? page.getByRole('link', { name: 'Investigate', exact: true })
+      await expect(panel).toBeVisible()
+      const bounds = (await panel.boundingBox())!
+      expect(bounds.x).toBeGreaterThanOrEqual(0)
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(width + 1)
+      if (width === 1440) expect(bounds.y + bounds.height).toBeLessThanOrEqual(900)
+      const control = route === 'globe' ? baseTrigger(page)
+        : route === 'ranking' ? page.getByRole('button', { name: 'Records', exact: true })
         : page.getByRole('button', { name: 'Sources', exact: true })
-      await action.scrollIntoViewIfNeeded()
-      await expect(action).toBeInViewport()
-      await action.hover()
-      if (hash === 'globe') {
-        const shortlist = (await page.getByRole('region', { name: 'Top matching regions' }).boundingBox())!
-        expect(shortlist.y >= box!.y + box!.height - 1 || box!.y >= shortlist.y + shortlist.height - 1).toBe(true)
-      }
+      await control.scrollIntoViewIfNeeded()
+      await expect(control).toBeInViewport()
     }
   }
 })

@@ -159,6 +159,7 @@ export default function Explore() {
       <nav className="mission-nav" aria-label="Workspaces">
         <button className="mission-link" onClick={() => { setRank(false); setSimulation(false) }}>Explore</button>
         <button className="mission-link" onClick={() => { setRank(true); setSimulation(false) }}>Ranked cells</button>
+        {import.meta.env.VITE_PACKAGED_RELEASE === '1' && <a href="/demo/">Operations UI</a>}
         <a href="/atlas">Research Atlas</a>
         <a href="/architecture">Architecture</a>
         <button className="mission-button mission-button-primary" onClick={demo}>Demo</button>
