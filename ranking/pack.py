@@ -12,6 +12,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .ledger import load
+
 
 def digest(path: Path) -> str:
     with path.open("rb") as stream:
@@ -31,8 +33,14 @@ def save(directory: Path, arrays: dict[str, np.ndarray], metadata: dict, extras:
         decoded[name] = hashlib.sha256(raw).hexdigest()
     for name in ("concepts.json", "lexicon.json"):
         source = Path(__file__).with_name(name)
-        shutil.copyfile(source, directory / name)
-        files[name] = digest(directory / name)
+        target = directory / name
+        if name == "concepts.json" and metadata["synthetic_layers"]:
+            ledger = json.loads(source.read_text(encoding="utf-8"))
+            ledger["concepts"] = load(source, with_demo=True)
+            target.write_text(json.dumps(ledger, sort_keys=True, separators=(",", ":")), encoding="utf-8")
+        else:
+            shutil.copyfile(source, target)
+        files[name] = digest(target)
     for name, source in sorted((extras or {}).items()):
         shutil.copyfile(source, directory / name)
         files[name] = digest(directory / name)
