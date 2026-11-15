@@ -151,13 +151,17 @@ def _limit_for(variable, limits):
 
 
 def issue_forecast(model: ForecastModel, observations, now_utc, *, lon_east_deg=None, limits=DEFAULT_LIMITS,
-                   provenance="simulated"):
+                   provenance="simulated", report_details=None):
     """Forecast every target and horizon from the observations available at ``now_utc``."""
     lon = model.station["lon_east_deg"] if lon_east_deg is None else lon_east_deg
     if lon is None:
         raise MarswalkError("INVALID_FORECAST_MODEL", "station longitude is required for local time")
     obs = [o if isinstance(o, Observation) else Observation(**o) for o in observations]
     now, now_abs, anomalies, fresh, latest = _bin_observations(model, obs, now_utc, lon)
+    if report_details is not None:
+        report_details.update(observations=[o.__dict__ for o in obs], local_time=now, local_bin=now_abs,
+                              anomaly_by_sensor_and_bin_offset=anomalies, fresh_sensors=fresh,
+                              feature_vectors=[])
     issued = parse_utc(now_utc)
     forecasts = []
     for target, by_h in model.models.items():
@@ -190,7 +194,13 @@ def issue_forecast(model: ForecastModel, observations, now_utc, *, lon_east_deg=
             if status == "model":
                 x = _features(tuple(entry["sensors"]), target, anomalies, now_abs, h, model.bins, now["ls_deg"])
                 ranges = np.asarray(entry["ranges"])
-                if not np.all((x >= ranges[0]) & (x <= ranges[1])):
+                in_range = bool(np.all((x >= ranges[0]) & (x <= ranges[1])))
+                if report_details is not None:
+                    report_details["feature_vectors"].append({
+                        "target": target, "horizon": key, "kit": kit_name, "values": x.tolist(),
+                        "within_training_range": in_range,
+                    })
+                if not in_range:
                     status, reason, entry, kit_name = "abstained", "inputs outside the training range", clock, "clock"
                 else:
                     base = clim + (anomalies[target][0] if entry["base"] == "anomaly_persistence" else 0.0)

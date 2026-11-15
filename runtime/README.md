@@ -205,6 +205,47 @@ uv run --project documentation --locked python -m runtime.mission simulate contr
 
 Add `--site-sha256` with an independently recorded digest when validating a released pack. Exit 2 reports a refused pack or request as structured JSON on stderr. A valid simulation that cannot return reports its decision state in JSON on stdout.
 
+### Run reports
+
+The planning service records the integrated routing, fixture planning and cell ranking POSTs
+that reach their execution handlers. Run IDs identify individual executions across service
+restarts. The planner's existing revision and response remain its own contract. Retrying the
+latest identical integrated update returns the same plan and creates no additional run.
+
+History is in memory unless you start the service with `--report-db`. For example, after
+building the station artifact above, start it with persistent history and PDF support:
+
+```powershell
+uv run --project documentation --locked --with reportlab python -m runtime.planning_api --final-routing-model "$routingDemo/model.json" --report-db "$routingDemo/runs.sqlite"
+```
+
+Submit a normal plan request or run the mission feed. Then use the loopback API:
+
+| GET | Returns |
+| --- | --- |
+| `/api/v1/reports?limit=25&offset=0` | Recent executions, newest first, with report IDs and the next offset. Maximum page size is 100. |
+| `/api/v1/reports/{report_id}` | Versioned JSON with normalized request, run status, timed calculation stages, full result or error, and provenance. |
+| `/api/v1/reports/{report_id}/report.json` | The same complete record as a download. |
+| `/api/v1/reports/{report_id}/trace.csv` | One row per stage. JSON pointers locate the full inputs and outputs in the JSON report. |
+| `/api/v1/reports/{report_id}/segments.csv` | Directed route edges and dwell phases for the integrated and Marswalk planners. Includes the recorded rover energy phases and prefix checks. |
+| `/api/v1/reports/{report_id}/report.pdf` | Readable summary of the decisions, constraints, assumptions, trace and input artifact hashes. Requires ReportLab. |
+| `/api/v1/report-artifacts/{sha256}` | The exact stored JSON bytes for a report artifact. The SHA-256 is computed over those bytes. |
+
+The integrated report covers manual and spatial hazards, the observed weather gate, station
+forecasts, objective interpretation and classification, terrain and directed search, hard
+constraints, human consumables, Bayesian oxygen adjustment, rover power and walkback, and
+the final decision. The trace records separate attempts for arrival-time routing and swept
+fallback when both occur. Run and stage timestamps are wall-clock UTC. The scenario clock is
+in the request and result. Durations are elapsed wall time, so a parent stage includes its
+child stages. A completed run can legitimately return a blocked plan or withhold a
+recommendation. Rejected HTTP bodies have no run because model execution did not start.
+
+Stage state is visible while the request runs. A forced process stop can leave a partial
+record in the database. The database contains reported observations and telemetry. Keep it
+in the local working directory or another suitable private location and manage its retention.
+Separate offline training, evidence builds and historical dust products are outside the run
+trace. The integrated terrain and operating profiles are simulation inputs.
+
 ## Local planning HTTP foundation
 
 From the repository root, provision the locked environment once with
