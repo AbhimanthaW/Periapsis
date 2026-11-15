@@ -54,8 +54,8 @@ orientation aids.
 
 Use **Demo** to fill the objective and select the Arcadia cell and its pinned
 local evidence review. Inspect the supported MOLA fallback and the withheld
-20 m calculation. Choose **Enter simulated Marswalk** to calculate the
-separate synthetic sortie. The preset starts at local row 1, column 1 with
+20 m calculation. Choose **Enter simulated Marswalk** to submit the preset
+synthetic sortie for operator review. The preset starts at local row 1, column 1 with
 130 seconds, and both inputs can be changed. Approve a route in Monitor,
 record departure, report a simulated crew position and apply a closure.
 Recalculate from that position to the same base. The separate hazard replay

@@ -1,35 +1,33 @@
-# Return Window Architecture
+# Return Window web app
 
 A local engineering workspace for Periapsis’s proposed NASA Space Apps 2026 submission. The default document contains 152 components and 319 connections across the workspace. Its Data Pipeline overview has twelve subsystems and seven views. It records the operational design and the evidence required to build it. Algorithm and parameter edits change the blueprint and its exports.
 
-## Run locally
+## Run the frontend locally
 
-Use Node.js 22.12 or newer and a current desktop browser. From this directory:
+Use Node.js 22.12 or newer and a current desktop browser. Run these commands in `web/`:
 
 ```sh
 npm ci
-npm run dev
+npm run dev -- --port 4175 --strictPort
 ```
 
-Open the local address printed by Vite. For a compiled build, run `npm run build`, then `npm run preview`. Both serve only on the local machine. Installation requires the package registry once. The installed editor uses bundled assets, no credentials, and no network services.
+Open [Explore Mars](http://127.0.0.1:4175/#globe). Its entry point is `web/src/main.tsx`. The editable architecture opens at `/architecture` and the research atlas opens at `/atlas`. Install dependencies once before working offline.
 
 ## Mars Research Atlas
 
 Open **Mars Atlas** from the Architecture Workspace, or visit `/atlas` on the same local server. The Atlas packages the Viking and MOLA global views, a bounded Jezero CTX optical subset, the 56-region index, and the original survey. It runs from local files while the server is running. See the [Atlas data and methodology](../reference/architecture/mars-research-atlas.md) for source credits, limits and regeneration. Run `npm run check:atlas` to validate the packaged registry and assets.
 
-## Mission (in progress)
+## Connect the mission backend
 
-`/mission` is the astronaut workflow. **Site investigation** shows the configured site, its local map context and the evidence decision from `/api/v1/evidence`. **Enter simulated Marswalk** switches to the labeled fixture replay (`/mission?view=simulation`), where closures and remaining time drive `/api/v1/plan`. See the [mission frontend plan](docs/mission-frontend.md) for screens, API bindings and unavailable capabilities.
-
-From the repository root, follow the [one-time Python setup](../runtime/README.md#local-planning-http-foundation), then start the loopback planning service.
+Build the release once using the [offline runbook](../docs/offline-readiness.md#build-once-with-network-access). From the repository root, start the release service before running Vite in a second terminal.
 
 ```sh
-uv run --project documentation --locked --offline python -m runtime.planning_api
+uv run --project documentation --locked --offline python -m runtime.release serve data/offline-release
 ```
 
-In a second terminal, run `npm run dev` from `web/` and open `/mission`. Vite proxies `/api` and `/healthz` to `http://127.0.0.1:8000` in both dev and preview. Set `RW_PLANNING_API_ORIGIN` when starting Vite to point the proxy elsewhere.
+Vite forwards API, health and packaged rehearsal requests to `http://127.0.0.1:8000`. Set `RW_PLANNING_API_ORIGIN` when starting Vite if the backend uses another port. For API-only development, start `runtime.planning_api` with `--engine marswalk` and provide the sourced pack with `--ranking-pack`. The packaged service also supplies the hazard replay interface and model.
 
-Leave `VITE_RW_SITE` unset until the primary site is approved. To select the Jezero engineering control, run `VITE_RW_SITE=jezero-control npm run dev`. For preview, run `VITE_RW_SITE=jezero-control npm run build` followed by `npm run preview`. Vite embeds the site selection at build time.
+Explore resolves locations to HEALPix Nside 128 cells through the backend. Named features provide approximate orientation. Set a Mars base, inspect evidence, and enter the labeled synthetic Marswalk to use the selectable-base planner. **Demo** selects Arcadia's reviewed footprint and prefills the objective. Entering the simulation submits its preset route for operator review. The legacy fixed-fixture regression opens at `/mission?view=simulation`.
 
 ## Explore and edit
 

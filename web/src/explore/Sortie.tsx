@@ -59,7 +59,6 @@ function Planner({ site, cellId, marsPoint, demo }: { site: FixtureSite; cellId:
   const revision = useRef(0)
   const active = useRef<AbortController | null>(null)
   const previousRequest = useRef<SortieRequest | null>(null)
-  useEffect(() => () => active.current?.abort(), [])
 
   function invalidate() {
     active.current?.abort()
@@ -113,6 +112,12 @@ function Planner({ site, cellId, marsPoint, demo }: { site: FixtureSite; cellId:
       if (active.current === controller && !controller.signal.aborted) setPending(false)
     }
   }
+
+  useEffect(() => {
+    if (demo) void calculate()
+    return () => active.current?.abort()
+    // Submit the initial rehearsal once, with the preset inputs.
+  }, [])
 
   const route = result?.marswalk.candidates.find(candidate => candidate.passed &&
     (candidate.id === result.recommendation || candidate.id === 'science:' + result.recommendation))

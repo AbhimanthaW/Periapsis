@@ -103,15 +103,19 @@ test('replays the four planning outcomes separately from the current region', as
 })
 
 test('serves the offline Arcadia showcase and keeps operator control over simulated reroutes', async ({ page }) => {
-  await page.goto('/explore')
+  await page.goto('/#globe')
   await page.getByRole('button', { name: 'Demo', exact: true }).click()
   await expect(page.getByRole('heading', { name: /Arcadia Planitia.*HPX128:43896/ })).toBeVisible()
+  await expect(page).toHaveURL(/cell=HPX128%3A43896.*#globe$/)
+  await page.reload()
+  await expect(page.getByLabel('Basemap')).toHaveValue('mola')
   await expect(page.getByRole('heading', { name: 'coarse_elevation_context' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'local_elevation_20m' })).toBeVisible()
   await expect(page.getByText('Tactical routing withheld.', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
-  await page.getByRole('button', { name: 'Calculate sortie' }).click()
   await expect(page.getByRole('region', { name: 'Planning result' })).toContainText('science-a')
   await page.getByRole('button', { name: 'Monitor', exact: true }).click()
+  await expect(page.getByText('Awaiting a current operator-approved route')).toBeVisible()
   await page.getByRole('link', { name: 'Open the separate hazard replay' }).click()
   await expect(page.getByText(/Update 1 \/ 6 · (Local compute|Bundled fallback)/)).toBeVisible()
   const next = page.getByRole('button', { name: 'Next update' })
@@ -231,13 +235,12 @@ test('ranked areas open the backend best cell from the normal Explore flow', asy
 
 test('invalid plan responses are cleared and can be retried', async ({ page }) => {
   await page.goto('/explore?demo=1')
-  await page.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
   await page.route('**/api/v2/plan', async route => {
     const response = await route.fetch()
     const json = await response.json()
     await route.fulfill({ response, json: { ...json, revision: json.revision + 1 } })
   }, { times: 1 })
-  await page.getByRole('button', { name: 'Calculate sortie' }).click()
+  await page.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
   await expect(page.getByRole('alert')).toContainText('different scenario')
   await expect(page.getByRole('region', { name: 'Planning result' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Retry calculation' }).click()

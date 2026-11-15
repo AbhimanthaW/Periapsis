@@ -15,13 +15,14 @@ import '../mission/mission.css'
 import '../atlas/atlas.css'
 import './explore.css'
 
-const signed = (point: Point): Point => [((point[0] + 540) % 360) - 180, point[1]]
+const signed = ([lon, lat]: Point): Point => [lon >= 180 ? lon - 360 : lon, lat]
 const arcadiaPoint = signed(display.center_lon_lat_deg as Point)
 function initialSelection() {
   const params = new URLSearchParams(location.search)
   const cell = params.get('cell') ?? ''
-  const parts = params.get('base')?.split(',').map(Number)
-  const base = parts?.length === 2 && Math.abs(parts[0]) <= 180 && Math.abs(parts[1]) <= 90 ? parts as Point : undefined
+  const parts = params.get('base')?.split(',')
+  const coords = parts?.length === 2 && parts.every(part => part.trim()) ? parts.map(Number) : undefined
+  const base = coords && Math.abs(coords[0]) <= 180 && Math.abs(coords[1]) <= 90 ? coords as Point : undefined
   return { cell, base, region: params.get('region'), demo: params.get('demo') === '1' }
 }
 
@@ -46,7 +47,7 @@ export default function Explore() {
   const request = useRef<AbortController | null>(null)
   const lastPick = useRef<(() => void) | null>(null)
 
-  function select(id: string, point?: Point, nextBase?: Point, namedFeature?: string) {
+  function select(id: string, point?: Point, nextBase?: Point, namedFeature?: string, preset = false) {
     setCellId(id)
     setDraftId(id)
     setPosition(point)
@@ -55,10 +56,13 @@ export default function Explore() {
     setSimulation(false)
     setRank(false)
     setPickBase(false)
+    setDemoPreset(preset)
     setFault('')
     const params = new URLSearchParams({ cell: id })
     if (nextBase) params.set('base', nextBase.join(','))
-    history.replaceState(null, '', '/explore?' + params)
+    if (preset) params.set('demo', '1')
+    const globeLink = location.pathname === '/' && location.hash === '#globe'
+    history.replaceState(null, '', globeLink ? '/?' + params + '#globe' : '/explore?' + params)
   }
 
   async function pick(point: Point, forBase: boolean, recenter = false, preset = false, namedFeature?: string) {
@@ -74,8 +78,7 @@ export default function Explore() {
       if (controller.signal.aborted) return
       if (!response.ok) { setFault(describeFailure(response)); return }
       lastPick.current = null
-      setDemoPreset(preset)
-      select(response.data.id, point, forBase ? point : undefined, namedFeature)
+      select(response.data.id, point, forBase ? point : undefined, namedFeature, preset)
       if (recenter) setCenter(point)
     } catch (error) {
       if (!controller.signal.aborted) setFault(String(error))
