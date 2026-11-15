@@ -83,7 +83,7 @@ export default function RankedAreas({ back, openCell, initialObjective }: { back
         onChange={event => setObjective(event.target.value)}/>
       <button className="button" disabled={busy || !objective.trim()}>Rank areas</button>
     </form>
-    <p>Ranking thresholds are provisional. The terrain screening score is the percentage of evaluated cells with mapped mass-wasting or polar dune units. Local slope, trafficability and mission safety are outside this assessment.</p>
+    <p>Exploratory ranking. The order can change with model thresholds. The terrain screening score is the percentage of evaluated cells with mapped mass-wasting or polar dune units. Local slope, trafficability and mission safety are outside this assessment.</p>
     {busy && <p role="status">Ranking areas…</p>}
     {error && <p role="alert">{error}</p>}
     {result && <section aria-label="Objective interpretation">

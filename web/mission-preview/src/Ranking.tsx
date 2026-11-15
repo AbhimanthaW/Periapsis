@@ -84,6 +84,7 @@ export function Ranking({ ranking, selected, objective, termsEdited, excludes, m
         </table>
       </div>
     </>}
+    <p className="muted">Exploratory ranking. Evidence coverage varies and the order can change with model thresholds.</p>
     <div className="ranking-notes">
       <section aria-label="Column definitions">
         <h2 className="caption">Columns from the service</h2>

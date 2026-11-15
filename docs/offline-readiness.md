@@ -36,11 +36,20 @@ Open [Explore](http://127.0.0.1:8000/explore), [the Operations UI](http://127.0.
 ## Release acceptance
 
 1. Use a fresh browser profile on a second machine with networking disconnected.
-2. Use the Demo button in Explore. Inspect regional MOLA context and the refusal of 20 m stereo elevation. Compare the Jezero engineering-control query cell HPX128:96848 with the Solis Planum or Icaria Planum anchor cells. Check that sparse regions show regional HEALPix context and uncertainty while withholding local calculations.
+2. Open the Operations UI and choose **Demo**. Inspect regional MOLA context and the refusal of 20 m stereo elevation. Enter the synthetic Marswalk, approve the proposed route in Monitor, record departure, report a crew position and close the middle corridor. Verify the recomputed return reaches the same synthetic base and awaits approval. Compare the Jezero control, HPX128:96848, with a sparse cell such as HPX128:0. Sparse cells should show regional evidence and uncertainty while withholding unsupported local calculations.
 3. Rank “ancient lakes with hydrothermal activity” in the Atlas. Confirm that the result states which terms were evaluated and which were skipped.
 4. Open the fixed-fixture regression at `/mission?view=simulation`. Confirm baseline return and science times of 40 s and 75 s, then 60 s and 95 s after closing the middle corridor. With 70 s remaining, expect an over-reserve refusal. Close both corridors and expect no route. Completed work must remain visible.
 5. Open the separate hazard drill. Advance to the closure and check that the active route only changes after explicit operator approval. Verify that stale readings prevent approval. The seasonal MDAD outlook and the synthetic station model do not grant terrain or hazard qualification.
 6. Record the tested commit, manifest digest, machine, results, and timing. Same-machine browser tests block external requests and cover the integration. The disconnected second-machine receipt is required for offline release acceptance.
+
+Use these claims in the demo and slides:
+
+- The atlas uses 196,608 HEALPix cells. Named landmarks help orient the operator. Evidence coverage varies by cell.
+- Ranking is exploratory. The sensitivity sweep retained 9–10 of 20 shallow-ice results and 14 of 20 young-volcanism results in the failing cases, below the 16-of-20 threshold.
+- Arcadia has regional MOLA context. The reviewed footprint lacks qualifying data for the requested 20 m stereo calculation, so tactical routing is withheld.
+- The Marswalk route and hazard drill use synthetic inputs. The planner recomputes the return after a closure, and the operator approves the proposed change.
+
+Suggested narration: “I’ll open Arcadia with Demo. We can see the regional topography from MOLA, but this footprint lacks the terrain data needed for a 20 metre calculation. In the labeled rehearsal, I’ll approve a route, close a corridor after departure and check the return to the same base before approving the change.”
 
 The [Jezero Float32 producer/consumer check](../evidence/jezero/README.md) is an independent archive control. The [moving-storm, SEP and emergency-hold scenarios](../runtime/docs/live-hazard-map.md) are separate CLI rehearsals. Neither control qualifies tactical routing.
 

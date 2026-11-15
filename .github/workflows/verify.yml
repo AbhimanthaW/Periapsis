@@ -69,8 +69,6 @@ jobs:
           npm run build
           npm run test:sites
           npm run test:methods
-          npx playwright install --with-deps chromium --only-shell
-          RW_UI_PRODUCTION=1 npm run test:ui
 
   science:
     needs: scope
@@ -127,6 +125,8 @@ jobs:
         run: |
           npx playwright install --with-deps chromium --only-shell
           npx playwright test --config playwright.release.config.ts
+          npm run build
+          RW_UI_PRODUCTION=1 RW_UI_API_BUNDLE=data/offline-release npm run test:ui
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'push'
         with:

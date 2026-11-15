@@ -9,6 +9,11 @@ const cellProxy = Object.fromEntries(
 
 export default defineConfig({
   base: process.env.VITE_RELEASE_BASE || "/",
+  resolve: {
+    alias: process.env.RW_HAZARD_REPLAY_FILE
+      ? [{ find: /^\.\/replay\.json$/, replacement: process.env.RW_HAZARD_REPLAY_FILE }]
+      : [],
+  },
   build: {
     outDir: "dist/client",
   },

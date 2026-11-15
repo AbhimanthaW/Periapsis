@@ -310,9 +310,10 @@ export default function App() {
       </nav>}
       {screen==='route'&&!hazardView&&<IconButton className="icon-button compact-header-menu" aria-label="Planning menu" onClick={()=>mobileTools.current?.showModal()}><List size={17}/></IconButton>}
       <div className="topbar-end">
+        {packaged && screen === 'globe' && <a className="button primary" href="/explore?demo=1">Demo</a>}
         {screen === 'globe' && <span className="event-name">NASA Space Apps Challenge 2026</span>}
         {screen === 'ranking' && ranking.status === 'ready' && ranking.result && <span className="mono muted ranking-pack">
-          {CELL_COUNT.toLocaleString('en-US')} cells {ranking.result.abstain ? 'in grid' : 'searched'} · {ranking.result.pack.version}
+          {CELL_COUNT.toLocaleString('en-US')} cells in grid · {ranking.result.pack.version}
         </span>}
         {missionStage && fixture.id === '43' && !hazardView &&
           <a className="button hazard-entry" href={missionHref(screen, profile, fixture, 'hazards')}>Hazard drill</a>}
@@ -397,7 +398,7 @@ export default function App() {
       <h2 id="shortcut-title">Keyboard shortcuts</h2>
       <p>Tab to move between controls. Enter or Space activates the focused button. On the globe, use + and − to zoom and 0 to reset. In the investigation tabs, use the arrow keys to switch panels.</p>
       <div className="shortcut-links">
-        <a href={packaged ? '/explore?demo=1' : arcadiaDemoHref()} onClick={() => shortcuts.current?.close()}>Arcadia demo</a>
+        {!packaged && <a href={arcadiaDemoHref()} onClick={() => shortcuts.current?.close()}>Arcadia demo</a>}
         {(displayRegion?.id === '43' || activeCell?.id === JEZERO_ANCHOR) && <a href={missionHref('monitor', profile, fixture, 'hazards')}
           onClick={() => shortcuts.current?.close()}>Jezero hazard drill</a>}
       </div>
