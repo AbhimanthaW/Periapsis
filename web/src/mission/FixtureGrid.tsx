@@ -4,12 +4,15 @@ type Props = {
   site: FixtureSite
   activeClosures: readonly string[]
   route: readonly Cell[] | null
+  alternatives?: readonly (readonly Cell[])[]
+  playbackCell?: Cell
+  proposed?: boolean
   /** The service returned a path for inspection only (for example over reserve). */
   inspectOnly?: boolean
 }
 
 /** The synthetic fixture grid in its own local-metre frame. Never placed on Mars geography. */
-export function FixtureGrid({ site, activeClosures, route, inspectOnly = false }: Props) {
+export function FixtureGrid({ site, activeClosures, route, inspectOnly = false, alternatives, playbackCell, proposed }: Props) {
   const [rows, cols] = site.grid.shape
   const [a, b, c, d, e, f] = site.grid.affine
   // Affine maps [col, row] (cell corner) to local metres; cell centres sit at [c+0.5, r+0.5].
@@ -57,6 +60,8 @@ export function FixtureGrid({ site, activeClosures, route, inspectOnly = false }
             </g>
           )
         }))}
+        {alternatives?.filter(cells => cells.length > 1).map((cells, index) =>
+          <polyline key={index} className="mission-route-alt" points={cells.map(cell => centre(cell).join(',')).join(' ')}/>)}
         {route && route.length > 1 && (
           <polyline data-testid="mission-route" data-inspect-only={inspectOnly} className={`mission-route${inspectOnly ? ' mission-route-inspect' : ''}`} points={route.map(cell => centre(cell).join(',')).join(' ')}/>
         )}
@@ -64,10 +69,12 @@ export function FixtureGrid({ site, activeClosures, route, inspectOnly = false }
         <text x={checkX} y={checkY} className="mission-marker-text" textAnchor="middle" dominantBaseline="central">C</text>
         <circle cx={homeX} cy={homeY} r={marker} className="mission-marker mission-marker-home"/>
         <text x={homeX} y={homeY} className="mission-marker-text" textAnchor="middle" dominantBaseline="central">H</text>
+        {playbackCell && <circle data-testid="route-playback-marker" cx={centre(playbackCell)[0]} cy={centre(playbackCell)[1]} r={marker / 2} className="mission-playback-marker"/>}
       </svg>
       <figcaption>
         <span className="mission-badge">SIM</span>
         Synthetic {rows} × {cols} grid · {cellSize} m cells · local metres, not Mars coordinates · C checkpoint <code>{site.checkpoint_id}</code> · H shelter <code>{site.shelter_id}</code> · hatched cells are closed
+        {route && proposed && <span>Route proposed · approval required</span>}
         {route && inspectOnly && <span className="mission-fail-text">Dashed route: computed for inspection only, not recommended</span>}
       </figcaption>
     </figure>

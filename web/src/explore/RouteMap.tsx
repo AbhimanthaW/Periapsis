@@ -51,10 +51,6 @@ export function RouteMap({ base, target, layer }: { base: Point; target?: Point;
     <svg viewBox={`0 0 ${size[0]} ${size[1]}`} role="img" aria-label="Mars map of the saved base and science destination">
       {tiles}
       <rect width={size[0]} height={size[1]} fill="#1d140c" opacity=".16"/>
-      {target && !same && <>
-        <line x1={x(start)} y1={y(base[1])} x2={x(end)} y2={y(endLat)} className="corridor-line-shadow"/>
-        <line x1={x(start)} y1={y(base[1])} x2={x(end)} y2={y(endLat)} className="corridor-line"/>
-      </>}
       {marker(same ? 'Base / nearby target' : 'Base', start, base[1])}
       {target && !same && marker('Science target', end, endLat)}
     </svg>

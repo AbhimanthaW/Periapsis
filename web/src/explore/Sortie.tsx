@@ -97,7 +97,7 @@ function ScienceCorridor({ marsPoint, target, initialLayer = 'viking' }: { marsP
     </div>
     <div className="corridor-caption">
       <span>{layer === 'viking' ? 'Viking colour mosaic' : 'MOLA shaded relief'} · Mars context</span>
-      <strong>{target ? 'Dashed line shows location only' : 'Map centered on saved base'} · Tactical routing withheld</strong>
+      <strong>{target ? 'Base and science destination only' : 'Map centered on saved base'} · Tactical routing withheld</strong>
     </div>
   </section>
 }
@@ -130,9 +130,14 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
   const [current, setCurrent] = useState(start)
   const [departed, setDeparted] = useState(false)
   const [closures, setClosures] = useState<string[]>([])
-  const [remaining, setRemaining] = useState(demo ? 130 : site.remaining_s)
+  const initialBudget = demo ? 130 : Math.max(160, site.remaining_s)
+  const [remaining, setRemaining] = useState(initialBudget)
   const [result, setResult] = useState<SortiePlan | null>(null)
-  const [approved, setApproved] = useState(false)
+  const [approvedId, setApproved] = useState<string>()
+  const [selectedId, setSelectedId] = useState<string>()
+  const [playing, setPlaying] = useState(false)
+  const [step, setStep] = useState(0)
+  const [view, setView] = useState<'terrain' | 'mars'>('terrain')
   const [fault, setFault] = useState('')
   const [pending, setPending] = useState(true)
   const revision = useRef(0)
@@ -142,7 +147,10 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
   function invalidate() {
     active.current?.abort()
     previousRequest.current = null
-    setApproved(false)
+    setApproved(undefined)
+    setSelectedId(undefined)
+    setPlaying(false)
+    setStep(0)
     setPending(false)
     setFault('')
     setResult(null)
@@ -160,7 +168,10 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
     active.current?.abort()
     const controller = new AbortController()
     active.current = controller
-    setApproved(false)
+    setApproved(undefined)
+    setSelectedId(undefined)
+    setPlaying(false)
+    setStep(0)
     setFault('')
     setResult(null)
     setPending(true)
@@ -184,6 +195,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
         setFault('The service returned a different scenario or position. Calculate again.')
         return
       }
+      if (departed) setSelectedId(plan.marswalk.candidates.find(candidate => candidate.id === 'direct_return')?.id)
       setResult(plan)
     } catch (error) {
       if (!controller.signal.aborted) setFault(String(error))
@@ -198,13 +210,58 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
     // Submit the initial rehearsal once, with the current inputs.
   }, [])
 
-  const route = result?.marswalk.candidates.find(candidate => candidate.passed &&
-    (candidate.id === result.recommendation || candidate.id === 'science:' + result.recommendation))
-  const routeCells = route?.legs.flatMap(leg => leg.cells) ?? result?.direct_return?.cells ?? null
+  const candidates = result?.marswalk.candidates ?? []
+  const recommended = candidates.find(candidate => candidate.passed &&
+    (candidate.id === result?.recommendation || candidate.id === 'science:' + result?.recommendation))
+  const route = candidates.find(candidate => candidate.id === selectedId) ?? recommended
+  const cells = (candidate: (typeof candidates)[number]) => candidate.legs.flatMap(leg => leg.cells)
+    .filter((cell, index, path) => index === 0 || !same(cell, path[index - 1]))
+  const routeCells = route ? (route.legs.every(leg => leg.cells.length) ? cells(route) : null) : result?.direct_return?.cells ?? null
+  const alternatives = candidates.filter(candidate => candidate !== route && candidate.passed && candidate.legs.every(leg => leg.cells.length)).map(cells)
+  const approved = Boolean(route && approvedId === route.id)
+  const distance = route?.legs.length && route.legs.every(leg => leg.length_m !== null)
+    ? route.legs.reduce((sum, leg) => sum + leg.length_m!, 0) : null
+  const slope = route?.legs.length && route.legs.every(leg => leg.max_slope_deg !== null)
+    ? Math.max(...route.legs.map(leg => leg.max_slope_deg!)) : null
+  const lastStep = (routeCells?.length ?? 1) - 1
+  useEffect(() => {
+    if (!playing || stage !== 'Monitor') return
+    if (step >= lastStep) { setPlaying(false); return }
+    const timer = window.setTimeout(() => setStep(currentStep => currentStep + 1), 450)
+    return () => window.clearTimeout(timer)
+  }, [playing, stage, step, lastStep])
+
+  function selectCandidate(id: string) {
+    setSelectedId(id)
+    setPlaying(false)
+    setStep(0)
+  }
+
+  const map = <section className="sortie-map" aria-label="Computed route map">
+    <div className="sortie-map-tools">
+      <span className="mission-badge">Synthetic terrain</span>
+      <strong>{route?.id ?? 'Rehearsal grid'}</strong>
+      <span>{closures.length ? closures.length + ' corridor(s) closed' : 'Corridors open'}</span>
+    </div>
+    <FixtureGrid site={{ ...site, checkpoint_cell: current, shelter_cell: base }} activeClosures={closures}
+      route={routeCells} alternatives={alternatives} inspectOnly={result?.status !== 'OK' || route?.passed === false}
+      proposed={!approved && route?.passed === true}
+      playbackCell={stage === 'Monitor' && approved ? routeCells?.[step] : undefined}/>
+    {result && routeCells?.length === 1 && same(base, current) && <p>No movement required. The simulated crew is already at base.</p>}
+    {stage === 'Monitor' && <div className="sortie-playback" aria-label="Simulated route playback">
+      <button className="mission-button" disabled={!approved || lastStep < 1}
+        onClick={() => { if (!playing && step >= lastStep) setStep(0); setPlaying(!playing) }}>
+        {playing ? 'Pause route playback' : 'Play route playback'}
+      </button>
+      <input aria-label="Route playback step" type="range" min={0} max={Math.max(1, lastStep)}
+        value={step} disabled={!approved || lastStep < 1} onChange={event => { setPlaying(false); setStep(Number(event.target.value)) }}/>
+      <span>{approved && lastStep > 0 ? 'Step ' + (step + 1) + ' / ' + (lastStep + 1) : 'Approve a route with movement to play it'}</span>
+    </div>}
+  </section>
   return <div className="mission-site sortie-shell" data-stage={stage.toLowerCase()} aria-label="Simulated Marswalk workspace">
     <div className="mission-site-main">
       <nav className="cell-toolbar sortie-tabs" aria-label="Marswalk stages">
-        {tabs.map(tab => <button className="mission-button" key={tab} aria-pressed={stage === tab} onClick={() => setStage(tab)}>{tab}</button>)}
+        {tabs.map(tab => <button className="mission-button" key={tab} aria-pressed={stage === tab} onClick={() => { setPlaying(false); setView('terrain'); setStage(tab) }}>{tab}</button>)}
       </nav>
       <section className="sortie-content">
         <header className="sortie-title">
@@ -213,29 +270,37 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
           <p>Mars context <code>{cellId}</code> · Saved Mars base {Math.abs(marsPoint[1]).toFixed(4)}°{marsPoint[1] < 0 ? 'S' : 'N'}, {Math.abs(marsPoint[0]).toFixed(4)}°{marsPoint[0] < 0 ? 'W' : 'E'}</p>
 
         </header>
-        <ScienceCorridor marsPoint={marsPoint} target={scienceResult.destination?.point} initialLayer={science.initialLayer}/>
-        <details className="sortie-map" open={stage === 'Monitor' ? true : undefined}>
-          <summary>Simulated route · routing algorithm</summary>
-          {result && routeCells?.length === 1 && <p>No movement required. The simulated crew is already at base.</p>}
-          <FixtureGrid site={{ ...site, checkpoint_cell: current, shelter_cell: base }} activeClosures={closures}
-            route={routeCells} inspectOnly={!approved}/>
-        </details>
-        {stage === 'Analysis' && result && <section aria-labelledby="route-comparison">
+        {stage === 'Analysis' && <section aria-labelledby="route-comparison" className="sortie-analysis">
           <h2 id="route-comparison">Route comparison</h2>
-          <p>Feasibility checks use the synthetic grid and the current time budget.</p>
-          <div className="sortie-table"><table>
-            <thead><tr><th scope="col">Candidate</th><th scope="col">Decision</th><th scope="col">Legs</th><th scope="col">Reason</th></tr></thead>
-            <tbody>{result.marswalk.candidates.map(candidate => <tr key={candidate.id}>
-              <th scope="row">{candidate.id}</th>
-              <td>{candidate === route ? 'Recommended' : candidate.passed ? 'Feasible' : 'Withheld'}</td>
-              <td>{candidate.legs.length}</td>
-              <td>{candidate.failure_reasons.join(', ') || '—'}</td>
-            </tr>)}</tbody>
-          </table></div>
+          <p>Backend constraints and reserve checks for this sortie. Select a candidate to inspect its checks and path.</p>
+          {result ? <>
+            <div className="sortie-table"><table>
+              <thead><tr><th scope="col">Candidate</th><th scope="col">Decision</th><th scope="col">Total time</th><th scope="col">Margin</th></tr></thead>
+              <tbody>{candidates.map(candidate => <tr key={candidate.id}>
+                <th scope="row"><button className="mission-button" aria-pressed={candidate === route}
+                  onClick={() => selectCandidate(candidate.id)}>{candidate.id}</button></th>
+                <td>{candidate === recommended ? 'Recommended' : candidate.passed ? 'Feasible' : 'Withheld'}</td>
+                <td>{candidate.ledger?.total_use == null ? 'Unavailable' : Math.round(candidate.ledger.total_use) + ' s'}</td>
+                <td>{signedSeconds(candidate.margin_s)}</td>
+              </tr>)}</tbody>
+            </table></div>
+            {route && <div className="sortie-table"><table>
+              <caption>Checks for {route.id}</caption>
+              <thead><tr><th scope="col">Constraint</th><th scope="col">Decision</th><th scope="col">Reason</th></tr></thead>
+              <tbody>{route.constraints.map(({rule, outcome, reason}) =>
+                <tr key={rule}><th scope="row">{rule.replaceAll('_', ' ')}</th><td>{outcome}</td><td>{reason}</td></tr>)}</tbody>
+            </table></div>}
+          </> : <p>{pending ? 'Calculating route candidates…' : 'Calculate a sortie to compare candidates.'}</p>}
         </section>}
+        <div className="cell-toolbar" aria-label="Map view">
+          <button className="mission-button" aria-pressed={view === 'terrain'} onClick={() => setView('terrain')}>Computed route</button>
+          <button className="mission-button" aria-pressed={view === 'mars'} onClick={() => setView('mars')}>Mars context</button>
+        </div>
+        <div hidden={view !== 'terrain'}>{map}</div>
+        <div hidden={view !== 'mars'}><ScienceCorridor marsPoint={marsPoint} target={scienceResult.destination?.point} initialLayer={science.initialLayer}/></div>
         {stage === 'Monitor' && <>
-          <p role="status">{pending ? 'Computing on the local API' : approved ? 'Operator approved · local API' : 'Awaiting a current operator-approved route'}</p>
-          {result?.status === 'OK' && route && <button className="mission-button mission-button-primary" onClick={() => setApproved(true)} disabled={approved}>Approve route</button>}
+          <p role="status">{pending ? 'Computing on the local API' : approved ? 'Operator approved · local API' : approvedId ? 'Active route: ' + approvedId + ' · previewing another candidate' : 'Awaiting a current operator-approved route'}</p>
+          {result?.status === 'OK' && route?.passed && routeCells && <button className="mission-button mission-button-primary" onClick={() => setApproved(route.id)} disabled={approved}>Approve route</button>}
           {approved && !departed && routeCells?.some(cell => !same(cell, current)) && <button className="mission-button mission-button-primary" onClick={() => setDeparted(true)}>Record departure</button>}
           <a href={'/demo/?' + new URLSearchParams({ cell: cellId, base: marsPoint.join(',') }) + '#monitor/rover/43/hazards'}>
             Open the separate hazard replay
@@ -244,12 +309,11 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
       </section>
     </div>
     <aside className="sortie-sidebar">
-      <ScienceDestination {...scienceResult} marsPoint={marsPoint}/>
       <section className="sortie-controls">
       <header className="sortie-panel-heading">
         <span className="mission-badge">Synthetic terrain</span>
         <h2>Simulated sortie</h2>
-        <p>Routing algorithm runs on the rehearsal grid. It does not use the Mars imagery.</p>
+        <p>The backend computes paths on the local rehearsal grid. Mars imagery and rankings are context.</p>
       </header>
         {pending && <p className="sortie-result" aria-live="polite">Calculating a proposal…</p>}
         {!pending && !fault && !result && <p className="sortie-result">Settings changed. Calculate again to review a new route.</p>}
@@ -258,9 +322,21 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
             <p>Recommendation: {result.recommendation ?? 'None'}</p>
             <p>Return margin {signedSeconds(result.return_margin_s)} · {approved ? 'Operator approved' : 'Not approved'}</p>
           </div>
-          {stage === 'Route' && result.status === 'OK' && route &&
-            <button className="mission-button mission-button-primary" onClick={() => setStage('Monitor')}>Review route in Monitor</button>}
+          {stage === 'Route' && result.status === 'OK' && route?.passed && routeCells &&
+            <button className="mission-button mission-button-primary" onClick={() => { setView('terrain'); setStage('Monitor') }}>Review route in Monitor</button>}
         </section>}
+      {route && <dl className="sortie-metrics">
+        <div><dt>Distance</dt><dd>{distance === null ? 'Unavailable' : distance.toFixed(1) + ' m'}</dd></div>
+        <div><dt>Time incl. stops</dt><dd>{route.ledger?.total_use == null ? 'Unavailable' : Math.round(route.ledger.total_use) + ' s'}</dd></div>
+        <div><dt>Max slope</dt><dd>{slope === null ? 'Unavailable' : slope.toFixed(1) + '°'}</dd></div>
+        <div><dt>Margin above reserve</dt><dd>{signedSeconds(route.margin_s)}</dd></div>
+      </dl>}
+      {candidates.length > 0 && <section aria-label="Route candidates" className="sortie-candidates">
+        {candidates.map(candidate => <button key={candidate.id} className="mission-button"
+          aria-pressed={candidate === route} onClick={() => selectCandidate(candidate.id)}>
+          <strong>{candidate.id}</strong><span>{candidate.id === approvedId ? 'Approved' : candidate === recommended ? 'Recommended' : candidate.passed ? 'Feasible' : 'Withheld'}</span>
+        </button>)}
+      </section>}
       <details className="sortie-settings" open={stage === 'Monitor' ? true : undefined}>
         <summary>Simulation controls</summary>
         <div>
@@ -275,7 +351,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
           setClosures(checked => event.target.checked ? [...checked, closure.id] : checked.filter(item => item !== closure.id))
         }}/> Close {closure.id} corridor</label>)}
       <button className="mission-button mission-button-primary" onClick={() => void calculate()} disabled={pending}>{departed ? 'Recalculate return' : 'Calculate sortie'}</button>
-      {departed && <button onClick={() => { setDeparted(false); selectBase(base); setClosures([]); setRemaining(site.remaining_s) }}>Start new sortie</button>}
+      {departed && <button onClick={() => { setDeparted(false); selectBase(base); setClosures([]); setRemaining(initialBudget) }}>Start new sortie</button>}
         </div>
       </details>
       {fault && <><p role="alert">{fault}</p><button onClick={() => void calculate(true)}>Retry calculation</button></>}
@@ -283,6 +359,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
         <p>Completed work: {result.completed_task_ids.join(', ') || 'None'}</p>
       </div>}
       </section>
+      <ScienceDestination {...scienceResult} marsPoint={marsPoint}/>
     </aside>
   </div>
 }
