@@ -92,7 +92,7 @@ def _dijkstra_python(csr, source, limit):
 
 
 def dijkstra(csr, source, *, limit=inf, backend="auto"):
-    """Single-source shortest times and parent pointers over a CSR graph."""
+    """Single-source minimum weights and parent pointers over a CSR graph."""
     if backend == "auto":
         backend = "scipy" if _scipy_dijkstra is not None else "python"
     if backend == "scipy":
@@ -296,6 +296,22 @@ class Router:
         while nodes[-1] != h:
             nodes.append(int(pred[nodes[-1]]))      # next hop toward the shelter
         return self._leg(start, home, nodes)
+
+    def shortest_distance(self, start, goal):
+        """Shortest horizontal distance on this graph, before resource checks."""
+        refused = self._endpoints(start, goal)
+        if refused:
+            return refused
+        s, g = self.node(start), self.node(goal)
+        weights = self.csr.with_data(self.graph.length_m[self.csr.edge_ids])
+        distance, parent = dijkstra(weights, s, backend=self.backend)
+        self.dijkstra_runs += 1
+        if not np.isfinite(distance[g]):
+            return self._diagnose(start, goal)
+        nodes = [g]
+        while nodes[-1] != s:
+            nodes.append(int(parent[nodes[-1]]))
+        return self._leg(start, goal, nodes[::-1])
 
     def energy_alternatives(self, leg, max_discharge_w):
         """Fastest power-admissible, minimum energy and two mixed-weight paths."""

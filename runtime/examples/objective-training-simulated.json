@@ -1,0 +1,18 @@
+{
+  "schema": "routing-objective-training-v1",
+  "provenance": "simulated",
+  "examples": [
+    {"label": "transect", "text": "Measure bedding thickness across the upper scarp"},
+    {"label": "transect", "text": "Log bed thickness and orientation along a traverse"},
+    {"label": "transect", "text": "Record bedding measurements across successive rock layers"},
+    {"label": "transect", "text": "Measure the stratigraphic section and mark layer contacts"},
+    {"label": "photo-set", "text": "Take photographs of exposed beds at the outcrop"},
+    {"label": "photo-set", "text": "Photograph the sedimentary outcrop for an oriented mosaic"},
+    {"label": "photo-set", "text": "Capture overlapping images of exposed sediment"},
+    {"label": "photo-set", "text": "Build a panorama with outcrop photographs"},
+    {"label": "return_only", "text": "Abort science and go back to shelter"},
+    {"label": "return_only", "text": "Return to base immediately"},
+    {"label": "return_only", "text": "Cancel tasks and head home"},
+    {"label": "return_only", "text": "Stop the traverse and retreat to the habitat"}
+  ]
+}

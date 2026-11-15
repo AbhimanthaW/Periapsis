@@ -1,5 +1,111 @@
 # Navigation and local pack runtime
 
+## Integrated routing drill
+
+`runtime.final_routing` evaluates the following six components against one revision of the synthetic
+Marswalk site. Dijkstra searches the directed terrain graph after spatial closures are applied.
+
+| Component | What goes into the planner |
+| --- | --- |
+| Station forecast | Learned pressure, temperature, wind and dust at 1, 3 and 6 Mars hours, from timestamped station observations. Published at one station, with model or fallback status. Learned wind/dust threshold advisories within the current planning window are flagged for review. |
+| Objective classification | The existing lexicon plus a supervised Naive Bayes classifier fitted to [12 labelled simulation examples](examples/objective-training-simulated.json). A learned suggestion can nominate an existing task from previously unmatched text. The operator confirms its ID. Novel and low-scoring text can abstain. Scores are uncalibrated. |
+| Trade-offs | The existing deterministic acceptance envelope plus a Bayesian oxygen burn-rate update from one fresh qualified telemetry window per astronaut. The upper estimate can increase the oxygen multiplier used in resource checks. A missing reading retains any multiplier already applied. Priors and observation noise are illustrative. |
+| Human cost | The personalized pace and slope limits constrain routing. Route phases price the consumables. Reported current stores supply balances, and initial stores define the reserve floors. |
+| Rover cost | Directed travel time, gross electrical energy, battery state and supply through the route and dwell. The crewed rover also requires a walkback at every breakdown point under the human pace, slope and consumables limits. |
+| Spatial hazard mapping | The team's `LiveFeed` validates storm positions and raster alignment and publishes the current map. During planning an observed storm's moving footprint is swept over the remaining window and rasterized conservatively, including the cell half-diagonal. Observed radiation and stale spatial inputs stop science. |
+
+The objective classifier and Bayesian update were added for this drill. The published team
+objective and trade-off implementations were deterministic. This comparison tests software
+integration with labelled simulation inputs and assumed rates. Site qualification,
+held-out objective accuracy and burn-rate calibration remain open.
+
+From the repo root, prepare the synthetic station artifact in PowerShell and start the local API.
+
+```powershell
+$env:PYTHONPATH = 'pipeline/src'
+$routingDemo = Join-Path ([System.IO.Path]::GetTempPath()) 'periapsis-routing-demo'
+New-Item -ItemType Directory -Path $routingDemo -Force | Out-Null
+uv run --project documentation --locked python -m return_window_pipeline.forecast synth --sols 1050 --out "$routingDemo/station.csv"
+uv run --project documentation --locked python -m return_window_pipeline.forecast train "$routingDemo/station.csv" --station pipeline/examples/weather/synthetic-station.json --artifact "$routingDemo/model.json" --report "$routingDemo/report.md"
+uv run --project documentation --locked python -m runtime.planning_api --final-routing-model "$routingDemo/model.json"
+```
+
+In another PowerShell terminal, initialize the map and compare the return routes before and after a closure.
+
+```powershell
+$routingApi = 'http://127.0.0.1:8000/api/v1/routing'
+$site = Invoke-RestMethod "$routingApi/site"
+$body = @{
+    schema_version = 1
+    request_id = 'initial'
+    pack_id = $site.pack_id
+    pack_version = $site.pack_version
+    expected_revision = 0
+    time_utc = $site.start_time_utc
+    current_cell = $site.current_cell
+    objective = 'stratigraphy'
+    confirmed_task_ids = @('transect')
+    weather_readings = @(
+        @{ variable = 'wind_speed'; value = 8; unit = 'm/s'; time_utc = $site.start_time_utc }
+        @{ variable = 'dust_optical_depth'; value = 0.72; unit = '1'; time_utc = $site.start_time_utc }
+    )
+}
+$open = Invoke-RestMethod "$routingApi/plan" -Method Post -ContentType 'application/json' -Body ($body | ConvertTo-Json -Depth 10)
+$body.request_id = 'ramp-closure'
+$body.expected_revision = $open.revision
+$body.time_utc = '2021-02-18T20:48:19Z'
+$body.weather_readings = @(@{ variable = 'dust_optical_depth'; value = 2.4; unit = '1'; time_utc = $body.time_utc })
+$body.hazard_events = @(@{
+    hazard_id = 'north-ramp'
+    revision = 1
+    action = 'close'
+    observed_utc = $body.time_utc
+    cells = $site.demo_footprints.'north-ramp'
+})
+$closed = Invoke-RestMethod "$routingApi/plan" -Method Post -ContentType 'application/json' -Body ($body | ConvertTo-Json -Depth 10)
+$open.human.direct_return | Select-Object length_m, seconds
+$closed.human.direct_return | Select-Object length_m, seconds
+```
+
+`GET /api/v1/routing/site` provides the elevation grid, affine, permanent exclusions, unsupported cells,
+and the synthetic task catalogue. `POST /api/v1/routing/plan` consumes the current position, objective,
+confirmed and completed tasks, weather observations and hazard events at a given simulation time.
+It returns both platforms' candidates, ordered route cells, travel time, distance, elapsed sols and
+ledgers. `shortest_distance_return` is the geometric reference on the same admissible terrain graph.
+It has its own distance-based search and requires separate resource checks before use.
+
+The API returns 409 for a superseded mission or hazard revision. An exact retry of the latest accepted
+request returns the same result. `GET /api/v1/routing/plan` reads the latest committed plan and revision.
+Restarting the API resets the drill. To advance the clock, send a new plan request, including at
+`weather_recheck_utc` when a reading expires. A closed footprint stays in force until a newer
+`clear` event for the same manual hazard. `live_hazards` also accepts the team's
+[spatial format](docs/live-hazard-map.md) with incremental `storms`, `layers` and `alerts` within
+one `feed_id`. Send only observations issued by the current report time. Storm centre and radius
+are in local metres, velocity in m/s, wind in m/s and optical depth dimensionless. Rasters use the
+site's exact shape and affine. Spatial observations and forecasts are tracked separately.
+`spatial_hazards.blocked_now` is the current display mask. `blocked_for_plan` contains the larger
+swept mask used by both planners and their walkback routes. This window-wide mask can exclude an
+otherwise usable crossing during a brief clear interval. Caution exposure is reported in metres.
+Pressure history in adjacent Mars-hour bins exercises learned inference, as shown in
+`runtime/tests/test_final_routing.py`.
+
+`crew_stores` can report the remaining `oxygen` [g], `cooling_water` [kg], `drinking_water` [L]
+and `battery` [Wh] per walking astronaut. `rover_charge_wh` updates the rover battery within its
+configured reserve and capacity. Omitted readings reuse the previous simulated balances.
+Supplying the envelope's simulated `telemetry`, `decision_window_s` and `one_way_light_time_s`
+lets the planner surface AMBER options. Recommendations require a GREEN walking option with a GREEN
+direct return, or a rover option that passes its energy and walkback checks. Operator acceptance
+and control of the crew or rover are outside the drill API. During the rover leg, the model
+uses the flat walking burn rate as a proxy for seated travel and science dwell. From every
+breakdown point it uses the directed walking leg's duration and ascent.
+
+```powershell
+uv run --project documentation --locked python -m pytest -q runtime/tests/test_final_routing.py
+```
+
+The integration uses a local, in-memory session and simulated inputs. The UI, a persistent live
+feed, and qualification for source-backed terrain are separate integration work.
+
 `python_engine/` and its six original tests are byte-preserved from the delivered Senula routing source. Its A* uses dimensionless synthetic cell costs, eight neighbours and diagonal corner checks. It does not use elevation differences or directed travel seconds. Its plotting demo requires Matplotlib in a separate environment. The original server file is empty.
 
 `mission.py` is a separate bounded consumer for pack v1. It uses the shared structural and semantic checks, including the external site hash when supplied. It loads source-backed Jezero as an elevation preview and runs the audited closure and reserve calculations in explicitly enabled fixture simulation. The fixture's four-neighbour edge model uses a fixed base of one second per metre plus two seconds per metre of ascent. These are software control values. This runtime keeps the legacy algorithm intact and leaves physical mobility and tactical routing unsupported.

@@ -6,14 +6,17 @@ from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
+from socket import SHUT_WR
 from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from contracts.pack import PackError, decode
 from marsdoc import CapabilityQuery, DocumentationEngine, Package
+from runtime.final_routing import FinalRoutingSession, RoutingRequest
 from runtime.marswalk import HumanProfile, MarswalkError, baseline_from_pack, plan_marswalk, snapshot_from_pack
 from runtime.marswalk.environment import parse_utc
+from runtime.marswalk.forecast import ForecastModel
 from runtime.marswalk.profiles import load_profile
 from runtime.marswalk.weather import feed_from_dict
 from runtime.mission import load_pack, simulate
@@ -22,6 +25,7 @@ from ranking.service import RankRequest, RankingService
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "contracts/fixtures/synthetic-v1"
 MAX_REQUEST_BYTES = 16_384
+MAX_ROUTING_REQUEST_BYTES = 262_144
 Identifier = Annotated[str, Field(min_length=1, max_length=128)]
 Seconds = Annotated[int, Field(ge=0, le=86_400)]
 ENGINES = ("mission", "marswalk")
@@ -54,7 +58,8 @@ class PlanRequest(BaseModel):
 
 
 class PlanningService:
-    def __init__(self, pack, evidence_result, ranking=None, *, engine="mission", hazard_replay=None):
+    def __init__(self, pack, evidence_result, ranking=None, *, engine="mission", hazard_replay=None,
+                 final_routing=None):
         if engine not in ENGINES:
             raise ValueError(f"engine must be one of {', '.join(ENGINES)}")
         self.pack = pack
@@ -62,6 +67,7 @@ class PlanningService:
         self.ranking = ranking
         self.engine = engine
         self.hazard_replay = hazard_replay
+        self.final_routing = final_routing
         self.baseline = baseline_from_pack(pack) if engine == "marswalk" else None
         scenario = pack.scenario
         self.identity = {
@@ -185,11 +191,28 @@ class PlanningHandler(BaseHTTPRequestHandler):
             "schema_version": 1, "request_id": request_id, "error": code, "message": message,
         })
 
+    def reject_large_body(self, length):
+        self.reject(413, "INVALID_LENGTH", "Invalid JSON body length")
+        # On Windows a close with unread request bytes can reset the response.
+        # Send EOF first and drain a bounded amount from clients already writing.
+        try:
+            self.connection.shutdown(SHUT_WR)
+            self.connection.settimeout(0.1)
+            self.rfile.read(min(length, 65_536))
+        except OSError:
+            pass
+
     def do_GET(self):
         if self.path == "/healthz":
             self.send_json(200, {"status": "ready"})
         elif self.path == "/api/v1/site":
             self.send_json(200, self.service.site())
+        elif self.path in ("/api/v1/routing/site", "/api/v1/routing/plan"):
+            routing = self.service.final_routing
+            if routing is None:
+                self.reject(503, "ROUTING_NOT_CONFIGURED", "Configure the synthetic station model for the routing drill")
+            else:
+                self.send_json(200, routing.site() if self.path.endswith("/site") else routing.latest())
         elif self.path.startswith("/api/v1/hazard-replay/"):
             self.hazard_frame(self.path.removeprefix("/api/v1/hazard-replay/"))
         elif self.path == "/api/v1/evidence":
@@ -224,7 +247,9 @@ class PlanningHandler(BaseHTTPRequestHandler):
             self.send_json(200, frame)
 
     def do_POST(self):
-        if self.path not in ("/api/v1/plan", "/api/v1/rank"):
+        requests = {"/api/v1/plan": PlanRequest, "/api/v1/rank": RankRequest, "/api/v1/routing/plan": RoutingRequest}
+        request_type = requests.get(self.path)
+        if request_type is None:
             self.reject(404, "NOT_FOUND", "Unknown endpoint")
             return
         if self.headers.get_content_type() != "application/json":
@@ -234,33 +259,44 @@ class PlanningHandler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
             length = 0
-        if not 0 < length <= MAX_REQUEST_BYTES:
-            self.reject(413 if length > MAX_REQUEST_BYTES else 400, "INVALID_LENGTH", "Invalid JSON body length")
+        max_bytes = MAX_ROUTING_REQUEST_BYTES if request_type is RoutingRequest else MAX_REQUEST_BYTES
+        if length > max_bytes:
+            self.reject_large_body(length)
+            return
+        if length <= 0:
+            self.reject(400, "INVALID_LENGTH", "Invalid JSON body length")
             return
         payload = None
         try:
             payload = decode(self.rfile.read(length))
-            request = (RankRequest if self.path == "/api/v1/rank" else PlanRequest).model_validate(payload)
+            request = request_type.model_validate(payload)
         except (PackError, ValidationError, TimeoutError):
             request_id = payload.get("request_id") if isinstance(payload, dict) else None
             self.reject(400, "INVALID_REQUEST", "Expected a valid v1 request",
                         request_id if isinstance(request_id, str) and 0 < len(request_id) <= 128 else None)
             return
         try:
-            if self.path == "/api/v1/rank":
+            if request_type is RoutingRequest:
+                if self.service.final_routing is None:
+                    self.reject(503, "ROUTING_NOT_CONFIGURED", "Configure the synthetic station model for the routing drill",
+                                request.request_id)
+                else:
+                    self.send_json(200, self.service.final_routing.update(request))
+            elif request_type is RankRequest:
                 if self.service.ranking is None:
                     self.reject(503, "RANKING_NOT_CONFIGURED", "Configure a cell ranking pack", request.request_id)
                 else:
                     self.send_json(200, self.service.ranking.rank(request))
             else:
                 self.send_json(200, self.service.plan(request))
-        except PackError as error:
-            self.reject(409 if error.code == "SCENARIO_MISMATCH" else 400,
+        except (PackError, MarswalkError) as error:
+            conflicts = {"SCENARIO_MISMATCH", "MIXED_PACK", "STALE_REVISION", "STALE_HAZARD", "WEATHER_CONFLICT"}
+            self.reject(409 if error.code in conflicts else 400,
                         error.code, str(error), request.request_id)
 
 
 def create_server(port=8000, *, evidence_package=None, evidence_query=None,
-                  ranking_pack=None, engine="mission", hazard_model=None):
+                  ranking_pack=None, engine="mission", hazard_model=None, final_routing_model=None):
     if (evidence_package is None) != (evidence_query is None):
         raise ValueError("Supply the evidence package and query together")
     result = None
@@ -272,9 +308,10 @@ def create_server(port=8000, *, evidence_package=None, evidence_query=None,
     if hazard_model is not None:
         from runtime.hazards.replay import HazardReplay
         replay = HazardReplay(hazard_model)
+    final_routing = None if final_routing_model is None else FinalRoutingSession(ForecastModel.load(final_routing_model))
     service = PlanningService(load_pack(FIXTURE, simulation=True), result,
                               RankingService(ranking_pack) if ranking_pack else None,
-                              engine=engine, hazard_replay=replay)
+                              engine=engine, hazard_replay=replay, final_routing=final_routing)
     return ThreadingHTTPServer(("127.0.0.1", port), partial(PlanningHandler, service=service))
 
 
@@ -287,12 +324,13 @@ def main():
                         help="planner behind POST /api/v1/plan (default: mission)")
     parser.add_argument("--ranking-pack", type=Path)
     parser.add_argument("--hazard-model", type=Path, help="enable the local hazard replay with this synthetic station artifact")
+    parser.add_argument("--final-routing-model", type=Path, help="enable integrated routing with this synthetic station artifact")
     args = parser.parse_args()
     try:
         server = create_server(args.port, evidence_package=args.evidence_package,
                                evidence_query=args.evidence_query, ranking_pack=args.ranking_pack,
-                               engine=args.engine, hazard_model=args.hazard_model)
-    except (OSError, ValueError, PackError) as error:
+                               engine=args.engine, hazard_model=args.hazard_model, final_routing_model=args.final_routing_model)
+    except (OSError, ValueError, KeyError, PackError, MarswalkError) as error:
         parser.exit(2, f"Unable to initialize planning service: {error}\n")
     with server:
         print(f"Planning service ready at http://127.0.0.1:{server.server_port} (engine: {args.engine})", flush=True)

@@ -25,13 +25,14 @@ produce any combined score.
 from dataclasses import asdict
 
 from runtime.humancost import load_crew, load_policy, prepare
-from runtime.humancost.calculator import RESOURCES, UNITS
+from runtime.humancost.calculator import RESOURCES, UNITS, _initial
 from runtime.humancost.factors import Crew, Policy
 from runtime.marswalk.errors import PASS
 from runtime.marswalk.weather import WARNING
 
-from ._common import canonical, digest, model_version, refuse, utc, utc_text
+from ._common import canonical, digest, model_version, number, obj, refuse, utc, utc_text
 from .accept import AMBER, GREEN, NONE, RED, route_authority
+from .burn_rate import oxygen_belief
 from .card import tradeoff_cards
 from .envelope import reserve_floors
 from .options import ROUTE_OK, build_options
@@ -54,7 +55,17 @@ def _r(value):
     return None if value is None else round(float(value), 6)
 
 
-def _ledger_view(option, floors, factor, exception_classes, people):
+def _current_stores(raw, people):
+    people = {person.id: _initial(person) for person in people}
+    raw = obj(raw, people, "current_stores", CODE)
+    stores = {}
+    for name, initial in people.items():
+        values = obj(raw[name], RESOURCES, name, CODE)
+        stores[name] = {r: number(values[r], f"{name}.{r}", CODE, minimum=0, maximum=initial[r]) for r in RESOURCES}
+    return stores
+
+
+def _ledger_view(option, floors, factor, exception_classes, people, current_stores, oxygen_factors):
     """Per astronaut and per resource: margins and the first phase that crosses each floor."""
     view, first_l1, first_l2, hard = [], None, None, None
     for item in option.human_cost["astronauts"]:
@@ -72,14 +83,16 @@ def _ledger_view(option, floors, factor, exception_classes, people):
         resources, fractions = [], {}
         for ledger in item["ledgers"]:
             resource = ledger["resource"]
+            current = ledger["initial"] if current_stores is None else current_stores[person.id][resource]
+            multiplier = oxygen_factors.get(person.id, factor) if resource == "oxygen" else factor
             breach_l1 = breach_l2 = None
             for row in ledger["rows"]:
-                remaining = ledger["initial"] - factor * row["cumulative_use"]
+                remaining = current - multiplier * row["cumulative_use"]
                 if breach_l1 is None and remaining < mine["l1"][resource] - EPS:
                     breach_l1 = row["phase"]
                 if l2_floor is not None and breach_l2 is None and remaining < l2_floor[resource] - EPS:
                     breach_l2 = row["phase"]
-            end = ledger["initial"] - factor * ledger["total_use"]
+            end = current - multiplier * ledger["total_use"]
             margin_l1 = end - mine["l1"][resource]
             fractions[resource] = margin_l1 / (ledger["initial"] - mine["l1"][resource])
             if breach_l1 is not None and first_l1 is None:
@@ -96,8 +109,9 @@ def _ledger_view(option, floors, factor, exception_classes, people):
             })
         driver = min(RESOURCES, key=lambda r: (fractions[r], RESOURCES.index(r)))
         flat = item["rates_flat_per_h"]
-        margin_s = min(next(x["margin_l1"] for x in resources if x["resource"] == r) * 3600 / (factor * flat[r])
-                       for r in RESOURCES)
+        margin_s = min(row["margin_l1"] * 3600 / (flat[row["resource"]] *
+                       (oxygen_factors.get(person.id, factor) if row["resource"] == "oxygen" else factor))
+                       for row in resources)
         view.append({
             "id": item["id"], "driver": driver,
             "p_breach": {"estimate": None, "upper95": None}, "p_exhaust_draws": None,
@@ -119,10 +133,13 @@ def _weather_gate(marswalk_plan):
 
 
 def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, decision_window_s=None,
-           one_way_light_time_s=None, accepted_amber_count=0):
+           one_way_light_time_s=None, accepted_amber_count=0, current_stores=None, prior_oxygen_factors=None):
     """Classify every Marswalk candidate. Returns a ``tradeoff-assessment-set-v1`` dict.
 
     ``envelope`` is a loaded ``Envelope``. ``telemetry`` is a path, mapping or None.
+    ``current_stores`` optionally gives each walker the four current resource balances.
+    Reserve floors stay based on the original stores in ``crew``.
+    Passing ``prior_oxygen_factors`` enables the simulated Bayesian oxygen update.
     ``accepted_amber_count`` is the number of AMBER options already accepted this EVA
     (``audit.accepted_count``). Nothing here mutates the plan or the snapshot.
     """
@@ -135,7 +152,19 @@ def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, de
     prepared = prepare(crew, policy)
     floors = reserve_floors(envelope, crew, policy, prepared)
     people = {p.id: p for p in crew.astronauts}
+    if current_stores is not None:
+        current_stores = _current_stores(current_stores, [p for p in crew.astronauts if p.id != crew.reference_id])
     factor = envelope.consumption_margin_factor
+    telemetry_ok, telemetry_reason, telemetry_age = telemetry_gate(telemetry, envelope, crew, prepared, now)
+    beliefs, oxygen_factors = {}, {}
+    if prior_oxygen_factors is not None:
+        oxygen_factors = {p["id"]: max(factor, number(prior_oxygen_factors.get(p["id"], factor),
+                                                    "oxygen multiplier", CODE, minimum=1))
+                          for p in prepared["astronauts"]}
+        if telemetry_ok:
+            beliefs = oxygen_belief(prepared, telemetry)
+            for astronaut, belief in beliefs.items():
+                oxygen_factors[astronaut] = max(oxygen_factors[astronaut], belief["p90_factor"])
     options = build_options(marswalk_plan, crew, policy)
     snapshot = marswalk_plan.snapshot
 
@@ -155,7 +184,8 @@ def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, de
             row["rule"] = f"route:{option.route_status}"
         else:
             row["classes"] = exception_classes(option)
-            row["view"], hard_cost, row["l1"], row["l2"] = _ledger_view(option, floors, factor, row["classes"], people)
+            row["view"], hard_cost, row["l1"], row["l2"] = _ledger_view(
+                option, floors, factor, row["classes"], people, current_stores, oxygen_factors)
             if hard_constraint is not None or not option.plan.constraints:
                 row["rule"] = ("hard_constraint:not_evaluated" if hard_constraint is None
                                else f"hard_constraint:{hard_constraint[0]}:{hard_constraint[1]}")
@@ -166,7 +196,6 @@ def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, de
 
     direct_green = rows[0]["green"]
     weather_ok, weather_reason, weather_state = _weather_gate(marswalk_plan)
-    telemetry_ok, telemetry_reason, telemetry_age = telemetry_gate(telemetry, envelope, crew, prepared, now)
     authority = route_authority(envelope, decision_window_s, one_way_light_time_s)
     budget_ok = accepted_amber_count < envelope.max_accepted_amber_per_eva
     gates = [
@@ -195,9 +224,20 @@ def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, de
         "plan_sha256": digest([p.to_dict() for p in marswalk_plan.plans]),
         "telemetry_sha256": None if telemetry is None else digest(telemetry),
     }
+    limits = list(LIMITS)
+    if current_stores is not None:
+        inputs["current_stores_sha256"] = digest(current_stores)
+        limits[2] = "Reported current stores supply the balances. The crew file sets the starting reserve bases."
     model = {"id": "tradeoff-envelope", "version": model_version(), "seed": None, "draws": None,
              "method": "deterministic ledger x consumption margin factor",
              "consumption_margin_factor": factor}
+    if prior_oxygen_factors is not None:
+        model["method"] += " with a conservative Bayesian oxygen multiplier"
+        model["oxygen_update"] = {"status": "updated" if beliefs else "no_fresh_qualified_window",
+                                  "beliefs": beliefs, "applied_factors": oxygen_factors,
+                                  "provenance": "simulated"}
+        inputs["oxygen_factors_sha256"] = digest(oxygen_factors)
+        limits[0] = "Oxygen estimates use assumed log-rate spreads. The applied factor can only tighten the ledger."
 
     assessments = []
     for row in rows:
@@ -227,7 +267,7 @@ def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, de
                         "expected_value": None, "p_complete": None},
             "per_astronaut": row["view"],
             "versus": None, "tripwires": None, "latest_decision_utc": None,
-            "inputs": inputs, "model": model, "limits": list(LIMITS),
+            "inputs": inputs, "model": model, "limits": limits,
         })
 
     cards = tradeoff_cards(assessments, {o.id: o for o in options})
@@ -246,7 +286,7 @@ def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, de
         "amber_gates": [{"gate": name, "open": ok, "reason": reason} for name, ok, reason in gates],
         "authority": authority,
         "assessments": assessments, "cards": cards,
-        "model": model, "limits": list(LIMITS),
+        "model": model, "limits": limits,
     }
 
 

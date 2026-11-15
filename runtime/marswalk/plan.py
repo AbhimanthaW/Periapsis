@@ -156,7 +156,7 @@ MarswalkPlan._environment_dict = _environment_dict
 
 def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposure_slope_deg=10.0,
                   alternatives_k=0, expected_revision=None, evidence=None, walkback=WalkbackPolicy(),
-                  search_horizon="auto"):
+                  search_horizon="auto", walkback_resources=None):
     """Plan human (Mode A) or rover (Mode B) routes for one immutable snapshot.
 
     Phase 0 refuses grids that cannot support a Marswalk before routing.
@@ -204,6 +204,8 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
         if walk_router is not None:
             outcome, reason, _ = walkback_rule(plan, snapshot, router, walk_router)
             rules.append(("walkback", outcome, reason))
+            if outcome == PASS and walkback_resources is not None:
+                rules.append(("walkback_resources", *walkback_resources(plan, snapshot, router, walk_router)))
         return rules
 
     checks = dict(activations=activations, extra_rules=extra_rules)
@@ -232,7 +234,7 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
             status = RETURN_ENERGY_UNVERIFIED
         elif blocked_rules == {"energy_budget": FAIL}:
             status = RETURN_ENERGY_SEARCH_EXHAUSTED
-        elif blocked_rules == {"walkback": FAIL}:
+        elif blocked_rules in ({"walkback": FAIL}, {"walkback_resources": FAIL}):
             status = RETURN_WALKBACK_EXCEEDED
 
     alternatives = {}

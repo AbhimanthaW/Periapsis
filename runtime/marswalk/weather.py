@@ -102,6 +102,7 @@ class WeatherFeed:
     max_age_s: float = 600.0
     required: bool = False     # True: losing the link leaves science UNKNOWN
     provenance: str = "simulated"
+    required_variables: tuple[str, ...] = ()
 
     def validate(self, shape=None):
         ids = [s.id for s in self.stations]
@@ -118,6 +119,8 @@ class WeatherFeed:
         variables = [limit.variable for limit in self.limits]
         if len(set(variables)) != len(variables):
             raise MarswalkError("INVALID_WEATHER", "duplicate weather limit")
+        if set(self.required_variables) - set(variables):
+            raise MarswalkError("INVALID_WEATHER", "required variables must have declared limits")
         if not _number(self.max_age_s) or self.max_age_s <= 0:
             raise MarswalkError("INVALID_WEATHER", "max_age_s must be positive and finite")
         if not isinstance(self.provenance, str) or self.provenance not in MESSAGE_PROVENANCE:
@@ -180,7 +183,7 @@ def assess_weather(feed, now_utc, *, shape=None):
     now = parse_utc(now_utc)
     stations = {s.id: s for s in feed.stations}
     limits = {l.variable: l for l in feed.limits}
-    alerts, live = [], set()
+    alerts, live, fresh_variables = [], set(), set()
     for m in feed.messages:
         base = dict(station_id=m.station_id, variable=m.variable, value=m.value if _number(m.value) else None,
                     unit=m.unit, kind=m.kind, provenance=m.provenance)
@@ -229,6 +232,7 @@ def assess_weather(feed, now_utc, *, shape=None):
             alerts.append(WeatherAlert(STALE, age_s=age, reason=f"{label}: {age / 60:.0f} min old, ignored", **base))
             continue
         live.add(m.station_id)
+        fresh_variables.add(m.variable)
         if m.value >= limit.warning:
             alerts.append(WeatherAlert(WARNING, age_s=age, effect=limit.effect,
                                        reason=f"{label} >= warning {limit.warning:g}", **base))
@@ -240,14 +244,18 @@ def assess_weather(feed, now_utc, *, shape=None):
         if station.id not in live:
             alerts.append(WeatherAlert(CAUTION, station.id, None, None, None, None, None,
                                        f"no fresh observation from {station.id}", provenance=station.provenance))
-    link_lost = not live
+    missing = set(feed.required_variables) - fresh_variables
+    link_lost = not live or bool(missing)
     if link_lost:
+        reason = ("required observations missing or stale: " + ", ".join(sorted(missing))
+                  if missing else "no fresh observation from any station; weather is unknown")
         alerts.append(WeatherAlert(LINK_LOST, None, None, None, None, None, None,
-                                   "no fresh observation from any station; weather is unknown"))
+                                   reason))
     warnings = [a for a in alerts if a.level == WARNING]
     return WeatherAssessment(now_utc=now_utc, alerts=tuple(alerts),
                              return_now=any(a.effect == "return_now" for a in warnings),
-                             no_solar_credit=any(a.effect == "no_solar_credit" for a in warnings),
+                             no_solar_credit=("dust_optical_depth" in missing
+                                              or any(a.effect == "no_solar_credit" for a in warnings)),
                              link_lost=link_lost, required=feed.required, feed_provenance=feed.provenance,
                              limits=tuple(feed.limits))
 
