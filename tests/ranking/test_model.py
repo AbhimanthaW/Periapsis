@@ -135,6 +135,44 @@ def test_filters_and_response_stability(service):
     assert len(base64.b64decode(service.rank(request)["heat_nside32"])) == 12288
 
 
+DEMO_OBJECTIVES = ("alluvial fans", "valley networks", "clays", "sulfates", "carbonates",
+                   "silica", "glacial landforms", "magnetism", "olivine")
+
+
+def test_demo_layers_fill_top_twenty(service, demo_service):
+    receipt = demo_service.engine.pack.manifest["synthetic_layers"][0]
+    assert receipt["synthetic"] is True and receipt["seed"] == 20261114
+    controls = receipt["seeded_controls"]
+    assert sorted(controls) == sorted(item["id"] for item in load() if item["status"] == "demo")
+    assert all(len(points) == 8 for points in controls.values())
+    assert controls["delta"] == receipt["delta_controls"]
+    for objective in DEMO_OBJECTIVES:
+        request = RankRequest(schema_version=1, request_id="demo-density", objective=objective,
+                              include_demo=True, limit=20)
+        response = demo_service.rank(request)
+        assert len(response["areas"]) == 20, objective
+        assert all(area["demo"] and area["tier"] == "Direct" for area in response["areas"])
+        # The release pack must not gain any of this synthetic support.
+        assert all(not area["demo"] and area["tier"] != "Direct"
+                   for area in service.rank(request)["areas"]), objective
+
+
+@pytest.mark.parametrize(("objective", "negation"), [
+    ("cave candidates not carbonates", "carbonates"),
+    ("highlands not sedimentary", "sedimentary"),
+])
+def test_demo_negation_labels_ranking(demo_service, objective, negation):
+    request = RankRequest(schema_version=1, request_id="negation", objective=objective, limit=20)
+    ordinary = demo_service.rank(request)
+    enabled = demo_service.rank(request.model_copy(update={"include_demo": True}))
+    assert enabled["counts"]["excluded"][f"not {negation}"] > ordinary["counts"]["excluded"].get(
+        f"not {negation}", 0)
+    assert enabled["heat_nside32"] != ordinary["heat_nside32"]
+    assert len(enabled["areas"]) == 20
+    assert all(area["demo"] for area in enabled["areas"])
+    assert all(not area["demo"] for area in ordinary["areas"])
+
+
 def test_broader_is_not_direct(demo_service):
     # Query a real hydrated-mineral site with no synthetic clay coverage.
     engine = demo_service.engine
