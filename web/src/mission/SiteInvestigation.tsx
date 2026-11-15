@@ -125,7 +125,10 @@ function RegionalContext({ data }: { data: RegionEvidence }) {
       <dl className="mission-facts">
         <dt>Terrain documentation</dt><dd>{context.terrain.tier} · bounds {context.terrain.bounds.lower.toFixed(1)}–{context.terrain.bounds.upper.toFixed(1)}</dd>
         <dt>Science and environment documentation</dt><dd>{context.science_environment.tier} · bounds {context.science_environment.bounds.lower.toFixed(1)}–{context.science_environment.bounds.upper.toFixed(1)}</dd>
-        <dt>MOLA elevation at cell centroid</dt><dd>{metres(context.mola_elevation_m)}</dd>
+        <dt>MOLA gridded elevation at cell centroid</dt><dd>{metres(context.mola_elevation_m)}
+          {context.mola_elevation_m !== null && context.mola_observation_count === 0 &&
+            <span className="mission-muted"> · interpolated estimate; zero native observations</span>}
+        </dd>
         <dt>MOLA observation count at native post</dt><dd>{context.mola_observation_count ?? 'Unknown'}</dd>
         <dt>Stereo coverage in the cell</dt><dd>{context.stereo_topography.status === 'unknown'
           ? 'Unknown' : `${percent(context.stereo_topography.observed_fraction)} catalogued · ${percent(context.stereo_topography.usable_fraction)} verified usable`}</dd>

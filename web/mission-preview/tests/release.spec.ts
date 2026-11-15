@@ -14,7 +14,7 @@ test('offline Atlas selection preserves the region and profile through mission a
   await expect(page.getByRole('heading', { name: 'Solis Planum' })).toBeVisible()
   await expect(page.getByText('Unclassified', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('HPX128:115505', { exact: true })).toBeVisible()
-  await expect(page.getByText('MOLA elevation at cell centroid')).toBeVisible()
+  await expect(page.getByText('MOLA gridded elevation at cell centroid')).toBeVisible()
   await expect(page.getByText(/No reviewed local query is packaged/)).toBeVisible()
   await expect(page.getByText('Tactical routing withheld.', { exact: true })).toBeVisible()
   await expect(page.getByText('Live hazard assessment unavailable.', { exact: true })).toBeVisible()
@@ -50,6 +50,7 @@ test('switches between the primary evidence demo, engineering control and sparse
   await select.selectOption('01')
   await expect(page.getByRole('heading', { name: 'Planum Boreum' })).toBeVisible()
   await expect(page.getByText('HPX128:16347', { exact: true })).toBeVisible()
+  await expect(page.getByText(/interpolated estimate; zero native observations/)).toBeVisible()
   await expect(evidence.getByText(/No reviewed local query/)).toBeVisible()
 })
 

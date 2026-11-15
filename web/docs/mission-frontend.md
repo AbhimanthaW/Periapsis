@@ -4,7 +4,7 @@
 
 | Endpoint | Use in the UI |
 | --- | --- |
-| `GET /api/v1/regions/{id}` | Resolve the Atlas ID, HEALPix Nside 128 anchor cell, optional regional context and exact local evidence. Unknown regions return 404. The cell contains documentation bounds, observed and usable stereo coverage, and the sampled MOLA post when available. No ranking pack means no cell context. |
+| `GET /api/v1/regions/{id}` | Resolve the Atlas ID, HEALPix Nside 128 anchor cell, optional regional context and exact local evidence. Unknown regions return 404. The cell contains documentation bounds, observed and usable stereo coverage, and the sampled MOLA post when available. A zero native observation count labels the grid value as interpolated. No ranking pack means no cell context. |
 | `POST /api/v1/rank` | Rank the supported objective concepts across the 196,608 cells. The UI shows unsupported and unrecognized terms from the parse result. |
 | `GET /api/v1/site` | Identify the synthetic scenario, fixed crew and budgets, closures and geometry on its own metre grid. |
 | `POST /api/v1/plan` | Recompute that scenario using the current fixture identity, closure and remaining time. The client rejects stale or mismatched responses and withholds recommendations on a refusal. |
