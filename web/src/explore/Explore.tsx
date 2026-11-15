@@ -161,7 +161,10 @@ export default function Explore() {
 
   return <main className="mission-app cell-workspace">
     <header className="mission-masthead">
-      <a className="mission-brand" href="/explore">Return Window</a>
+      <a className="mission-brand cell-brand" href="/explore">
+        {import.meta.env.VITE_PACKAGED_RELEASE === '1' && <img src="/demo/brand/nasa-logo.svg" width="32" height="28" alt=""/>}
+        Return Window
+      </a>
       <nav className="mission-nav" aria-label="Workspaces">
         <button className="mission-link" onClick={() => { setRank(false); setSimulation(false) }}>Explore</button>
         <button className="mission-link" onClick={() => { setRank(true); setSimulation(false) }}>Ranked cells</button>

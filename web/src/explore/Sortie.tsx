@@ -52,11 +52,10 @@ function GridPicker({ label, site, value, choose, disabled = false }: {
   </select></label>
 }
 
-function ScienceCorridor({ marsPoint, scienceObjective, methodInput, exclusionsInput, initialLayer = 'viking' }: ScienceInputs & { marsPoint: Point }) {
+function useScienceDestination({ scienceObjective, methodInput, exclusionsInput }: ScienceInputs) {
   const objective = scienceObjective || defaultObjective
   const method = methods.find(choice => choice === methodInput) ?? (objective === 'shallow subsurface ice' ? 'Investigate ice' : 'Remote survey') satisfies Method
   const exclusionKey = exclusionsInput?.join(',') ?? ''
-  const [layer, setLayer] = useState(initialLayer)
   const [attempt, setAttempt] = useState(0)
   const [destination, setDestination] = useState<{ id: string; point: Point; label: string | null; pack: string; rank: number; tier: string; sparse: boolean }>()
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading')
@@ -83,21 +82,34 @@ function ScienceCorridor({ marsPoint, scienceObjective, methodInput, exclusionsI
     return () => controller.abort()
   }, [attempt, objective, method, exclusionKey])
 
-  return <section className="science-corridor" aria-labelledby="science-destination">
-    <RouteMap base={marsPoint} target={destination?.point} layer={layer}/>
+  return { objective, destination, status, retry: () => setAttempt(n => n + 1) }
+}
+
+function ScienceCorridor({ marsPoint, target, initialLayer = 'viking' }: { marsPoint: Point; target?: Point; initialLayer?: Layer }) {
+  const [layer, setLayer] = useState(initialLayer)
+  return <section className="science-corridor" aria-label="Mars surface context">
+    <RouteMap base={marsPoint} target={target} layer={layer}/>
     <div className="corridor-tools">
       <label>Basemap <select value={layer} onChange={event => setLayer(event.target.value as Layer)}>
         <option value="viking">Viking colour</option>
         <option value="mola">MOLA relief</option>
       </select></label>
     </div>
-    <div className="corridor-target" aria-live="polite">
+    <div className="corridor-caption">
+      <span>{layer === 'viking' ? 'Viking colour mosaic' : 'MOLA shaded relief'} · Mars context</span>
+      <strong>{target ? 'Dashed line shows location only' : 'Map centered on saved base'} · Tactical routing withheld</strong>
+    </div>
+  </section>
+}
+
+function ScienceDestination({ objective, destination, status, retry, marsPoint }: ReturnType<typeof useScienceDestination> & { marsPoint: Point }) {
+      return <section className="corridor-target" aria-live="polite" aria-labelledby="science-destination">
       <span className="mission-badge">Exploratory ranking</span>
       <h2 id="science-destination">Science destination</h2>
       <p>{objective}</p>
       {status === 'loading' && <p>Ranking Mars cells…</p>}
       {status === 'empty' && <p>The ranking model found no supported destination for this objective.</p>}
-      {status === 'error' && <><p>Science destination unavailable.</p><button className="mission-button" onClick={() => setAttempt(n => n + 1)}>Retry ranking</button></>}
+      {status === 'error' && <><p>Science destination unavailable.</p><button className="mission-button" onClick={retry}>Retry ranking</button></>}
       {destination && <>
         <p><strong>{destination.label ? 'Near ' + destination.label : destination.id}</strong>
           {destination.label && <> · <code>{destination.id}</code></>}</p>
@@ -106,15 +118,11 @@ function ScienceCorridor({ marsPoint, scienceObjective, methodInput, exclusionsI
         {destination.sparse && <p>Sparse evidence. Local conditions are unverified.</p>}
         <p className="mission-muted">Data pack {destination.pack}</p>
       </>}
-    </div>
-    <div className="corridor-caption">
-      <span>{layer === 'viking' ? 'Viking colour mosaic' : 'MOLA shaded relief'} · Mars context</span>
-      <strong>{destination ? 'Dashed line shows location only' : 'Map centered on saved base'} · Tactical routing withheld</strong>
-    </div>
   </section>
 }
 
 function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...science }: SortieProps & { site: FixtureSite }) {
+  const scienceResult = useScienceDestination(science)
   const [stage, setStage] = useState<Stage>(initialStage)
   const [sortie, setSortie] = useState(() => crypto.randomUUID())
   const start: Cell = demo ? [1, 1] : site.shelter_cell
@@ -205,9 +213,10 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
           <p>Mars context <code>{cellId}</code> · Saved Mars base {Math.abs(marsPoint[1]).toFixed(4)}°{marsPoint[1] < 0 ? 'S' : 'N'}, {Math.abs(marsPoint[0]).toFixed(4)}°{marsPoint[0] < 0 ? 'W' : 'E'}</p>
 
         </header>
-        <ScienceCorridor marsPoint={marsPoint} {...science}/>
+        <ScienceCorridor marsPoint={marsPoint} target={scienceResult.destination?.point} initialLayer={science.initialLayer}/>
         <details className="sortie-map" open={stage === 'Monitor' ? true : undefined}>
           <summary>Simulated route · routing algorithm</summary>
+          {result && routeCells?.length === 1 && <p>No movement required. The simulated crew is already at base.</p>}
           <FixtureGrid site={{ ...site, checkpoint_cell: current, shelter_cell: base }} activeClosures={closures}
             route={routeCells} inspectOnly={!approved}/>
         </details>
@@ -234,7 +243,9 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
         </>}
       </section>
     </div>
-    <aside className="sortie-controls">
+    <aside className="sortie-sidebar">
+      <ScienceDestination {...scienceResult} marsPoint={marsPoint}/>
+      <section className="sortie-controls">
       <header className="sortie-panel-heading">
         <span className="mission-badge">Synthetic terrain</span>
         <h2>Simulated sortie</h2>
@@ -271,6 +282,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
       {result && <div className="sortie-details">
         <p>Completed work: {result.completed_task_ids.join(', ') || 'None'}</p>
       </div>}
+      </section>
     </aside>
   </div>
 }
