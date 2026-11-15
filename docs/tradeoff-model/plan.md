@@ -1,7 +1,7 @@
 # Trade-off Envelope: plan for the third model (crew risk against the mission objective)
 
 **Prepared 15 Nov 2026, 04:00 IST, against `AbhimanthaW/Periapsis` at `a6f4b42`.** Also read: the unmerged `feature/human-cost-calculator` branch (`02cc317`, no PR yet), PR #27 (weather forecast) and PR #23 (MDAD dust outlook).
-**Status: plan for review. Nothing here has been built or measured.**
+**Status: proposal for review.** PR #29 exercises a deterministic P0 protocol with simulated inputs. The current architecture's exclusions remain binding, and decisions D1–D3 are open. A merged design record would not authorize L2 exceptions or telemetry-driven changes to the plan.
 
 Labels:
 - **[verified]**: checked in the repo or in a cited source.
@@ -19,7 +19,7 @@ Labels:
 4. **Proposed model: the Trade-off Envelope.** For every option the planner already produces (return now, go to stop X, go to X then Y), it computes the probability that each astronaut eats into a consumable reserve, how much science the option delivers, and what is given up. Each option is then classed as GREEN (recommendable), AMBER (allowed only if named humans accept it, inside a pre-signed envelope) or RED (never executable). **The model never decides.** It prices the trade-off, enforces who may accept it, and sets the trip-wires that undo the acceptance.
 5. **The only "learning" is honest and personal:** a Bayesian update of each astronaut's consumable burn rate from the EVA's own telemetry. The prior's spread comes from published Apollo EVA metabolic rates. This personalises *capability* (how fast this person is using O₂ today), never *acceptability* (how much risk this person "can handle").
 6. **Scope:** about 20 hours remain. This is P1 behind the main differentiator. The P0 slice is deterministic and reuses existing code: envelope contract, option table, GREEN/AMBER/RED rules, audit log and invariant tests. Monte Carlo and the Bayesian update are P1, with a go/no-go at 09:00 IST (§13).
-7. **Pitch it as a decision model, not as ML.** Models 1 and 2 (weather, dust) are ML with measured skill. For model 3 the strong line is: *"We deliberately kept learning out of the life-and-death layer. The statistics price the risk, and humans own the decision."*
+7. **Pitch it as a decision model, not as ML.** The weather and dust workstreams have separate evaluation and release gates. For model 3 the strong line is: *"We deliberately kept learning out of the life-and-death layer. The statistics price the risk, and humans own the decision."*
 
 ---
 
@@ -91,7 +91,7 @@ The plan builds Reading B. Every Reading A element is either reshaped or rejecte
 ```mermaid
 flowchart TD
   L0["L0 Immutable floors<br/>(code + mission file hash)<br/>direct return exists · walkback feasible ·<br/>no draw exhausts a consumable ·<br/>universal exposure limits"]
-  L1["L1 Nominal mission limits<br/>(AuthorizedLimit records today)<br/>reserves, max leg, weather limits"]
+  L1["L1 Nominal mission limits<br/>crew reserves, max leg, weather limits"]
   L2["L2 Pre-signed exception envelope<br/>per priority class, per resource,<br/>bounds + expiry + roles"]
   L3["L3 Live choice<br/>flight director + surgeon sign,<br/>crew consents, anyone vetoes"]
   M["Trade-off Envelope model<br/>computes + classifies only"]
@@ -103,7 +103,7 @@ flowchart TD
 ```
 
 - **L0** cannot be changed anywhere in the app. Changing it means a code change and review.
-- **L1** is what `AuthorizedLimit` already models: a value, a unit and `authorized_by`. [verified, `config.py`]
+- **L1** brings together the configured nominal limits. Marswalk's `AuthorizedLimit` currently validates only `max_leg_s`. P0 reserve floors come from the simulated human-cost policy, with weather assessed by the existing deterministic weather rules.
 - **L2** is new: an envelope file with bounds such as "for priority-1 objectives, the O₂ reserve floor may drop from 30% to 22%" [assumption: numbers]. It has an expiry, the roles that signed it, and the crew members who consented to it.
 - **L3** is the live acceptance. It writes a new immutable snapshot revision, and the existing hard-constraint pass runs again on it. An acceptance never bypasses `enforce_hard_constraints`; it changes the authorised limits that the pass reads.
 
