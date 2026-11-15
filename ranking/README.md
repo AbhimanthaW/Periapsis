@@ -37,7 +37,10 @@ different totals. The input gate reports the number of two-unit cells so this
 choice stays explicit.
 
 `concepts.json` lists 72 concepts: 25 live, 2 flagged live, 28 catalogue,
-10 demo and 7 unsupported. The parser uses `lexicon.json` forms and reports
+10 demo and 7 unsupported. Release packs report stratigraphy, hydrothermal,
+climate, ocean, groundwater, periglacial and layered deposits as unsupported.
+A DEMO pack provides opt-in software fixtures for those seven concepts. The
+parser uses `lexicon.json` forms and reports
 negated, unsupported, demo and unknown words. Catalogues without survey masks
 report missing detections as `Not reported`. MOLA, measured TES and SWIM each
 keep their own coverage. Records and method compatibility stay separate from
@@ -47,16 +50,28 @@ The demo pack reuses the repository's 28-cell `synthetic-science-v1` fixture
 and adds fixed-seed spatial software controls. Six extra synthetic delta
 centres on mapped old terrain make the headline objective large enough to
 exercise a top-20 ranking; all eight delta control coordinates are in the
-manifest. The other nine DEMO layers (alluvial fan, valley network, clays,
-sulfates, carbonates, silica, glacial landform, magnetism and olivine) keep
-their original seeded centre and gain seven more from the same seed stream,
-drawn after the delta controls. Each added centre is at least 500 km from the
-layer's other centres and 600 km from every delta control, within its layer's
-terrain mask where applicable. Every DEMO concept can fill a top-20 ranking.
-The headline delta query retains its Direct area membership and order. Indirect
-support can still change Match scores, coverage counts and the heat map.
-The manifest records the centres in `seeded_controls`, the fixture digest,
-the seed and `synthetic: true`.
+manifest. Alluvial fan, valley network, clays, sulfates, carbonates, silica
+and olivine retain their original centre and use the primary stream to
+place seven additional centres. Glacial landforms and the seven added
+fixtures draw eight centres each from a second stream, `[20261114, 2]`.
+Each added centre is at least 500 km from its layer's other centres and
+600 km from each delta control. The headline delta query retains its Direct
+area membership and order. Indirect support can still change Match scores,
+coverage counts and the heat map.
+
+For visual plausibility, the seeded glacial footprint uses 30–50° absolute
+latitude, inspired by [Levy et al. (2014)](https://doi.org/10.1002/2014JE004685).
+The ocean footprint uses lowland units, hydrothermal uses Noachian or
+Hesperian units and periglacial uses 35–58° absolute latitude, with centres
+below 55°. These masks are software controls.
+
+Magnetism uses 16 seeded positive kernels on Noachian terrain. Each adds
+`K h^3 / (d^2 + h^2)^1.5` with a scale of `h = 150 km`. The 99th percentile
+scales the dimensionless values to full support before quantization. Small
+values can round to zero in this globally evaluated fixture. The existing
+28-cell fixture also supplies local magnetic values, combined by taking the
+larger of the two normalized supports. The manifest records the seeded
+centres, magnetic source parameters, fixture digest, seed and `synthetic: true`.
 Demo support is separate from real
 support, including propagated and derived concepts; the API requires
 `include_demo: true` to use it. If synthetic support changes which eligible
