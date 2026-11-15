@@ -9,9 +9,12 @@ const Mission = lazy(() => import('./mission/Mission'))
 const route = (path: string) => location.pathname === path || location.pathname === `${path}/`
 const atlas = route('/atlas')
 const mission = route('/mission')
-const explore = route('/explore') || mission && new URLSearchParams(location.search).has('cell')
+const params = new URLSearchParams(location.search)
+const fixedFixture = mission && (params.get('view') === 'simulation' || params.get('legacy') === '1')
+const explore = route('/') || route('/explore') || mission && !fixedFixture
 if (atlas) document.title = 'Mars Research Atlas · Return Window'
-if (mission) document.title = 'Mission · Return Window'
+if (explore) document.title = 'Explore Mars · Return Window'
+else if (mission) document.title = 'Mission · Return Window'
 createRoot(document.getElementById('root')!).render(explore
   ? <Suspense fallback={<p role="status">Opening Explore…</p>}><Explore/></Suspense> : atlas
   ? <Suspense fallback={<p role="status">Opening Mars Research Atlas…</p>}><Atlas/></Suspense>

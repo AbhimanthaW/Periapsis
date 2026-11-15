@@ -36,6 +36,7 @@ export default function Explore() {
   const [objective, setObjective] = useState('')
   const [demoPreset, setDemoPreset] = useState(false)
   const [draftId, setDraftId] = useState(initial.cell)
+  const [orientation, setOrientation] = useState<string>()
   const [rank, setRank] = useState(false)
   const [simulation, setSimulation] = useState(false)
   const [fault, setFault] = useState('')
@@ -45,10 +46,11 @@ export default function Explore() {
   const request = useRef<AbortController | null>(null)
   const lastPick = useRef<(() => void) | null>(null)
 
-  function select(id: string, point?: Point, nextBase?: Point) {
+  function select(id: string, point?: Point, nextBase?: Point, namedFeature?: string) {
     setCellId(id)
     setDraftId(id)
     setPosition(point)
+    setOrientation(namedFeature)
     setBase(nextBase)
     setSimulation(false)
     setRank(false)
@@ -59,11 +61,11 @@ export default function Explore() {
     history.replaceState(null, '', '/explore?' + params)
   }
 
-  async function pick(point: Point, forBase: boolean, recenter = false, preset = false) {
+  async function pick(point: Point, forBase: boolean, recenter = false, preset = false, namedFeature?: string) {
     request.current?.abort()
     const controller = new AbortController()
     request.current = controller
-    lastPick.current = () => { void pick(point, forBase, recenter, preset) }
+    lastPick.current = () => { void pick(point, forBase, recenter, preset, namedFeature) }
     setLocating(true)
     setSimulation(false)
     setFault('')
@@ -73,7 +75,7 @@ export default function Explore() {
       if (!response.ok) { setFault(describeFailure(response)); return }
       lastPick.current = null
       setDemoPreset(preset)
-      select(response.data.id, point, forBase ? point : undefined)
+      select(response.data.id, point, forBase ? point : undefined, namedFeature)
       if (recenter) setCenter(point)
     } catch (error) {
       if (!controller.signal.aborted) setFault(String(error))
@@ -100,7 +102,7 @@ export default function Explore() {
           if (alias.signal.aborted) return
           setLocating(false)
           if (response.ok) {
-            select(response.data.anchor_cell_id)
+            select(response.data.anchor_cell_id, undefined, undefined, initial.region ?? undefined)
             lastPick.current = null
           } else setFault(describeFailure(response))
         }, () => {})
@@ -145,6 +147,7 @@ export default function Explore() {
     evidence.query_sha256 === site.query_sha256 && evidence.result.package_id === site.package_id &&
     evidence.result.package_version === site.package_version
   const feature = context?.evidence_site_id && regions.find(region => region.id === context.evidence_site_id)
+  const namedFeature = regions.find(region => region.id === orientation)
   const selectedPoint = context ? position ?? signed(context.cell.centroid) : undefined
 
   return <main className="mission-app cell-workspace">
@@ -180,7 +183,7 @@ export default function Explore() {
             </form>
             <label>Named feature for orientation <select value="" onChange={event => {
               const feature = regions.find(item => item.id === event.target.value)
-              if (feature) void pick(feature.geography.center, false, true)
+              if (feature) void pick(feature.geography.center, false, true, false, feature.id)
             }}>
               <option value="">Choose an approximate location</option>
               {regions.map(region => <option key={region.id} value={region.id}>{region.name}</option>)}
@@ -210,6 +213,7 @@ export default function Explore() {
           {context && <>
             <section className="mission-card">
               <h2>{feature ? feature.name + ' · ' : ''}{cellId}</h2>
+              {namedFeature && <a href={'/atlas?region=' + namedFeature.id}>{namedFeature.name} · approximate research label</a>}
               {base ? <p>Candidate base {base[1].toFixed(5)}°, {base[0].toFixed(5)}° east longitude.</p>
                 : <p>Set a base to record an exact Mars position.</p>}
               <p><strong>Tactical routing withheld.</strong> A qualified terrain pack is required for the base and route.</p>

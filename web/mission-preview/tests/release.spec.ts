@@ -20,7 +20,7 @@ test('offline Atlas named selection migrates to a canonical cell', async ({ page
 })
 
 test('switches between the primary evidence demo, engineering control and sparse regions', async ({ page }) => {
-  await page.goto('/mission')
+  await page.goto('/mission?legacy=1')
   const evidence = page.getByRole('complementary', { name: 'Evidence' })
   const select = page.getByLabel('Atlas region')
   await expect(select.locator('option')).toHaveCount(56)
@@ -55,7 +55,7 @@ test('rejects an inconsistent query and preserves survey fallback during an API 
     json.local_evidence.query_sha256 = '0'.repeat(64)
     await route.fulfill({ response, json })
   })
-  await page.goto('/mission?region=43')
+  await page.goto('/mission?legacy=1&region=43')
   await expect(page.getByRole('alert')).toContainText('Evidence identity mismatch')
   await expect(page.getByText('Supported fallback', { exact: true })).toHaveCount(0)
   await page.route('**/api/v1/regions/28', route => route.abort())
@@ -64,7 +64,7 @@ test('rejects an inconsistent query and preserves survey fallback during an API 
   await expect(page.getByRole('heading', { name: 'Atlas research context' })).toBeVisible()
   await expect(page.getByRole('alert')).toContainText('Planning service unreachable')
   await expect(page.getByText('Tactical routing withheld.', { exact: true })).toBeVisible()
-  await page.goto('/mission?region=unknown')
+  await page.goto('/mission?legacy=1&region=unknown')
   await expect(page.getByRole('alert')).toContainText('Unknown Atlas region')
 })
 
@@ -84,7 +84,7 @@ test('uses the sourced ranking pack and discloses terms excluded from the result
 })
 
 test('replays the four planning outcomes separately from the current region', async ({ page }) => {
-  await page.goto('/mission?region=25')
+  await page.goto('/mission?legacy=1&region=25')
   await page.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
   await expect(page.getByTestId('simulation-tag')).toBeVisible()
   await expect(page.getByTestId('return-seconds')).toHaveText('40 s')
@@ -155,8 +155,8 @@ test('blocks planning deep links without moving a rehearsal to the selected site
   await expect(page.getByRole('heading', { name: /Regional planning withheld.*Utopia Planitia/ })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Open the Jezero simulation' })).toBeVisible()
   await page.getByRole('link', { name: 'Investigate Atlas region' }).click()
-  await expect(page).toHaveURL(/region=08&profile=rover/)
-  await expect(page.getByRole('heading', { name: 'Utopia Planitia' })).toBeVisible()
+  await expect(page).toHaveURL(/cell=HPX128%3A/)
+  await expect(page.getByRole('link', { name: 'Utopia Planitia · approximate research label' })).toBeVisible()
 })
 
 test('the packaged station and hazard API returns six labeled simulated steps', async ({ request }) => {

@@ -30,6 +30,7 @@ function useSelection() {
   }, [])
   const update = useCallback((next: Selection) => {
     const url = new URL(location.href)
+    url.searchParams.set('legacy', '1')
     url.searchParams.set('region', next.regionId)
     url.searchParams.set('profile', next.profile)
     if (next.view === 'simulation') url.searchParams.set('view', next.view)
@@ -84,7 +85,7 @@ export default function Mission() {
         <nav className="mission-nav" aria-label="Workspaces">
           <ServiceStatus/>
           <a href={atlasHref}>Mars Atlas</a>
-          <a href="/">Architecture</a>
+          <a href="/architecture">Architecture</a>
         </nav>
       </header>
       {simulation && (

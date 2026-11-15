@@ -113,7 +113,7 @@
       "id": "api",
       "name": "Planning API",
       "summary": "Loopback · versioned JSON",
-      "description": "The local Python service serves both built applications, regional evidence, ranking and simulated planning. Regional evidence binds an Atlas ID to the selected HEALPix anchor and a reviewed package/query pair where available.",
+      "description": "The local Python service serves the cell-first Explore workflow, regional evidence, ranking and simulated planning. The HEALPix ID is canonical. Named Atlas features are approximate anchors. Reviewed evidence is bound by package and query digests.",
       "tone": "neutral",
       "phase": "runtime"
     },
@@ -2605,7 +2605,7 @@
       "category": "API",
       "classification": "Architecture",
       "purpose": "Return the synthetic simulation fixture identity, fixed inputs and local grid.",
-      "description": "Return the synthetic simulation fixture identity, fixed inputs and local grid. GET /api/v1/regions/{id} returns regional context, capability gates and pinned local evidence where available.",
+      "description": "Return the synthetic simulation fixture identity, fixed inputs and local grid. GET /api/v1/cell-context/{id} returns regional cell context, capability gates and pinned local evidence where available.",
       "technology": [
         "GET /api/v1/site"
       ],
@@ -2682,7 +2682,7 @@
       "category": "API",
       "classification": "Architecture",
       "purpose": "Accept version, pack and scenario identity, checkpoint, shelter, completed tasks, remaining time and reserve in whole seconds, and predefined closure IDs.",
-      "description": "Accept version, pack and scenario identity, checkpoint, shelter, completed tasks, remaining time and reserve in whole seconds, and predefined closure IDs. Marswalk also supports optional profile and weather inputs.",
+      "description": "Accept version, pack and scenario identity, checkpoint, shelter, completed tasks, remaining time and reserve in whole seconds, and predefined closure IDs. Marswalk also supports optional profile and weather inputs. POST /api/v2/plan validates the HEALPix base point and simulates a local base/current position with a sortie ID and revision.",
       "technology": [
         "POST /api/v1/plan"
       ],
