@@ -32,6 +32,43 @@ uv run --project documentation --locked python -m runtime.planning_api --final-r
 
 In another PowerShell terminal, initialize the map and compare the return routes before and after a closure.
 
+### Automatic mission feed
+
+With the planning API running, start the feeder from the repo root. It handles the request IDs,
+site identity and revision checks. The bundled [simulation log](examples/routing-feed-simulated.jsonl)
+sends weather history and a science objective, introduces a moving storm with suit and rover telemetry,
+lets the readings expire, and then sends a new position and a clear report.
+
+```powershell
+uv run --project documentation --locked python -m runtime.routing_feed
+```
+
+Replay runs as fast as responses arrive by default. With `--rate 60`, 60 seconds of simulated
+time pass in one second of playback. Each line of output summarizes the published revision and
+the new return routes. Read the full plan from `GET /api/v1/routing/plan`.
+
+For an ongoing producer, use `--follow` and have the producer append one complete UTF-8 JSON
+object followed by a newline per report. Use one writer and retain the append-only file.
+Each report includes `time_utc` and `current_cell`. Include `objective`, `confirmed_task_ids`
+and `completed_task_ids` to carry the current mission state. The same optional weather, hazard,
+suit, rover and telemetry fields as the plan endpoint are supported. The feeder binds the reports
+to the site's pack and processes them in nondecreasing source time.
+
+```powershell
+New-Item -ItemType File -Path incoming-mission.jsonl
+uv run --project documentation --locked python -m runtime.routing_feed incoming-mission.jsonl --follow
+```
+
+While the log is idle, the feeder sends a clock-only request at a reported weather expiry using
+the last known position and task state. A restarted feeder can resume against the same running
+API by matching the previously accepted log prefix. Starting a new scenario requires a fresh
+API session. The included producer is a simulation replay. A simulator or telemetry service can
+use the same log format to supply its own reports.
+
+### Manual API requests
+
+With a fresh API session, the equivalent manual update is:
+
 ```powershell
 $routingApi = 'http://127.0.0.1:8000/api/v1/routing'
 $site = Invoke-RestMethod "$routingApi/site"
@@ -103,8 +140,9 @@ breakdown point it uses the directed walking leg's duration and ascent.
 uv run --project documentation --locked python -m pytest -q runtime/tests/test_final_routing.py
 ```
 
-The integration uses a local, in-memory session and simulated inputs. The UI, a persistent live
-feed, and qualification for source-backed terrain are separate integration work.
+The integration uses a local, in-memory planning session and simulated inputs. The log persists
+input reports on disk and can rebuild the session by replay. Dashboard wiring, physical telemetry
+adapters and qualification for source-backed terrain remain separate work.
 
 `python_engine/` and its six original tests are byte-preserved from the delivered Senula routing source. Its A* uses dimensionless synthetic cell costs, eight neighbours and diagonal corner checks. It does not use elevation differences or directed travel seconds. Its plotting demo requires Matplotlib in a separate environment. The original server file is empty.
 
