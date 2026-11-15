@@ -24,7 +24,8 @@ function initialSelection() {
   const parts = params.get('base')?.split(',')
   const coords = parts?.length === 2 && parts.every(part => part.trim()) ? parts.map(Number) : undefined
   const base = coords && Math.abs(coords[0]) <= 180 && Math.abs(coords[1]) <= 90 ? coords as Point : undefined
-  const stage = ({ route: 'Route', analysis: 'Analysis', monitor: 'Monitor' } as Record<string, Stage | undefined>)[params.get('walk') ?? '']
+  const requestedStage = params.get('walk')
+  const stage = (['Route', 'Analysis', 'Monitor'] as const).find((candidate: Stage) => candidate.toLowerCase() === requestedStage)
   return { cell, base, stage, objective: params.get('objective')?.trim().slice(0, 300) ?? '',
     method: params.get('method'), excludes: params.get('exclude')?.split(','),
     layer: params.get('layer') === 'mola' ? 'mola' as const : 'viking' as const, region: params.get('region'), demo: params.get('demo') === '1', ranking: params.get('panel') === 'ranking' }
