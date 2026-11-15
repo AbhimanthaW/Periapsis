@@ -1,3 +1,4 @@
+import { DustOutlookSection } from './DustOutlook'
 import { useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { ArrowBendDownLeft, Crosshair, Minus, Plus, Stack } from '@phosphor-icons/react'
@@ -154,6 +155,7 @@ function RegionSummary({ region }: { region: Region }) {
         <dt>Terrain model</dt><dd className="caution">none</dd>
       </Metrics>
     </section>
+    <DustOutlookSection key={region.id} regionId={region.id} />
     <div className="summary-actions">
       <a className="button primary" href={regionHref(region.id)}>Investigate</a>
       <a className="button" href={rankingHref}>Compare</a>

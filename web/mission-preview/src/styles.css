@@ -282,6 +282,19 @@ button.chip:hover { background: #f6e7db30; }
 .summary-section .metrics { grid-template-columns: 71px 1fr; line-height: 17px; gap: 7px 14px; font-size: 12.5px; }
 .data-summary { padding-bottom: 0; }
 .data-summary .metrics { grid-template-columns: auto 1fr; gap: 7px 12px; }
+@media (min-width: 1181px) and (min-height: 801px) {
+  .region-summary { max-height: calc(100svh - 216px); overflow-y: auto; }
+}
+.dust-summary { margin-top: 16px; padding-bottom: 0; }
+.dust-strip { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; height: 30px; margin-bottom: 4px; }
+.dust-strip button { position: relative; display: flex; align-items: flex-end; border-radius: 3px; background: #f6e7db0d; overflow: hidden; }
+.dust-strip button[aria-pressed='true'] { box-shadow: inset 0 0 0 1px var(--orange); }
+.dust-strip button:disabled { background: repeating-linear-gradient(135deg, #f6e7db0a 0 3px, transparent 3px 6px); }
+.dust-bar { width: 100%; background: #e4874f8c; border-radius: 2px 2px 0 0; }
+.dust-strip button[aria-pressed='true'] .dust-bar { background: var(--orange); }
+.dust-axis { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 10px; }
+.dust-summary .metrics { grid-template-columns: auto 1fr; gap: 6px 12px; }
+.dust-source { font-size: 10.5px; line-height: 14px; margin-top: 8px; }
 .summary-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 20px; }
 .summary-actions .button { min-height: 32px; padding-inline: 13px; }
 .explore-center {

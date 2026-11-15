@@ -9,8 +9,12 @@ description = "Reproducible Mars source ingestion and coordinate handling for Re
 requires-python = ">=3.11"
 dependencies = ["numpy>=1.26,<3", "rasterio>=1.4.4,<1.5", "pyproj>=3.7.2,<3.8", "truststore>=0.10,<1"]
 
+[project.optional-dependencies]
+dust = ["netCDF4>=1.7,<2"]
+
 [project.scripts]
 return-window = "return_window_pipeline.cli:main"
+return-window-dust = "return_window_pipeline.dust.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
