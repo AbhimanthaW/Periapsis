@@ -12,7 +12,8 @@ export function signedSeconds(value: number | null | undefined): string {
 }
 
 export const percent = (fraction: number) => `${Math.round(fraction * 1000) / 10} %`
-export const metres = (value: number | null | undefined) => value === null || value === undefined ? 'Unset' : `${value} m`
+const displayMetres = new Intl.NumberFormat('en', { maximumFractionDigits: 2 })
+export const metres = (value: number | null | undefined) => value === null || value === undefined ? 'Unset' : `${displayMetres.format(value)} m`
 
 const reasonText: Record<string, string> = {
   native_spacing_too_coarse: 'Native posting is coarser than required',

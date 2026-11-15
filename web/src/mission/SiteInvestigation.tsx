@@ -122,12 +122,12 @@ function RegionalContext({ data }: { data: RegionEvidence }) {
     <h2>Regional evidence</h2>
     <p><code>{data.anchor_cell_id}</code> · HEALPix Nside 128 cell containing the Atlas anchor. The cell does not define the region boundary or the local evidence query.</p>
     {context ? <>
-      <dl className="mission-facts">
+      <dl className="mission-facts mission-region-facts">
         <dt>Terrain documentation</dt><dd>{context.terrain.tier} · bounds {context.terrain.bounds.lower.toFixed(1)}–{context.terrain.bounds.upper.toFixed(1)}</dd>
         <dt>Science and environment documentation</dt><dd>{context.science_environment.tier} · bounds {context.science_environment.bounds.lower.toFixed(1)}–{context.science_environment.bounds.upper.toFixed(1)}</dd>
         <dt>MOLA gridded elevation at cell centroid</dt><dd>{metres(context.mola_elevation_m)}
           {context.mola_elevation_m !== null && context.mola_observation_count === 0 &&
-            <span className="mission-muted"> · interpolated estimate; zero native observations</span>}
+            <span className="mission-post-note">Interpolated estimate with zero native observations</span>}
         </dd>
         <dt>MOLA observation count at native post</dt><dd>{context.mola_observation_count ?? 'Unknown'}</dd>
         <dt>Stereo coverage in the cell</dt><dd>{context.stereo_topography.status === 'unknown'

@@ -50,7 +50,7 @@ test('switches between the primary evidence demo, engineering control and sparse
   await select.selectOption('01')
   await expect(page.getByRole('heading', { name: 'Planum Boreum' })).toBeVisible()
   await expect(page.getByText('HPX128:16347', { exact: true })).toBeVisible()
-  await expect(page.getByText(/interpolated estimate; zero native observations/)).toBeVisible()
+  await expect(page.getByText(/Interpolated estimate with zero native observations/)).toBeVisible()
   await expect(evidence.getByText(/No reviewed local query/)).toBeVisible()
 })
 
