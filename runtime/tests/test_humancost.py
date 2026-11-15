@@ -76,7 +76,9 @@ def test_golden_flat_and_route():
     assert result["route"] == {"check": "pass", "risk": 73, "band": "caution", "limited_by": "EV2", "breach": None}
     for person, expected in ((ev1, (2383.804, 166.634, 1.07278, .725, 363.739)),
                              (ev2, (2845.661, 198.022, 1.26378, .845833, 379.019))):
-        assert person["metabolic_energy_kj"] == pytest.approx(expected[0], rel=1e-3)
+        energy_kj = sum(metric["metabolic_power_w"] * phase.time_s
+                        for metric, phase in zip(person["phase_metrics"], ROUTE)) / 1000
+        assert energy_kj == pytest.approx(expected[0], rel=1e-3)
         assert [ledger["total_use"] for ledger in person["ledgers"]] == pytest.approx(expected[1:], rel=1e-3)
 
 
@@ -97,6 +99,7 @@ def test_fixture_constant_grade_rates_agree():
     from documentation.marsdoc.eva_context import fixture_fields
 
     scenario = json.loads((ROOT / "documentation/marsdoc/eva/scenario-v1.json").read_text())
+    scenario["co2_removal_g_s"] = .001
     crew, policy = fixture_data()
     person = next(p for p in crew["astronauts"] if p["id"] == "REF")
     person["suit_joint_power_w"] = scenario["suit_joint_torque_nm"] * scenario["suit_joint_angular_speed_rad_s"]
@@ -112,7 +115,8 @@ def test_fixture_constant_grade_rates_agree():
     assert used["oxygen"] == pytest.approx(ref["oxygen_consumption"]["value"], rel=1e-12)
     assert used["cooling_water"] == pytest.approx(ref["water_consumption"]["cooling_water_used_kg"], rel=1e-12)
     assert used["battery"] == pytest.approx(ref["energy_consumption"]["value"], rel=1e-12)
-    assert walker["co2_produced_g"] == pytest.approx(ref["co2_accumulation_removal_load"]["value"], rel=1e-12)
+    assert walker["co2_excess_load_g"] == pytest.approx(
+        ref["co2_accumulation_removal_load"]["unremoved_mass_g"], rel=1e-12)
 
 
 def test_prefix_breach_is_hard_fail_with_phase_and_resource():
@@ -155,41 +159,36 @@ def test_invalid_route_phases_refused(phase):
         evaluate(CREW, POLICY, [phase])
 
 
-def test_phase_context_tracks_dose_vitals_and_derived_fields_without_double_counting():
-    environment = {
-        "data_status": "simulated", "radiation_dose_rate_mgy_day": .25,
-        "temperature_k": 238, "wind_speed_m_s": 7,
-        "atmospheric_pressure_pa": 730, "dust_concentration_mg_m3": .25,
-        "solar_illumination_deg": 30, "surface_traction": .55,
-        "regolith_sinkage_mm": 10, "obstacle_density_count_m2": 11 / 600,
-        "communication_signal_available": True, "visibility_distance_m": 100,
-        "communication_latency_s": 800,
-    }
+def test_phase_reports_retained_measurements_without_changing_cost():
+    environment = {"data_status": "simulated", "visibility_distance_m": 100}
     observations = {"EV1": {"data_status": "simulated", "heart_rate_bpm": 106,
-                            "core_body_temperature_c": 37.1,
-                            "suit_internal_pressure_kpa_abs": 30.1}}
+                            "suit_temperature_c": 21.5}}
     phase = Phase("outbound", "outbound", 3600, 40, distance_m=1800,
                   max_slope_deg=12, environment=environment, observations=observations)
     with_context = evaluate(CREW, POLICY, [phase])
-    without_context = evaluate(CREW, POLICY, [Phase("outbound", "outbound", 3600, 40)])
-    assert with_context["ambient_absorbed_dose_proxy_mgy"] == pytest.approx(.25 / 24)
-    assert with_context["phase_context"][0]["environment"] == environment
-    assert "wind_speed_m_s" in with_context["phase_context"][0]["not_in_consumables_model"]
-    ev1 = with_context["astronauts"][0]
+    without_context = evaluate(CREW, POLICY, [Phase("outbound", "outbound", 3600, 40,
+                                                  distance_m=1800, max_slope_deg=12)])
+    assert with_context["phase_context"] == [
+        {"phase": "outbound", "time_s": 3600, "gain_m": 40, "environment": environment}]
+    assert "ambient_absorbed_dose_proxy_mgy" not in with_context
+    ev1, ev2 = with_context["astronauts"]
     assert ev1["phase_metrics"][0]["walking_speed_m_s"] == .5
+    assert ev1["phase_metrics"][0]["max_slope_deg"] == 12
     assert ev1["phase_metrics"][0]["observations"] == observations["EV1"]
-    assert ev1["phase_metrics"][0]["suit_mobility_resistance_w"] == 13.5
-    assert ev1["phase_metrics"][0]["cooling_demand_w"] > 0
-    assert ev1["remaining_resources"]["oxygen"] == pytest.approx(750 - ev1["ledgers"][0]["total_use"])
-    assert ev1["estimated_remaining_eva_s"] > 0
+    assert ev2["phase_metrics"][0]["observations"] is None
+    assert ev1["remaining_resources"] == {ledger["resource"]: ledger["rows"][-1]["remaining"]
+                                          for ledger in ev1["ledgers"]}
     assert [a["ledgers"] for a in with_context["astronauts"]] == [a["ledgers"] for a in without_context["astronauts"]]
+    assert with_context["route"] == without_context["route"]
     assert serialize(with_context) == serialize(evaluate(CREW, POLICY, [phase]))
 
 
-def test_missing_dose_rate_is_unknown_not_zero():
+def test_missing_optional_measurements_stay_unknown():
     result = evaluate(CREW, POLICY, [Phase("outbound", "outbound", 100, 0)])
-    assert result["ambient_absorbed_dose_proxy_mgy"] is None
-    assert result["phase_context"][0]["ambient_absorbed_dose_proxy_mgy"] is None
+    assert result["phase_context"][0]["environment"] is None
+    metric = result["astronauts"][0]["phase_metrics"][0]
+    assert metric["walking_speed_m_s"] is None
+    assert metric["observations"] is None
 
 
 def test_declared_co2_removal_reports_excess_without_medical_claim():
@@ -197,7 +196,9 @@ def test_declared_co2_removal_reports_excess_without_medical_claim():
     crew["astronauts"][1]["co2_removal_g_s"] = 0
     result = evaluate(crew, policy, [Phase("outbound", "outbound", 100, 0)])
     ev1 = result["astronauts"][0]
-    assert ev1["co2_excess_load_g"] == pytest.approx(ev1["co2_produced_g"])
+    oxygen_used = ev1["ledgers"][0]["total_use"]
+    expected = oxygen_used * crew["astronauts"][1]["respiratory_exchange_ratio"] * 44.01 / 31.998
+    assert ev1["co2_excess_load_g"] == pytest.approx(expected)
     assert "co2_production_above_declared_removal" in ev1["flags"]
     assert ev1["check"] == "pass"
 
@@ -212,8 +213,12 @@ def test_route_slope_and_mean_peak_limits_fail_without_risk_score():
 
 
 @pytest.mark.parametrize("phase", [
-    Phase("x", "outbound", 10, 0, environment={"data_status": "simulated", "wind_speed_m_s": float("nan")}),
+    Phase("x", "outbound", 10, 0, environment={"data_status": "simulated", "visibility_distance_m": float("nan")}),
+    Phase("x", "outbound", 10, 0, environment={"data_status": "simulated", "wind_speed_m_s": 7}),
     Phase("x", "outbound", 10, 0, environment={"data_status": "simulated", "unknown": 1}),
+    Phase("x", "outbound", 10, 0, observations={"EV1": {"data_status": "simulated", "heart_rate_bpm": 0}}),
+    Phase("x", "outbound", 10, 0, observations={"EV1": {"data_status": "simulated", "suit_temperature_c": -300}}),
+    Phase("x", "outbound", 10, 0, observations={"EV1": {"data_status": "simulated", "core_body_temperature_c": 37}}),
     Phase("x", "outbound", 10, 0, observations={"UNKNOWN": {"data_status": "simulated", "heart_rate_bpm": 90}}),
     Phase("x", "outbound", 10, 0, distance_m=1, max_slope_deg=90),
 ])
