@@ -29,7 +29,11 @@ compresses 1,024 cell records per indexed block. A separate compressed
 catalogue-context file is loaded for area labels and evidence. The manifest
 binds every runtime file, including the ledger, lexicon, source receipt and
 detail database. The local service exposes `POST /api/v1/rank`
-and `GET /api/v1/cell/HPX128:<index>`. No frontend changes are included.
+and `GET /api/v1/cell/HPX128:<index>`. With the service running, open
+Ranked areas in the local Atlas to query the release pack. Each result's
+`terrain_screening` reports the percentage of evaluated cells mapped as either
+mass-wasting or polar dunes in USGS SIM 3292. Unmapped cells are excluded
+from the denominator. The screening describes mapped units at regional scale.
 
 The published group totals count each cell's **first** geologic unit. Four
 boundary cells have two unit records; counting both group associations gives
