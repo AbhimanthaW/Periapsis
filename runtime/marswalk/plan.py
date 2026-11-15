@@ -13,7 +13,9 @@ Rover profiles replace 04 with Subsystem 05 and add a battery ledger. Subsystem
 closures, an active return_now blocks science, a required input that is not
 active leaves science unknown.
 """
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
+
+from runtime.reporting import stage
 
 from .errors import (FAIL, INSUFFICIENT_TERRAIN_EVIDENCE, LEG_NO_EVIDENCE, MarswalkError, NO_RETURN_ROUTE, OK, PASS,
                      RETURN_ENERGY_SEARCH_EXHAUSTED, RETURN_ENERGY_UNVERIFIED, RETURN_ENVIRONMENT_UNVERIFIED,
@@ -158,7 +160,7 @@ MarswalkPlan._environment_dict = _environment_dict
 def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposure_slope_deg=10.0,
                   alternatives_k=0, expected_revision=None, evidence=None, walkback=WalkbackPolicy(),
                   search_horizon="auto", walkback_resources=None, search_cache=None, candidate_rule=None,
-                  alternative_preference=None, constrained_search=False):
+                  alternative_preference=None, constrained_search=False, report=None, report_scope=""):
     """Plan human (Mode A) or rover (Mode B) routes for one immutable snapshot.
 
     Phase 0 refuses grids that cannot support a Marswalk before routing.
@@ -171,40 +173,63 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
         raise MarswalkError("MIXED_PACK", "loaded terrain must declare its pack version")
     profile = snapshot.profile
     rover = profile.platform == "rover"
-    site_gate = gate_for_support(support, evidence=evidence,
-                                 clearance_m=profile.clearance_m if rover else None).require()   # Phase 0
-    snapshot.validate(support.shape, pack_id=support.pack_id, pack_version=support.pack_version,
-                      expected_revision=expected_revision)
-    horizon = None if snapshot.power is None else snapshot.power.horizon_upper_bound_m
-    if horizon is not None and (baseline.z_m > horizon).any():
-        raise MarswalkError("INVALID_POWER", "horizon upper bound contradicts the terrain grid")
-    weather = None
-    if snapshot.weather is not None:
-        weather = assess_weather(snapshot.weather, snapshot.time_utc, shape=support.shape)
-        if weather.no_solar_credit and snapshot.power is not None:
-            snapshot = replace(snapshot, power=without_solar(snapshot.power))
-    activations = tuple(activate_environment(snapshot.environment, scenario_id=snapshot.scenario_id,
-                                             time_utc=snapshot.time_utc, duration_s=snapshot.remaining_s))
-    blocked = tuple(cell for v, a in zip(snapshot.environment, activations)
-                    if a.status == ACTIVE and a.effect == "block_cells" for cell in v.cells)
-    if search_horizon not in ("auto", True, False):
-        raise MarswalkError("INVALID_SNAPSHOT", "search_horizon must be 'auto', True or False")
-    cells = support.shape[0] * support.shape[1]
-    use_horizon = search_horizon is True or (search_horizon == "auto" and cells >= SEARCH_HORIZON_MIN_CELLS)
-    horizon_s = float(max(0, snapshot.remaining_s - snapshot.reserve_s)) if use_horizon else None
-    closures = snapshot.closure_cells + blocked
-    if search_cache is None:
-        graph = TerrainGraph(baseline, pace_for(profile), scenario=getattr(profile, "pace_scenario", "nominal"),
-                             neighbours=profile.neighbours)
-        router = Router(graph, closures, backend=backend, outbound_limit_s=horizon_s)
-    else:
-        if search_cache.baseline is not baseline:
-            raise MarswalkError("MIXED_PACK", "the search cache belongs to a different terrain baseline")
-        router = search_cache.router(profile, closures, backend=backend, outbound_limit_s=horizon_s)
-    walk_router = None
-    if rover and walkback is not None:
-        walk_router = (walkback_router(baseline, closures, policy=walkback, backend=backend) if search_cache is None
-                       else search_cache.router(walkback.walking_profile(), closures, backend=backend))
+    with stage(report, report_scope + "site_gate", "Site pack and mission snapshot validation",
+               {"grid": asdict(support), "profile_id": profile.profile_id, "expected_revision": expected_revision}) as record:
+        site_gate = gate_for_support(support, evidence=evidence,
+                                     clearance_m=profile.clearance_m if rover else None).require()   # Phase 0
+        snapshot.validate(support.shape, pack_id=support.pack_id, pack_version=support.pack_version,
+                          expected_revision=expected_revision)
+        if report is not None:
+            record.update(site_gate.to_dict())
+
+    with stage(report, report_scope + "environment_gate", "Observed weather and scenario activation",
+               {"time_utc": snapshot.time_utc, "planning_window_s": snapshot.remaining_s,
+                "weather_feed": None if snapshot.weather is None else asdict(snapshot.weather),
+                "environment": [asdict(entry) for entry in snapshot.environment],
+                "power": None if snapshot.power is None else asdict(snapshot.power)}) as record:
+        horizon = None if snapshot.power is None else snapshot.power.horizon_upper_bound_m
+        if horizon is not None and (baseline.z_m > horizon).any():
+            raise MarswalkError("INVALID_POWER", "horizon upper bound contradicts the terrain grid")
+        weather = None
+        if snapshot.weather is not None:
+            weather = assess_weather(snapshot.weather, snapshot.time_utc, shape=support.shape)
+            if weather.no_solar_credit and snapshot.power is not None:
+                snapshot = replace(snapshot, power=without_solar(snapshot.power))
+        activations = tuple(activate_environment(snapshot.environment, scenario_id=snapshot.scenario_id,
+                                                 time_utc=snapshot.time_utc, duration_s=snapshot.remaining_s))
+        blocked = tuple(cell for v, a in zip(snapshot.environment, activations)
+                        if a.status == ACTIVE and a.effect == "block_cells" for cell in v.cells)
+        if report is not None:
+            record.update(weather=None if weather is None else weather.to_dict(),
+                          activations=[entry.to_dict() for entry in activations],
+                          blocked_cells=blocked, power=None if snapshot.power is None else asdict(snapshot.power))
+
+    with stage(report, report_scope + "terrain_graph", "Screen and weight directed grid edges",
+               {"profile": asdict(profile), "terrain_policy": asdict(baseline.policy), "closures": snapshot.closures,
+                "environment_blocked_cells": blocked, "walkback": None if not rover or walkback is None else walkback.to_dict(),
+                "search_horizon": search_horizon}) as record:
+        if search_horizon not in ("auto", True, False):
+            raise MarswalkError("INVALID_SNAPSHOT", "search_horizon must be 'auto', True or False")
+        cells = support.shape[0] * support.shape[1]
+        use_horizon = search_horizon is True or (search_horizon == "auto" and cells >= SEARCH_HORIZON_MIN_CELLS)
+        horizon_s = float(max(0, snapshot.remaining_s - snapshot.reserve_s)) if use_horizon else None
+        closures = snapshot.closure_cells + blocked
+        if search_cache is None:
+            graph = TerrainGraph(baseline, pace_for(profile), scenario=getattr(profile, "pace_scenario", "nominal"),
+                                 neighbours=profile.neighbours)
+            router = Router(graph, closures, backend=backend, outbound_limit_s=horizon_s)
+        else:
+            if search_cache.baseline is not baseline:
+                raise MarswalkError("MIXED_PACK", "the search cache belongs to a different terrain baseline")
+            router = search_cache.router(profile, closures, backend=backend, outbound_limit_s=horizon_s)
+        walk_router = None
+        if rover and walkback is not None:
+            walk_router = (walkback_router(baseline, closures, policy=walkback, backend=backend) if search_cache is None
+                           else search_cache.router(walkback.walking_profile(), closures, backend=backend))
+        if report is not None:
+            record.update(baseline_cell_counts=baseline.reason_counts(), nodes=int(router.graph.n),
+                          edges=len(router.graph), edge_model=router.graph.times.model, backend=router.backend,
+                          outbound_search_horizon_s=horizon_s)
 
     def extra_rules(plan):
         rules = []
@@ -226,17 +251,37 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
     else:
         checks_for_search = checks
         choose_legs = select_energy_feasible_legs
-    plans = compose_candidate_plans(snapshot, router, multistop=multistop)
-    reevaluate_science_tasks(plans, snapshot, router)
-    direct_plan = enforce_hard_constraints(plans[0], snapshot, router, **checks)
-    plans[0] = direct_plan = choose_legs(direct_plan, snapshot, router, **checks_for_search)
-    direct = direct_plan.legs[0][1]
-    gate = return_time_margin(snapshot.remaining_s, snapshot.reserve_s, direct)
-    for index, plan in enumerate(plans[1:], start=1):
-        enforce_hard_constraints(plan, snapshot, router, direct_plan=direct_plan, **checks)
-        plans[index] = choose_legs(plan, snapshot, router, direct_plan=direct_plan, **checks_for_search)
-    front, used = compare_pareto(plans, router, exposure_slope_deg=exposure_slope_deg)
-    recommendation = select_next_action(plans, front, snapshot)
+    with stage(report, report_scope + "route_search", "Directed Dijkstra and candidate composition",
+               {"current_cell": snapshot.current_cell, "shelter_cell": snapshot.return_cell,
+                "completed_task_ids": snapshot.completed_task_ids, "tasks": [asdict(task) for task in snapshot.tasks],
+                "multistop": multistop}) as record:
+        plans = compose_candidate_plans(snapshot, router, multistop=multistop)
+        reevaluate_science_tasks(plans, snapshot, router)
+        if report is not None:
+            record.update(candidates=[p.to_dict() for p in plans], dijkstra_runs=router.dijkstra_runs)
+
+    with stage(report, report_scope + "constraints", "Time and platform resource ledgers and hard gates",
+               {"remaining_s": snapshot.remaining_s, "reserve_s": snapshot.reserve_s,
+                "constrained_search": constrained_search, "arrival_time_checks": candidate_rule is not None,
+                "crew_walkback_resource_checks": walkback_resources is not None}) as record:
+        direct_plan = enforce_hard_constraints(plans[0], snapshot, router, **checks)
+        plans[0] = direct_plan = choose_legs(direct_plan, snapshot, router, **checks_for_search)
+        direct = direct_plan.legs[0][1]
+        gate = return_time_margin(snapshot.remaining_s, snapshot.reserve_s, direct)
+        for index, plan in enumerate(plans[1:], start=1):
+            enforce_hard_constraints(plan, snapshot, router, direct_plan=direct_plan, **checks)
+            plans[index] = choose_legs(plan, snapshot, router, direct_plan=direct_plan, **checks_for_search)
+        if report is not None:
+            record.update(return_margin=gate.to_dict(), candidates=[candidate.to_dict() for candidate in plans])
+
+    with stage(report, report_scope + "pareto", "Pareto filter and stable next-action selection",
+               {"crew_status": snapshot.crew_status, "exposure_slope_deg": exposure_slope_deg}) as record:
+        front, used = compare_pareto(plans, router, exposure_slope_deg=exposure_slope_deg)
+        recommendation = select_next_action(plans, front, snapshot)
+        if report is not None:
+            record.update(pareto_front=front, objectives_used=used,
+                          candidates=[{"id": p.id, "objectives": p.objectives, "passed": p.passed} for p in plans],
+                          recommendation=recommendation)
 
     if gate.status == MARGIN_NO_ROUTE:
         status = INSUFFICIENT_TERRAIN_EVIDENCE if direct.status == LEG_NO_EVIDENCE else NO_RETURN_ROUTE

@@ -67,6 +67,7 @@ class ResourceLedger:
     margin: float | None
     check: str               # pass | fail | unknown
     reason: str
+    energy_phases: tuple = ()
 
     def to_dict(self):
         return {"resource": self.resource, "unit": self.unit, "initial": self.initial,
@@ -110,9 +111,10 @@ def energy_ledger(phases, *, initial_j, reserve_j, capacity_j, max_discharge_w=N
     """Battery ledger. In each phase consumption is applied BEFORE that
     phase's supply (conservative), the prefix check runs, then supply is
     added and clipped at capacity. Missing consumption or supply -> unknown."""
-    rows, charge, used = [], float(initial_j), 0.0
+    rows, recorded_phases, charge, used = [], [], float(initial_j), 0.0
     check, reason = PASS, "battery stays above reserve"
     for phase in phases:
+        recorded_phases.append(phase)
         invalid = [name for name, value in (
             ("consumption", phase.consumption_j), ("supply", phase.supply_j), ("duration", phase.duration_s)
         ) if value is None or not isfinite(value) or value < 0]
@@ -121,7 +123,8 @@ def energy_ledger(phases, *, initial_j, reserve_j, capacity_j, max_discharge_w=N
             rows.append(LedgerRow(phase.name, phase.kind, None, None, None))
             return ResourceLedger("energy", "J", float(initial_j), float(reserve_j), tuple(rows), None, None,
                                   None, FAIL if check == FAIL else UNKNOWN,
-                                  reason if check == FAIL else f"unsupported {missing} in phase {phase.name}")
+                                  reason if check == FAIL else f"unsupported {missing} in phase {phase.name}",
+                                  tuple(recorded_phases))
         charge -= phase.consumption_j
         used += phase.consumption_j
         within_power = (max_discharge_w is None
@@ -134,4 +137,4 @@ def energy_ledger(phases, *, initial_j, reserve_j, capacity_j, max_discharge_w=N
         charge = min(float(capacity_j), charge + phase.supply_j)
         rows.append(LedgerRow(phase.name, phase.kind, float(phase.consumption_j), charge, prefix_ok))
     return ResourceLedger("energy", "J", float(initial_j), float(reserve_j), tuple(rows), used, charge,
-                          charge - reserve_j, check, reason)
+                          charge - reserve_j, check, reason, tuple(recorded_phases))

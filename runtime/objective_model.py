@@ -37,8 +37,10 @@ class ObjectiveModel:
         if any(self.docs[label] < 2 for label in self.counts):
             raise ValueError("at least two labelled objectives per class are required")
 
-    def predict(self, objective):
+    def predict(self, objective, *, report_details=None):
         known = _words(objective) & self.vocabulary
+        if report_details is not None:
+            report_details["known_stems"] = sorted(known)
         output = {"id": self.id, "method": "naive_bayes", "provenance": "simulated",
                   "matched_features": len(known), "scores": {}, "suggested_task_id": None}
         if len(known) < 2:

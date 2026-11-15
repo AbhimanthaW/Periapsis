@@ -29,10 +29,11 @@ from runtime.humancost.calculator import RESOURCES, UNITS, _initial
 from runtime.humancost.factors import Crew, Policy
 from runtime.marswalk.errors import PASS, MarswalkError
 from runtime.marswalk.weather import WARNING
+from runtime.reporting import stage
 
 from ._common import canonical, digest, model_version, number, obj, refuse, utc, utc_text
 from .accept import AMBER, GREEN, NONE, RED, route_authority
-from .burn_rate import oxygen_belief
+from .burn_rate import OBSERVATION_SIGMA, PRIOR_SIGMA, oxygen_belief
 from .card import tradeoff_cards
 from .envelope import reserve_floors
 from .options import ROUTE_OK, build_options, phases_for
@@ -171,7 +172,8 @@ def _weather_gate(marswalk_plan):
 
 
 def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, decision_window_s=None,
-           one_way_light_time_s=None, accepted_amber_count=0, current_stores=None, prior_oxygen_factors=None):
+           one_way_light_time_s=None, accepted_amber_count=0, current_stores=None, prior_oxygen_factors=None,
+           report=None):
     """Classify every Marswalk candidate. Returns a ``tradeoff-assessment-set-v1`` dict.
 
     ``envelope`` is a loaded ``Envelope``. ``telemetry`` is a path, mapping or None.
@@ -194,8 +196,27 @@ def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, de
         current_stores = _current_stores(current_stores, [p for p in crew.astronauts if p.id != crew.reference_id])
     factor = envelope.consumption_margin_factor
     telemetry_ok, telemetry_reason, telemetry_age = telemetry_gate(telemetry, envelope, crew, prepared, now)
-    beliefs, oxygen_factors = _oxygen_adjustment(envelope, prepared, telemetry, telemetry_ok, prior_oxygen_factors)
-    options = build_options(marswalk_plan, crew, policy)
+    with stage(report, "human.oxygen_update", "Bayesian log-rate update from the qualified oxygen window",
+               {"telemetry": telemetry, "prior_factors": prior_oxygen_factors, "margin_factor": factor,
+                "log_rate_prior_sigma": PRIOR_SIGMA, "log_rate_observation_sigma": OBSERVATION_SIGMA},
+               kind="bayesian") as record:
+        beliefs, oxygen_factors = _oxygen_adjustment(envelope, prepared, telemetry, telemetry_ok, prior_oxygen_factors)
+        if report is not None:
+            record.update(beliefs=beliefs, applied_factors=oxygen_factors,
+                          nominal_rates_flat_per_h={row["id"]: row["rates_flat_per_h"]
+                                                    for row in prepared["astronauts"]},
+                          telemetry_gate={"passed": telemetry_ok, "reason": telemetry_reason,
+                                          "age_s": _r(telemetry_age)})
+    with stage(report, "human.cost", "Convert directed legs and dwell into nominal consumables ledgers",
+               {"option_ids": [p.id for p in marswalk_plan.plans]}) as record:
+        options = build_options(marswalk_plan, crew, policy)
+        if report is not None:
+            record["options"] = [
+                {"option_id": option.id, "status": option.route_status, "reason": option.route_reason,
+                 "phases": [asdict(phase) for phase in option.phases], "cost": option.human_cost}
+                for option in options
+            ]
+            record["reserve_floors"] = floors
     snapshot = marswalk_plan.snapshot
 
     def exception_classes(option):
