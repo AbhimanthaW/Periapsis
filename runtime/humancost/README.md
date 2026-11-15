@@ -1,6 +1,6 @@
 # Human cost for walking EVAs
 
-The MVP needs **three route measurements** to estimate the human cost of a walking EVA. Marswalk supplies them; the app does not ask the crew to enter them. Use the simulated [crew preset](../examples/crew-human-factors.json) and [policy preset](../examples/human-cost-policy.json) for suit and crew settings.
+The MVP needs **three route measurements** to estimate the human cost of a walking EVA. Marswalk already computes them. The proposed adapter reads them from the planner, so the app needs no route-measurement controls. Use the simulated [crew preset](../examples/crew-human-factors.json) and [policy preset](../examples/human-cost-policy.json) for suit and crew settings.
 
 | Keep | Source | What it changes |
 |---|---|---|
@@ -12,9 +12,9 @@ Pass phases in traversal order: outbound, any dwell or transfer, and return. Pha
 
 ## Router and app handoff
 
-1. Use `prepare()` to get the crew's walking profile and time budget. Subtract `reserve_s` from `remaining_s` for the planning allowance. The budget comes from the limiting astronaut and consumable at a flat rate.
+1. Use `prepare()` to get the crew's walking profile and time budget. The calculator's `remaining_s` estimates flat-rate endurance for the limiting astronaut and consumable. Use it as a cap on the authoritative remaining EVA clock. Pass the capped budget and the applicable reserve into Marswalk separately, so the planner subtracts the reserve once.
 2. Use `evaluate()` to check complete route candidates using their actual phase times and climbs. It checks each astronaut's oxygen, cooling water, drinking water, and battery reserves, as well as slope and phase-mean metabolic power limits. Keep the four reserves as internal checks; they do not need four app controls. Enforce the time allowance and any walk-back checks in the planner.
-3. Show the check result and the limiting astronaut. For a pass, show the highest share of a usable consumable budget spent (the API field `route.risk`, scaled to 0–100). For a failure, show `route.breach` with the failed check and phase. The score is a simulated budget measure, not a probability or safety clearance.
+3. Show the check result and the limiting astronaut. For a pass, show the highest share of a usable consumable budget spent (the calculator output `route.risk`, scaled to 0–100). For a calculator failure, show `route.breach` with the failed check and phase. The score is a simulated budget measure, not a probability or safety clearance.
 
 ```python
 from runtime.humancost import Phase, evaluate, prepare
@@ -23,7 +23,10 @@ crew = "runtime/examples/crew-human-factors.json"
 policy = "runtime/examples/human-cost-policy.json"
 
 planning = prepare(crew, policy)["routing_inputs"]
-planning_allowance_s = max(0, planning["remaining_s"] - planning["reserve_s"])
+current_eva_clock_s = 10_000  # From the current mission snapshot.
+remaining_s = min(current_eva_clock_s, planning["remaining_s"])
+reserve_s = planning["reserve_s"]  # Use the current mission's applicable reserve.
+planning_allowance_s = max(0, remaining_s - reserve_s)
 summary = evaluate(crew, policy, [
     Phase("outbound", "outbound", 3600, 40, max_slope_deg=12),
     Phase("dwell", "dwell", 1800, 0),
@@ -36,4 +39,4 @@ summary = evaluate(crew, policy, [
 - **Telemetry and environmental observations:** Skip the optional `environment` and `observations` fields. For example, radiation, temperature, dust, visibility, heart rate, and suit pressure do not change human-cost estimates today. Apply weather or communication rules in their own planner checks where configured.
 - **Extra measurements and diagnostics:** Distance and derived walking speed can stay in route details. Metabolic power, cooling demand, CO₂ load, and per-resource ledgers are calculator details. They need no additional inputs from the app's route form.
 
-The calculator still accepts its existing fields. This contract describes the smaller set the app and router need for human cost.
+The calculator still accepts its existing fields. This handoff describes the smaller set a future app or planner adapter needs for human cost.
