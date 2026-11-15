@@ -97,14 +97,6 @@ class ForecastModel:
         level = int(max(self.support[variable][b, lo], self.support[variable][b, hi])) if variable in self.support else 0
         return float(table[b, lo] * (1 - w) + table[b, hi] * w), level
 
-    def eligible(self, target, key, kit_name):
-        row = self.rows.get((target, key, kit_name))
-        s = self.settings
-        return bool(row and row.get("skill_vs_climatology") is not None
-                    and row["skill_vs_climatology"] >= s["min_gain"]
-                    and row["skill_vs_best_baseline"] >= -s["tolerance"]
-                    and (row.get("coverage_p10_p90") or 0) >= s["min_coverage"]), row
-
 
 def _bin_observations(model, observations, now_utc, lon):
     """Mean anomaly per sensor in the current local-time bin (0) and the two before it (1, 2)."""
@@ -171,20 +163,13 @@ def issue_forecast(model: ForecastModel, observations, now_utc, *, lon_east_deg=
             if selected.get("status") != "model":
                 reason = "no sensor kit passed validation for this target and horizon"
             else:
-                usable = []
-                for name, candidate in kits.items():
-                    if name == "clock" or not set(candidate["sensors"]) <= set(fresh):
-                        continue
-                    ok, row = model.eligible(target, key, name)
-                    if ok:
-                        usable.append((len(candidate["sensors"]), -row["skill_vs_climatology"], name, row))
-                if not usable:
+                preferred = selected.get("eligible_kits", [selected["kit"]])
+                usable = next((name for name in preferred if set(kits[name]["sensors"]) <= set(fresh)), None)
+                if usable is None:
                     missing = [LABELS[v] for v in selected.get("sensors", []) if v not in fresh]
-                    reason = "no validated kit can be built from fresh sensors" + (f" (missing {', '.join(missing)})" if missing else "")
+                    reason = "no selected kit can be built from fresh sensors" + (f" (missing {', '.join(missing)})" if missing else "")
                 else:
-                    best = min(r[1] for r in usable)  # most negative = highest skill
-                    within = [u for u in usable if -u[1] >= -best - model.settings["tolerance"]]
-                    _, _, kit_name, _ = min(within)
+                    kit_name = usable
                     entry, status = kits[kit_name], "model"
             point, base, correction = clim, clim, 0.0
             if status == "model":

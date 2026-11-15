@@ -1,6 +1,6 @@
 # Weather forecast: datasets and how the model uses them
 
-**Status (15 Nov 2026):** code, tests and a SYNTHETIC example are in the repo. No real mission data has been trained on yet. The session that wrote this could not reach PDS, Zenodo or LMD. Every skill number in `pipeline/examples/weather/synthetic-forecast-report.md` comes from synthetic data and **must not be quoted as Mars skill**.
+**Status (15 Nov 2026):** code, tests and a SYNTHETIC example are in the repo. No real mission data has been trained on yet. The session that wrote this could not reach PDS, Zenodo or LMD. Every skill number in `pipeline/examples/weather/synthetic-forecast-report.md` comes from synthetic data and **must not be quoted as Mars skill**. Kit choice uses a separate selection block. The held-out test reports performance with clock fallback for missing input. The kit selection tolerance is a prototype setting and the stricter Weather Watch gate for a validated advisory still needs real-data evidence.
 
 Labels: **verified** = checked against the cited page on 15 Nov 2026. **check** = needs confirming on the files before use.
 
