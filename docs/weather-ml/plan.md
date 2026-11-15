@@ -1,6 +1,8 @@
 # Weather Watch: plan for a Martian weather warning model
 
 **Prepared 15 Nov 2026, 02:30 IST, against `AbhimanthaW/Periapsis` at `a6f4b42` (PR #19 merged).**
+
+**Status: proposed P1 design.** The station implementation in PR #27 is a synthetic prototype. The held-out advisory gates in §9 and the deterministic observed-weather policy apply before any real-data release.
 **Status: plan for review. Nothing in this document has been built or measured yet.**
 
 Labels used throughout:
@@ -245,7 +247,7 @@ Real archived records play through the same `WeatherFeed`, `assess_weather` and 
 |---|---|---|
 | A1 Quiet sol | InSight, a low-dust northern-summer sol | Nominal Now panel; the outlook band hugs climatology. |
 | A2 Afternoon convective sol | InSight sols with many catalogued vortices | W2 detections; the convective window (R6). |
-| **A3 Jezero regional storm, sols 313–318 (5–11 Jan 2022, Ls 153–156°)** | MEDA | Peak τ near 2, winds up to 20 m/s, then the **wind sensor fails**. The demo shows the sensor-health guard and fail-closed behaviour on a real event. [verified event] |
+| **A3 Jezero regional storm, sols 313–318 (5–11 Jan 2022, Ls 153–156°)** | MEDA | Transient optical depth reached 1.7 (visible) and 0.8 (IR) in the cited measurements. Wind gusts exceeded 20 m/s, and the **wind sensor was damaged**. The demo shows the sensor-health guard and fail-closed behaviour on a real event. [verified event] |
 | A4 Cross-site | MEDA quiet sols with the InSight-trained W1 | Honest skill degradation and the abstain gate. |
 | A5 SEP context | DONKI SEP notification of 20 May 2024 + RAD published dose | `sep_alert`; F7 framed as context. |
 
@@ -361,7 +363,7 @@ Thusal and Shree own this table and add a row for each new claim.
 | InSight TWINS/PS files span sol 1–1188 | verified | PDS Atmospheres InSight page |
 | MEDA about 1 Hz, sessions cover over half a sol, cadence varied | verified | Rodriguez-Manfredi 2021; Martínez et al. EPSC-DPS 2025 |
 | Sand damaged both MEDA wind sensors and one REMS wind sensor | verified | NASA "Wild Winds of Jezero"; Hueso et al. 2023 |
-| Jezero storm Jan 2022: τ ≈ 2, winds to 20 m/s, sensor damaged | verified | Lemmon et al. 2022, GRL |
+| Jezero storm Jan 2022: visible τ reached 1.7, gusts exceeded 20 m/s, sensor damaged | verified | Lemmon et al. 2022, GRL |
 | Vortex stats at Jezero (4.9/sol > 0.5 Pa; 9 Pa, 25 m/s max) | verified | Hueso et al. 2023, JGR Planets |
 | InSight vortex catalogue, 853 events over 0.8 Pa | verified | PDS Atmospheres vortex page (Lorenz et al.) |
 | MDAD: 14,974 storms, MY24–32; v1.1 masks MY28–32 on Zenodo | verified | Battalio & Wang 2021; Zenodo 7480334 |
@@ -370,7 +372,7 @@ Thusal and Shree own this table and add a row for each new claim.
 | MCD v6.1 released Dec 2022; not suited to extremes | verified | EPSC 2024-516; LMD access page |
 | Mask R-CNN dust storm detection, mAP50 ≈ 62% | verified | Alshehhi & Gebhardt 2022 |
 | ML forecasting on REMS and OpenMARS has been done | verified | de Cabo-Garcia et al.; Uprety et al. 2025 |
-| MarsNet (preprint, Nov 2026) beat climatology and persistence | verified as reported; **not peer-reviewed** | arXiv 2611.12787 via Astrobiology.com |
+| MarsNet (preprint, Nov 2026) beat climatology and persistence for withheld atmospheric temperature profiles | verified as reported; **not peer-reviewed** | arXiv 2611.12787 |
 | May 2024 SEP: about 8,100 µGy at Gale | verified | NASA, 10 Jun 2024 |
 | DONKI provides SEP/CME/flare notifications via an API, from M2M SWAO | verified | CCMC DONKI page |
 | Mars surface density about 0.016 ± 0.006 kg/m³ | verified | NASA NSSDCA Mars fact sheet |
@@ -491,7 +493,7 @@ gantt
 - [Alshehhi & Gebhardt 2022, Mask R-CNN dust storm detection](https://doaj.org/article/d8aa0fd6ed6943ffa9ce3c16b38c2868) · [Gichu & Ogohara 2019](https://doaj.org/article/a938e688bd434b9c9cfaa896bdafa724)
 - [de Cabo-Garcia et al., ANN forecasting with REMS](https://meetingorganizer.copernicus.org/EGU2019/EGU2019-11304-1.pdf)
 - [Uprety et al. 2025, Mars weather as multivariate time-series forecasting](https://ceur-ws.org/Vol-4128/paper2.pdf) · [OpenMARS dataset](https://ordo.open.ac.uk/articles/dataset/OpenMARS_continuous_MY28-35_standard_database/24573205)
-- [MarsNet preprint (Nov 2026), via Astrobiology.com](https://astrobiology.com/?p=64903)
+- [MarsNet preprint (Nov 2026)](https://arxiv.org/abs/2611.12787)
 - [MSSS MARCI weather reports (example; conjunction gap)](https://www.msss.com/msss_images/2017/07/26)
 - [CCMC DONKI](https://ccmc.gsfc.nasa.gov/tools/DONKI)
 - [NASA: Mars lights up during epic solar storm (May 2024)](https://www.nasa.gov/missions/maven/nasa-watches-mars-light-up-during-epic-solar-storm/) · [Space.com: typical vs storm dose](https://www.space.com/mars-aurora-radiation-solar-storm-curiosity-rover)
