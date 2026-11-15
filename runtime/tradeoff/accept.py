@@ -83,7 +83,8 @@ def accept(assessment, envelope, *, now_utc, signatures, crew_responses, decisio
         return no(f"envelope expired at {envelope.expires_utc}")
     assessed = utc(assessment["inputs"]["assessed_utc"], "assessed_utc", CODE)
     age = (now - assessed).total_seconds()
-    if age < 0 or age > envelope.telemetry_max_age_s:
+    telemetry_age = assessment["inputs"].get("telemetry_age_s")
+    if age < 0 or telemetry_age is None or telemetry_age + age >= envelope.telemetry_max_age_s:
         return no("the assessment is older than the telemetry freshness limit (or from the future); assess again")
 
     for index, raw in enumerate(vetoes):
@@ -109,6 +110,11 @@ def accept(assessment, envelope, *, now_utc, signatures, crew_responses, decisio
     authority = route_authority(envelope, decision_window_s, one_way_light_time_s)
     if authority["authority"] == NONE:
         return no(authority["reason"])
+    if authority != assessment["inputs"].get("authority"):
+        return no("authority inputs changed since the assessment; assess again")
+    window_s = authority["decision_window_s"]
+    if age >= window_s:
+        return no("the decision window has expired; assess again")
     required = list(ACCEPTING_ROLES) if authority["authority"] == EARTH else [envelope.habitat_delegate]
     signed = {}
     for index, raw in enumerate(signatures):
@@ -139,7 +145,11 @@ def accept(assessment, envelope, *, now_utc, signatures, crew_responses, decisio
         return no(f"risk budget exhausted: {prior_accepted_count} AMBER option(s) already accepted this EVA, "
                   f"cap {envelope.max_accepted_amber_per_eva}")
 
-    expires = min(now + timedelta(seconds=envelope.acceptance_valid_s), envelope.expires)
+    valid_s = min(envelope.acceptance_valid_s, window_s - age,
+                  envelope.telemetry_max_age_s - telemetry_age - age)
+    if valid_s <= 0:
+        return no("the assessment has reached the telemetry freshness limit; assess again")
+    expires = min(now + timedelta(seconds=valid_s), envelope.expires)
     return {
         "schema": SCHEMA, "status": "accepted", "reason": None,
         "option_id": assessment["option_id"], "assessment_sha256": digest(assessment),
@@ -177,6 +187,7 @@ def is_executable(assessment, acceptance=None, *, now_utc):
         return (acceptance.get("schema") == SCHEMA and acceptance.get("status") == "accepted"
                 and acceptance.get("option_id") == assessment["option_id"]
                 and acceptance.get("assessment_sha256") == digest(assessment)
-                and now < utc(acceptance["expires_utc"], "expires_utc", CODE))
+                and utc(acceptance["decided_utc"], "decided_utc", CODE) <= now
+                < utc(acceptance["expires_utc"], "expires_utc", CODE))
     except (KeyError, ValueError):
         return False

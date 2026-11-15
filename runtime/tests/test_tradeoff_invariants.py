@@ -164,9 +164,9 @@ def test_amber_is_not_executable_without_or_after_its_acceptance():
     assert not is_executable(amber, now_utc=NOW)
     record = accept(amber, envelope, now_utc=NOW, signatures=SIGNATURES, crew_responses=CONSENT,
                     decision_window_s=3600, one_way_light_time_s=600, prior_accepted_count=0)
-    assert record["expires_utc"] == "2021-02-18T21:13:49Z"               # now + acceptance_valid_s
-    assert is_executable(amber, record, now_utc="2021-02-18T21:13:48Z")
-    assert not is_executable(amber, record, now_utc="2021-02-18T21:13:49Z")
+    assert record["expires_utc"] == "2021-02-18T20:45:00Z"               # source telemetry expires
+    assert is_executable(amber, record, now_utc="2021-02-18T20:44:59Z")
+    assert not is_executable(amber, record, now_utc="2021-02-18T20:45:00Z")
     changed = copy.deepcopy(amber)
     changed["per_astronaut"][0]["margin_s"] = 1.0                        # a different assessment
     assert not is_executable(changed, record, now_utc=NOW)
