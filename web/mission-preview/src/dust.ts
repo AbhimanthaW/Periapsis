@@ -43,10 +43,19 @@ export function parseDustOutlook(raw: unknown): DustLoad {
   const pooled = a.validation?.pooled
   const folds = a.validation?.folds
   if (typeof pooled?.brier_skill_score !== 'number' || !Array.isArray(folds) || folds.length < 2) return fail('missing validation')
-  const regions: Record<string, DustRegion> = {}
-  for (const [id, entry] of Object.entries(a.regions ?? {})) {
+  if (typeof a.regions !== 'object' || a.regions === null || Array.isArray(a.regions)) return fail('bad regions')
+  if (!Array.isArray(a.source?.mars_years) || !a.source.mars_years.every(Number.isInteger))
+    return fail('bad Mars years')
+  if (!Number.isInteger(a.target?.horizon_sols) || a.target.horizon_sols <= 0) return fail('bad outlook horizon')
+  if (!Number.isFinite(pooled.brier_skill_score) || !Number.isInteger(pooled.folds_with_positive_skill)
+    || pooled.folds_with_positive_skill < 0 || pooled.folds_with_positive_skill > folds.length)
+    return fail('bad validation metrics')
+  const regions: Record<string, DustRegion> = Object.create(null)
+  for (const [id, entry] of Object.entries(a.regions)) {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return fail('bad region ' + id)
     const e = entry as Record<string, unknown>
-    if (!probabilities(e.climatology, 12) || !Array.isArray(e.samples) || e.samples.length !== 12) return fail('bad region ' + id)
+    if (!probabilities(e.climatology, 12) || !Array.isArray(e.samples) || e.samples.length !== 12
+      || !e.samples.every(n => Number.isInteger(n) && n >= 0)) return fail('bad region ' + id)
     const region: DustRegion = { climatology: e.climatology as (number | null)[], samples: e.samples as number[] }
     if (a.status === 'model_skilful') {
       for (const key of ['quiet', 'nearby'] as const) {
@@ -60,9 +69,9 @@ export function parseDustOutlook(raw: unknown): DustLoad {
   return {
     kind: 'ready',
     outlook: {
-      artifactId: String(a.artifact_id), status: a.status, horizonSols: Number(a.target?.horizon_sols),
-      definition: String(a.target?.definition ?? ''), marsYears: (a.source?.mars_years ?? []).map(Number), lsBins: bins,
-      pooledBss: pooled.brier_skill_score, foldsPositive: Number(pooled.folds_with_positive_skill), folds: folds.length,
+      artifactId: String(a.artifact_id), status: a.status, horizonSols: a.target.horizon_sols,
+      definition: String(a.target?.definition ?? ''), marsYears: a.source.mars_years, lsBins: bins,
+      pooledBss: pooled.brier_skill_score, foldsPositive: pooled.folds_with_positive_skill, folds: folds.length,
       scenarios: { quiet: String(a.scenarios?.quiet ?? ''), nearby: String(a.scenarios?.nearby ?? '') }, regions,
     },
   }

@@ -1,10 +1,10 @@
+import { DustOutlookSection } from './DustOutlook'
 import { useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { ArrowBendDownLeft, Crosshair, Minus, Plus, Stack } from '@phosphor-icons/react'
 import { allRegions, exclusions, isExcluded, methods } from './regions'
 import type { Exclusion, Method, Region } from './regions'
 import { Badge, IconButton, Metrics, rankingHref, regionHref } from './ui'
-import { DustOutlookSection } from './DustOutlook'
 
 interface GlobeProps {
   selected: Region

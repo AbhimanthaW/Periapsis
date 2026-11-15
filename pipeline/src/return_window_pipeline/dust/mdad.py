@@ -29,7 +29,10 @@ SPLIT_OFFSET = 133
 DOI = "10.5281/zenodo.7480334"
 DATASET_VERSION = "MDAD v1.1"
 YEAR_PATTERN = re.compile(r"MY\s*_?(\d{2})", re.IGNORECASE)
-CSV_PATTERN = re.compile(r"(?P<sub>[A-Za-z0-9]+)_day(?P<day>\d+)_MEM_(?P<mem>\d+)(?P<split>b?)\.csv$", re.IGNORECASE)
+CSV_PATTERN = re.compile(
+    r"(?P<sub>[A-Za-z0-9]+)_day(?P<day>\d+)_(?:MEM|[A-Za-z0-9]+)_(?P<mem>\d+)(?P<split>b?)\.csv$",
+    re.IGNORECASE,
+)
 
 
 class DustDataError(PipelineError):
@@ -146,6 +149,7 @@ class MaskYear:
             raise DustDataError(f"MDAD must be 3-D, got shape {shape}")
         self.time_axis, self.lon_axis, self.lat_axis = self._axes(shape)
         self.ntime, self.nlon, self.nlat = shape[self.time_axis], shape[self.lon_axis], shape[self.lat_axis]
+        self.convention = self._embedded_convention(variables)
         times = np.asarray(variables["timeList"][:], dtype=float)
         if times.ndim != 2 or 8 not in times.shape:
             raise DustDataError(f"timeList must be 2-D with 8 fields, got {times.shape}")
@@ -155,6 +159,30 @@ class MaskYear:
             raise DustDataError(f"timeList shape {times.shape} does not match {self.ntime} mask records")
         self.times = times  # start soy, end soy, mean soy, median soy, start Ls, end Ls, mean Ls, median Ls
         self.day_names = _decode_names(variables["dayList"][:]) if "dayList" in variables else [""] * self.ntime
+
+    def _embedded_convention(self, variables):
+        lat = variables.get("lat")
+        lon = variables.get("lon")
+        if lat is None and lon is None:
+            return None
+        if lat is None or lon is None:
+            raise DustDataError("MDAD must provide both embedded coordinate axes")
+        dims = self._mask.dimensions
+        for axis, name, var, direction in (
+            (self.lon_axis, "lon", lon, "east"), (self.lat_axis, "lat", lat, "north")
+        ):
+            units = var.units.decode() if isinstance(getattr(var, "units", ""), bytes) else getattr(var, "units", "")
+            if (var.dimensions != (name,) or dims[axis] != name
+                    or units.lower().replace("_", " ") != f"degrees {direction}"):
+                raise DustDataError(f"MDAD {name} variable has unexpected dimensions or units")
+        lons, lats = np.asarray(lon[:], float), np.asarray(lat[:], float)
+        for candidate in CANDIDATES:
+            expected_lon = candidate.lon_origin_deg + np.arange(self.nlon) * (360.0 / self.nlon)
+            if (candidate.lon_direction == "east"
+                    and np.allclose(lons, expected_lon, rtol=0, atol=5e-5)
+                    and np.allclose(lats, candidate.lat_of_index(self.nlat), rtol=0, atol=5e-5)):
+                return candidate
+        raise DustDataError("MDAD embedded coordinates do not match a supported regular grid")
 
     @staticmethod
     def _axes(shape: tuple[int, int, int]) -> tuple[int, int, int]:
@@ -186,7 +214,8 @@ class MaskYear:
                                                            (self.lat_axis, "lat")))],
                 "soy_range": [float(np.nanmin(self.mean_soy)), float(np.nanmax(self.mean_soy))],
                 "ls_range": [float(np.nanmin(self.mean_ls)), float(np.nanmax(self.mean_ls))],
-                "day_name_examples": self.day_names[:3]}
+                "day_name_examples": self.day_names[:3],
+                "embedded_convention": None if self.convention is None else self.convention.name}
 
     def close(self) -> None:
         if self._close:
