@@ -60,9 +60,11 @@ export function indicatorPoint(coords: string): Point | undefined {
 }
 
 export function coordinates(lat: string, lon: string): Point | undefined {
-  if (![lat, lon].every(value => /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value.trim()))) return
-  const point: Point = [Number(lon), Number(lat)]
-  if (Math.abs(point[0]) <= 180 && Math.abs(point[1]) <= 90) return point
+  const values = [lat, lon].map(value => value.trim().replace(/^−/, '-'))
+  if (!values.every(value => /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value))) return
+  const [latitude, longitude] = values.map(Number)
+  if (Math.abs(latitude) > 90 || longitude < -180 || longitude > 360) return
+  return [longitude >= 180 ? longitude - 360 : longitude, latitude]
 }
 
 export function distanceFromBase(base: Point, destination: Point) {

@@ -27,7 +27,7 @@ export function BaseLocation({ base, onChange }: { base?: MarsBase; onChange: (b
       <form onSubmit={async event => {
         event.preventDefault()
         const point = coordinates(lat, lon)
-        if (!point) { setError('Enter a latitude from −90 to 90 and a longitude from −180 to 180.'); return }
+        if (!point) { setError('Enter a latitude from −90 to 90 and a longitude from −180 to 180 or 0 to 360.'); return }
         request.current?.abort()
         const controller = new AbortController()
         request.current = controller
@@ -45,12 +45,12 @@ export function BaseLocation({ base, onChange }: { base?: MarsBase; onChange: (b
         }
       }}>
         <h2 id={titleId}>Mars base coordinates</h2>
-        <p>Set the Marswalker’s starting location. Enter Mars planetocentric degrees; north and east are positive.</p>
+        <p>Enter decimal degrees for the Marswalker’s base. North and east are positive. Longitude can use −180 to 180 or 0 to 360.</p>
         <div className="base-fields">
           <label>Latitude <input name="latitude" inputMode="decimal" required value={lat} autoFocus
             placeholder="−90 to 90" onChange={e => setLat(e.target.value)} /></label>
           <label>Longitude <input name="longitude" inputMode="decimal" required value={lon}
-            placeholder="−180 to 180" onChange={e => setLon(e.target.value)} /></label>
+            placeholder="e.g. 188.15" onChange={e => setLon(e.target.value)} /></label>
         </div>
         {error && <p role="alert" className="base-error">{error}</p>}
         {base && <p className="mono">Saved starting cell · {base.cell.id}</p>}
