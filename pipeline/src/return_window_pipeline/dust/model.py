@@ -267,6 +267,19 @@ def scenario_inputs(samples: Samples, s: Settings) -> dict[str, np.ndarray]:
     return {"quiet": quiet, "nearby": nearby}
 
 
+def source_review(manifest, mars_years):
+    """Require an independent outline match for every raster used in the browser outlook."""
+    grid = manifest["grid"]
+    convention = grid["convention"]["name"]
+    verified = {
+        check["mars_year"] for check in grid.get("calibration", [])
+        if check["accepted"] and check["best"] == convention
+        and (check.get("basis") != "embedded_netcdf_coordinates" or check.get("outline_agrees") is True)
+    }
+    pending = sorted(set(mars_years) - verified)
+    return {"status": "withheld" if pending else "qualified", "unverified_mars_years": pending}
+
+
 def build_artifact(series: dict, s: Settings, *, with_sensitivity: bool = True) -> dict:
     ids = series["region_ids"]
     nreg = len(ids)
@@ -294,6 +307,8 @@ def build_artifact(series: dict, s: Settings, *, with_sensitivity: bool = True) 
                 entry[name] = [round(float(v), 4) if ok else None for v, ok in zip(model.predict(x), enough)]
         regions[region_id] = entry
     manifest = series["manifest"]
+    mars_years = sorted(int(y) for y in series["years"])
+    review = source_review(manifest, mars_years)
     artifact = {
         "schema_version": 1,
         "classification": "historical_storm_climatology_and_conditional_model",
@@ -302,8 +317,9 @@ def build_artifact(series: dict, s: Settings, *, with_sensitivity: bool = True) 
                                  f"core disc on a sol meeting the coverage threshold within the next {s.horizon_sols} sols"},
         "geometry": {"core_radius_km": manifest["method"]["core_radius_km"], "ring_radius_km": manifest["method"]["ring_radius_km"],
                      "grid_convention": manifest["grid"]["convention"]["name"]},
+        "source_review": review,
         "source": {"doi": DOI, "dataset_version": DATASET_VERSION,
-                   "mars_years": sorted(int(y) for y in series["years"]),
+                   "mars_years": mars_years,
                    "series_sha256": manifest["series_sha256"], "files": manifest["source"]["files"]},
         "settings": asdict(s),
         "features": list(FEATURES),
@@ -315,7 +331,7 @@ def build_artifact(series: dict, s: Settings, *, with_sensitivity: bool = True) 
         "sensitivity": sensitivity(series, nreg, s) if with_sensitivity else [],
         "ls_bins_deg": [float(v) for v in LS_BINS],
         "status": validation["status"],
-        "regions": regions,
+        "regions": regions if review["status"] == "qualified" else {},
         "limitations": [
             "MDAD maps storms of about 1e5 km2 and larger in daily global images; dust devils and small local storms are absent.",
             "Missing pixels (polar night, data gaps) are not storms; sols without coverage are excluded, which can understate storms.",

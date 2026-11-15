@@ -24,7 +24,8 @@ export interface DustOutlook {
   regions: Record<string, DustRegion>
 }
 
-export type DustLoad = { kind: 'missing' } | { kind: 'invalid'; reason: string } | { kind: 'ready'; outlook: DustOutlook }
+export type DustLoad = { kind: 'missing' } | { kind: 'invalid'; reason: string }
+  | { kind: 'withheld' } | { kind: 'ready'; outlook: DustOutlook }
 
 const isProbability = (value: unknown) => value === null || (typeof value === 'number' && value >= 0 && value <= 1)
 const probabilities = (value: unknown, length: number) =>
@@ -35,6 +36,11 @@ export function parseDustOutlook(raw: unknown): DustLoad {
   if (typeof raw !== 'object' || raw === null) return fail('not an object')
   const a = raw as Record<string, any>
   if (a.schema_version !== 1) return fail('unsupported schema version')
+  const review = a.source_review
+  if (!Array.isArray(review?.unverified_mars_years)
+    || !review.unverified_mars_years.every(Number.isInteger)) return fail('missing source review')
+  if (review.status === 'withheld' && review.unverified_mars_years.length > 0) return { kind: 'withheld' }
+  if (review.status !== 'qualified' || review.unverified_mars_years.length !== 0) return fail('invalid source review')
   if (a.status !== 'model_skilful' && a.status !== 'climatology_only') return fail('unknown status')
   if (a.validation?.status !== a.status) return fail('status disagrees with validation')
   const bins = a.ls_bins_deg
