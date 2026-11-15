@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import registry from '../../src/atlas/regions.json'
+import registry from '../../src/atlas/regions.json' with { type: 'json' }
 
 test.beforeEach(async ({ page, baseURL }) => {
   await page.route('**/*', route => new URL(route.request().url()).origin === baseURL ? route.continue() : route.abort())

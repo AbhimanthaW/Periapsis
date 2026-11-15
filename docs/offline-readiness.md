@@ -21,7 +21,7 @@ gh release download mars-cell-map-v0.2.0 --repo AbhimanthaW/Periapsis \
 uv run --project documentation --locked --offline python -m runtime.release build data/offline-release
 ```
 
-The builder checks the pinned input digests, compiles a sourced ranking pack, builds the two web clients, and trains the station model on the deterministic synthetic fixture. `--ranking-pack PATH` accepts an already verified sourced release pack when rebuilding the launcher. The output directory must be new. Its `manifest.json` records the source revision, checkout and bundle file hashes, ranking pack digest and station model ID. Keep the manifest with the bundle and distribute both from a trusted checkout.
+The builder checks the pinned input digests, compiles a sourced ranking pack, builds the two web clients, and trains the station model on the deterministic synthetic fixture. `--ranking-pack PATH` accepts an already verified sourced release pack when rebuilding the launcher. The output directory must be new. Its `manifest.json` records the source revision, checkout and bundle file hashes, ranking pack digest and station model ID. Keep the manifest with the bundle and distribute both from a trusted checkout. A passing push run also publishes the bundle as a GitHub Actions artifact for that commit.
 
 On the presentation machine, keep the matching checkout and provision its locked Python environment before disconnecting. A virtual environment contains machine-specific paths and binaries. Prepare it on each machine.
 
