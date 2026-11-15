@@ -39,7 +39,7 @@ jobs:
           changed = lambda *prefix: not base or any(path.startswith((".github/", *prefix)) for path in paths)
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               print(f"web={str(changed('web/')).lower()}", file=out)
-              print(f"science={str(changed('documentation/', 'evidence/jezero/', 'web/src/atlas/regions.json', 'contracts/', 'runtime/', 'pipeline/scripts/', 'pipeline/evidence/arcadia-planitia/')).lower()}", file=out)
+              print(f"science={str(changed('documentation/', 'evidence/', 'web/src/atlas/regions.json', 'contracts/', 'runtime/', 'pipeline/scripts/', 'pipeline/evidence/arcadia-planitia/')).lower()}", file=out)
               print(f"pipeline={str(changed('pipeline/', 'evidence/mola/', 'contracts/', 'web/src/atlas/regions.json')).lower()}", file=out)
               print(f"ranking={str(changed('ranking/', 'tests/', 'runtime/', 'documentation/', 'contracts/', 'docs/region-ranking/')).lower()}", file=out)
           PY
@@ -68,6 +68,9 @@ jobs:
           npm ci
           npm run build
           npm run test:sites
+          npm run test:methods
+          npx playwright install --with-deps chromium --only-shell
+          RW_UI_PRODUCTION=1 npm run test:ui
 
   science:
     needs: scope
@@ -85,7 +88,7 @@ jobs:
 
   ranking:
     needs: scope
-    if: needs.scope.outputs.ranking == 'true'
+    if: needs.scope.outputs.ranking == 'true' || needs.scope.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -110,6 +113,26 @@ jobs:
           uv run --project documentation --locked --offline python -m ranking.build --release
           uv run --project documentation --locked --offline python -m ranking.build --with-demo --output data/ranking-demo
       - run: uv run --project documentation --locked --offline python -m pytest tests/ranking -q -rs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            web/mission-preview/package-lock.json
+      - run: npm ci --prefix web && npm ci --prefix web/mission-preview
+      - run: uv run --project documentation --locked --offline python -m runtime.release build data/offline-release --ranking-pack data/ranking-pack
+      - name: Verify packaged browser and local API
+        working-directory: web/mission-preview
+        run: |
+          npx playwright install --with-deps chromium --only-shell
+          npx playwright test --config playwright.release.config.ts
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push'
+        with:
+          name: return-window-offline-${{ github.sha }}
+          path: data/offline-release
+          if-no-files-found: error
 
   pipeline:
     needs: scope

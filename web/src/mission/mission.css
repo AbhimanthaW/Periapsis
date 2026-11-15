@@ -72,6 +72,8 @@
 .mission-legend i { display: inline-block; width: 14px; height: 4px; margin-right: 4px; vertical-align: middle; border-radius: 2px; }
 
 /* Site investigation */
+.mission-region-facts { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.mission-post-note { display: block; color: var(--mission-muted); font: inherit; }
 .mission-site { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); gap: 16px; padding: 20px 16px; align-items: start; }
 .mission-site-empty { grid-template-columns: minmax(0, 560px); }
 .mission-site-main, .mission-site-side { display: grid; gap: 14px; min-width: 0; }

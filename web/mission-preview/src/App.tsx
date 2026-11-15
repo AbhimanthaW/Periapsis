@@ -38,18 +38,20 @@ function useScreen() {
   const arcadiaDemo = hash === arcadiaDemoHref() || hash === arcadiaDemoHref('Rover')
   const advisory = arcadiaDemo
     || ((missionStage || ['pack', 'evidence', 'region'].includes(stage)) && regionId === arcadiaScenario.regionId)
+  const rehearsal = missionStage && regionId === '43'
+  const planningWithheld = missionStage && !advisory && !rehearsal
   const profileSegment = arcadiaDemo ? id : mode
   const region = advisory ? undefined : allRegions.find(item => item.id === regionId)
-  const screen = advisory ? 'science-advisory' : missionStage ? stage : region && stage === 'pack' ? 'pack'
+  const screen = advisory ? 'science-advisory' : planningWithheld ? 'site-withheld' : rehearsal ? stage : region && stage === 'pack' ? 'pack'
     : region && stage === 'evidence' ? 'evidence' : region && stage === 'region' ? 'investigation'
     : hash === rankingHref ? 'ranking' : 'globe'
-  return { region, screen, view, arcadiaDemo, missionStage: missionStage && !advisory,
+  return { region, regionId, screen, view, arcadiaDemo, missionStage: rehearsal,
     routeProfile: profileSegment === 'rover' ? 'Rover' as const
       : advisory || profileSegment === 'astronaut' ? 'Astronaut' as const : 'Rover' as const }
 }
 
 export default function App() {
-  const { region, screen, view, arcadiaDemo, missionStage, routeProfile } = useScreen()
+  const { region, regionId, screen, view, arcadiaDemo, missionStage, routeProfile } = useScreen()
   const [selection, setSelection] = useState('43')
   const [objective, setObjective] = useState(defaultObjective)
   const [intent, setIntent] = useState(() => interpretMethods(defaultObjective))
@@ -63,6 +65,10 @@ export default function App() {
   const [localProfile, setProfile] = useState<Profile>('Rover')
   const profile = missionStage ? routeProfile : localProfile
   const [mission, setMission] = useState(initialMission)
+  const packaged = import.meta.env.BASE_URL === '/demo/'
+  const sourceSelection = new URLSearchParams(location.search)
+  const sourceRegion = sourceSelection.get('region')
+  const sourceProfile = sourceSelection.get('profile')
   const hazardView = missionStage && view === 'hazards' && region?.id === '43'
   const hazards = useHazardReplay(hazardView)
   const [layer, setLayer] = useState<'viking' | 'mola'>('viking')
@@ -159,8 +165,13 @@ export default function App() {
       </a>
       <nav className="mission-nav" aria-label="Mission stages">
         <a href={globeHref} aria-current={activeNav === 'globe' && !advisoryScreen ? 'page' : undefined}>Explore</a>
+        {packaged && (screen === 'globe' || arcadiaDemo || screen === 'investigation' || (hazardView && sourceRegion)) &&
+          <a href={'/mission?' + new URLSearchParams({
+            region: hazardView && sourceRegion ? sourceRegion : arcadiaDemo ? arcadiaScenario.regionId : selected.id,
+            profile: hazardView && sourceProfile ? sourceProfile : (arcadiaDemo ? reviewProfile : profile) === 'Rover' ? 'rover' : 'human',
+          })}>Atlas evidence workspace</a>}
         {(screen === 'globe' || arcadiaDemo) && <a href={arcadiaDemoHref()} aria-current={arcadiaDemo ? 'page' : undefined}>Arcadia demo</a>}
-        {!advisoryScreen && ['Route', 'Analysis', 'Monitor'].map(item => <a key={item}
+        {!advisoryScreen && screen !== 'site-withheld' && ['Route', 'Analysis', 'Monitor'].map(item => <a key={item}
           href={missionHref(item.toLowerCase(), profile, selected, hazardView ? 'hazards' : '')} aria-current={screen === item.toLowerCase() || undefined}>{item}</a>)}
       </nav>
       {screen==='monitor'&&view==='layout'?<span className="chip filter accent">Editing layout</span>:missionStage ? <nav className="breadcrumbs mission-breadcrumbs" aria-label="Mission">
@@ -214,6 +225,14 @@ export default function App() {
       {!hazardView && screen === 'route' && <Planning key={profile} {...missionProps} />}
       {!hazardView && screen === 'analysis' && <Analysis {...missionProps} />}
       {!hazardView && screen === 'monitor' && <Monitoring key={profile} {...missionProps} />}
+      {screen === 'site-withheld' && <section className="paper-screen">
+        <h1>Regional planning withheld{region && ' · ' + region.name}</h1>
+        <p>A qualified local terrain pack is required. The available mission and hazard replays use a separate simulated grid.</p>
+        {packaged && regionId && <a className="button" href={'/mission?' + new URLSearchParams({
+          region: regionId, profile: routeProfile === 'Rover' ? 'rover' : 'human',
+        })}>Investigate Atlas region</a>}
+        <a className="button" href="#route/rover/43">Open the Jezero simulation</a>
+      </section>}
       {advisoryScreen && <AdvisoryScienceTasks proposal={arcadiaDemo || arcadiaLoaded ? proposal : undefined}
         profile={reviewProfile} onProfile={setReviewProfile} />}
     </main>

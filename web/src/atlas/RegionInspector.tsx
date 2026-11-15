@@ -34,12 +34,12 @@ export function SourceList({region}:{region:Region}) {
     {copy&&<p className="atlas-note" role="status">{copy}</p>}
   </div>
 }
-function ModelLinks({components,profile}:{components:Map<string,Component>;profile:Profile}) {
+function ModelLinks({components,profile,regionId}:{components:Map<string,Component>;profile:Profile;regionId:string}) {
   const ids=[...atlasModelIds.terrain,...atlasModelIds.science,...atlasModelIds.readiness,...atlasModelIds.pipeline,...(profile==='rover'?['rover-travel','rover-energy']:profile==='human'?['traverse','human-profile']:[])]
   return <details className="atlas-disclosure">
     <summary>Architecture and model references</summary>
     <p className="atlas-note">Relevant specifications. Regional inputs and model applicability remain unevaluated.</p>
-    {ids.filter(id=>components.has(id)).map(id=><div key={id} className="atlas-source"><a href={`/architecture?component=${id}`}>{components.get(id)?.name}<ArrowUpRight size={13}/></a><small>Relevant · applicability not evaluated</small></div>)}
+    {ids.filter(id=>components.has(id)).map(id=><div key={id} className="atlas-source"><a href={'/architecture?' + new URLSearchParams({ component: id, region: regionId, profile })}>{components.get(id)?.name}<ArrowUpRight size={13}/></a><small>Relevant · applicability not evaluated</small></div>)}
   </details>
 }
 export function RegionInspector({region,profile,components,compare,compared,locate,close,research,select,detail}: {
@@ -61,6 +61,7 @@ export function RegionInspector({region,profile,components,compare,compared,loca
         <button className="button" onClick={locate}><Crosshair size={14}/> Locate</button>
         <button className="button" aria-pressed={compared} onClick={compare}><Plus size={14}/>{compared?'Added to compare':'Compare'}</button>
         <button className="button" onClick={research}><BookOpen size={14}/> Full research</button>
+        <a className="button" href={'/mission?' + new URLSearchParams({ region: region.id, profile })}>Investigate site</a>
       </div>
     </header>
     <nav aria-label="Region sections" className="atlas-region-tabs">
@@ -84,7 +85,7 @@ export function RegionInspector({region,profile,components,compare,compared,loca
         <section><h3>Scientific uncertainty</h3><p>{region.uncertainty || 'No dedicated uncertainty field was extracted. Consult the survey and verify local terrain support, resolution, and applicability before planning.'}</p></section>
         {region.related.length>0&&<section><h3>Related features</h3>{region.related.map(relation=><button key={relation.id} className="atlas-related" onClick={()=>select(relation.id)}>
           <span>{byRegion.get(relation.id)?.name}</span><small>{relation.relation}</small><ArrowUpRight size={13}/></button>)}</section>}
-        <ModelLinks components={components} profile={profile}/>
+        <ModelLinks components={components} profile={profile} regionId={region.id}/>
       </>}
       {section&&<section>
         {section==='terrain'&&<><h3>Geographic context</h3><p>{region.location || region.featureType}</p>{terrain&&<p>{terrain}</p>}

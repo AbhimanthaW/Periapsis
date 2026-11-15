@@ -94,7 +94,7 @@ function ObjectiveControls({
             aria-pressed={excludes.includes(item)} onClick={() => toggleFilter(item)}>{item}</button>)}
         </div>
       </div>
-      <a className="button compact" href={rankingHref} title="Open the local sample ranking">All 56 ranked</a>
+      <a className="button compact" href={rankingHref} title="Open the local sample ranking">Sample ranking</a>
     </div>
     <dialog ref={editor} className="dialog" aria-labelledby="targets-title">
       <form onSubmit={saveTargets}>

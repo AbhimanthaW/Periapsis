@@ -36,7 +36,7 @@ export function SiteMap({ asset, support, query }: Props) {
   const queryPoint = query?.type === 'Point' && isPosition(query.coordinates) ? project(query.coordinates) : null
   return (
     <figure className="mission-map">
-      <svg viewBox={`0 0 ${asset.width} ${asset.height}`} role="img" aria-label={`${asset.title} with evidence support and query geometry`}>
+      <svg style={{ maxWidth: asset.width }} viewBox={`0 0 ${asset.width} ${asset.height}`} role="img" aria-label={`${asset.title} with evidence support and query geometry`}>
         <image href={asset.url} width={asset.width} height={asset.height} preserveAspectRatio="none"/>
         {support.flatMap(lines).map((line, index) => (
           <path key={`support-${index}`} className="mission-map-support" d={path(line.points, line.closed)}/>

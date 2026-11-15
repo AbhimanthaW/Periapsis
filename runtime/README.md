@@ -85,8 +85,8 @@ A valid scenario produces HTTP 200, including `NO_RETURN_ROUTE` and
 may still contain a computed return path for inspection. Malformed input or
 unknown closures return 400. A mismatch with fixed scenario state returns
 409. Errors use `{schema_version,request_id,error,message}`, with a null
-request ID when unavailable. The eventual client must discard superseded
-request IDs, clear stale recommendations and key session state by pack version.
+request ID when unavailable. The mission view discards superseded request IDs,
+clears stale recommendations and keys session state by pack version.
 
 ### Integration handoffs
 
@@ -103,10 +103,9 @@ request IDs, clear stale recommendations and key session state by pack version.
   site and remains unqualified. Jezero is used as an explicit test control.
   Site qualification remains a scientific review. Changes to routing pack capabilities require producer/consumer
   review under [mission pack v1](../contracts/README.md).
-- **Isath:** Use `site`, `plan` and `evidence` responses as inputs to the UI
-  design. The service is ready for local contract checks. Same-origin web
-  wiring, rendering, browser replay and second-machine offline rehearsal
-  remain release work.
+- **Isath:** Review regional evidence and simulation labels through the packaged
+  same-origin browser flow. Record the second-machine offline rehearsal in the
+  release receipt.
 
 Run the headless acceptance checks with
 `uv run --project documentation --locked --offline python -m pytest runtime/tests/test_planning_api.py -q`.
@@ -116,10 +115,9 @@ Run the headless acceptance checks with
 A deterministic implementation of the **Human Marswalk** architecture view:
 Mission configuration (01) → Human traversal time (04) + Traversability (03)
 → Terrain routing (09) → Resource budgets (07) → Mission optimization (10).
-It is a separate module. `mission.py`, `planning_api.py` and their regression
-outputs are unchanged, and the planning API is not wired to it yet. That
-integration needs the route-geometry, units and refusal review described in
-the Senula handoff above.
+The planning API selects this module with `--engine marswalk`. The packaged
+launcher uses it for the synthetic planner. The fixture control profile
+preserves the v1 route geometry, units and refusal outcomes.
 
 | Module | Architecture boxes |
 | --- | --- |
@@ -272,3 +270,14 @@ uv run --project documentation --locked --offline python -m runtime.marswalk dem
 uv run --project documentation --locked --offline python -m runtime.marswalk demo --platform rover --profile runtime/examples/profile-rover-hypothetical.json
 uv run --project documentation --locked --offline python -m pytest runtime/tests/test_marswalk_site_walkback_weather.py -q
 ```
+
+## Region evidence and packaged launch
+
+The offline launcher serves the bundled clients and the planning service on one
+loopback origin. See the [release runbook](../docs/offline-readiness.md).
+`GET /api/v1/regions/{id}` uses the shared Atlas registry to map each named anchor
+to its HEALPix cell. It returns sourced cell context when the ranking pack is
+loaded and independently resolves the exact package/query pair pinned in
+[evidence/sites.v1.json](../evidence/sites.v1.json). Atlas context and local
+evidence never grant a tactical routing or live-hazard capability. The browser
+hazard drill and the CLI moving-storm rehearsals use separate synthetic fixtures.

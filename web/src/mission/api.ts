@@ -5,7 +5,6 @@ export const endpoints = {
   health: '/healthz',
   site: '/api/v1/site',
   plan: '/api/v1/plan',
-  evidence: '/api/v1/evidence',
 } as const
 
 export const apiErrorSchema = z.object({
@@ -186,8 +185,10 @@ export type Geometry = z.infer<typeof geometry>
 
 export const evidenceResponseSchema = z.object({
   schema_version: z.literal(1),
-  classification: z.string(),
-  context: z.string(),
+  classification: z.literal('pinned_evidence'),
+  context: z.literal('reviewed_local_query'),
+  query_sha256: z.string(),
+  package_sha256: z.string(),
   result: z.object({
     package_id: z.string(),
     package_version: z.string(),
@@ -232,5 +233,34 @@ export const evidenceResponseSchema = z.object({
 export type EvidenceResponse = z.infer<typeof evidenceResponseSchema>
 
 export const getFixtureSite = (signal?: AbortSignal) => requestJson(endpoints.site, fixtureSiteSchema, { signal })
-export const getEvidence = (signal?: AbortSignal) => requestJson(endpoints.evidence, evidenceResponseSchema, { signal })
+const evidenceBounds = z.object({ lower: z.number(), upper: z.number() })
+const axis = z.object({
+  classification_status: z.enum(['classified', 'unclassified']),
+  tier: z.string(),
+  bounds: evidenceBounds,
+})
+
+const regionEvidenceSchema = z.object({
+  schema_version: z.literal(1),
+  region_id: z.string(),
+  anchor_cell_id: z.string().regex(/^HPX128:(0|[1-9]\d{0,5})$/),
+  cell_context: z.object({
+    pack: z.object({ version: z.string(), sha256: z.string() }),
+    terrain: axis,
+    science_environment: axis,
+    mola_elevation_m: z.number().nullable(),
+    mola_observation_count: z.number().int().nonnegative().nullable(),
+    stereo_topography: z.object({
+      status: z.string(),
+      observed_fraction: z.number().min(0).max(1),
+      usable_fraction: z.number().min(0).max(1),
+    }),
+  }).nullable(),
+  local_evidence: evidenceResponseSchema.nullable(),
+  tactical_routing: z.literal('withheld_no_qualified_pack'),
+  live_hazards: z.literal('unavailable_no_qualified_feed'),
+})
+export type RegionEvidence = z.infer<typeof regionEvidenceSchema>
+export const getRegionEvidence = (regionId: string, signal?: AbortSignal) =>
+  requestJson('/api/v1/regions/' + encodeURIComponent(regionId), regionEvidenceSchema, { signal })
 export const postPlan = (request: PlanRequest, signal?: AbortSignal) => requestJson(endpoints.plan, planResponseSchema, { signal, body: request })

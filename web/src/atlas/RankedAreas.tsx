@@ -3,7 +3,15 @@ import type { FormEvent } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { z } from 'zod'
 
+const concept = z.object({ id: z.string() })
 const resultSchema = z.object({
+  schema_version: z.literal(1),
+  abstain: z.boolean(),
+  parse: z.object({
+    concepts: z.array(concept),
+    unsupported: z.array(concept),
+    unknown: z.array(z.string()),
+  }),
   request_id: z.string(),
   areas: z.array(z.object({
     rank: z.number().int().positive(),
@@ -25,11 +33,11 @@ const resultSchema = z.object({
     }).optional(),
   })),
 })
-type Area = z.infer<typeof resultSchema>['areas'][number]
+type Result = z.infer<typeof resultSchema>
 
 export default function RankedAreas({ back }: { back: () => void }) {
   const [objective, setObjective] = useState('ancient lakes')
-  const [areas, setAreas] = useState<Area[] | null>(null)
+  const [result, setResult] = useState<Result | null>(null)
   const [error, setError] = useState('')
   const [submittedObjective, setSubmittedObjective] = useState('')
   const [busy, setBusy] = useState(false)
@@ -41,7 +49,7 @@ export default function RankedAreas({ back }: { back: () => void }) {
     setBusy(true)
     setError('')
     setSubmittedObjective(submitted)
-    setAreas(null)
+    setResult(null)
     try {
       const requestId = crypto.randomUUID()
       const response = await fetch('/api/v1/rank', {
@@ -58,7 +66,7 @@ export default function RankedAreas({ back }: { back: () => void }) {
       const result = resultSchema.safeParse(await response.json())
       if (!result.success || result.data.request_id !== requestId)
         throw new Error('Ranking service returned an invalid response.')
-      setAreas(result.data.areas)
+      setResult(result.data)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Ranking failed.')
     } finally {
@@ -75,12 +83,20 @@ export default function RankedAreas({ back }: { back: () => void }) {
         onChange={event => setObjective(event.target.value)}/>
       <button className="button" disabled={busy || !objective.trim()}>Rank areas</button>
     </form>
-    <p>The terrain screening score is the percentage of evaluated cells with mapped mass-wasting or polar dune units. Local slope, trafficability and mission safety are outside this assessment.</p>
+    <p>Ranking thresholds are provisional. The terrain screening score is the percentage of evaluated cells with mapped mass-wasting or polar dune units. Local slope, trafficability and mission safety are outside this assessment.</p>
     {busy && <p role="status">Ranking areas…</p>}
     {error && <p role="alert">{error}</p>}
-    {areas && <p>Results for “{submittedObjective}”</p>}
-    {areas?.length === 0 && <p role="status">No matching areas. Try an objective such as “shallow ice” or “ancient lakes”.</p>}
-    {areas?.map(area => {
+    {result && <section aria-label="Objective interpretation">
+      <p>Results for “{submittedObjective}”</p>
+      {result.parse.concepts.length > 0 && <p>Evaluated concepts: {result.parse.concepts.map(item => item.id).join(', ')}.</p>}
+      {result.parse.unsupported.length > 0 && <p>Unsupported concepts: {result.parse.unsupported.map(item => item.id).join(', ')}.</p>}
+      {result.parse.unknown.length > 0 && <p>Unrecognized terms: {result.parse.unknown.join(', ')}.</p>}
+      {(result.parse.unsupported.length > 0 || result.parse.unknown.length > 0) &&
+        <p>Match tiers apply only to the evaluated concepts.</p>}
+      {result.abstain ? <p role="status">Ranking withheld. No supported concepts were recognized.</p>
+        : result.areas.length === 0 && <p role="status">No matching areas for the evaluated concepts.</p>}
+    </section>}
+    {result?.areas.map(area => {
       const risk = area.terrain_screening
       return <article key={area.best_cell}>
         <h3>{area.rank}. {area.label ?? area.best_cell}</h3>
