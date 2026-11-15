@@ -1,34 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowsOut, GridFour, Pause, Play, Swap, X } from '@phosphor-icons/react'
+import { GridFour, Pause, Play, X } from '@phosphor-icons/react'
 import type { MissionProps } from './mission'
 import { Action, Panel, RangeChart, routeIds, RouteMap } from './MissionUI'
 import { Matrix } from './Analysis'
 import { Readouts, Section, Warn } from './RegionEvidence'
 import { Badge, IconButton, Segmented } from './ui'
 
-const feedback = ['Archive','Recorded','Simulated'] as const
 const changeTypes = ['Obstruction','Component','Constraint'] as const
-const moduleGroups = [['Rover operations','Camera feed','Power','Progress','Components'],['Energy · terrain','Energy history','Terrain profile'],['Environment · console','Weather','Event log']]
-const defaultModules = ['Camera feed','Power','Progress','Components','Mission map']
-const presetsDefault = {'Rover Mission Control':defaultModules,'Compact playback':['Camera feed','Mission map','Progress'],'Field telemetry':[...defaultModules,'Energy history','Event log']}
+const moduleGroups = [['Rover operations','Power','Progress','Components'],['Energy · terrain','Energy history','Terrain profile'],['Environment · console','Weather','Event log']]
+const defaultModules = ['Power','Progress','Components','Mission map']
+const presetsDefault = {'Rover Mission Control':defaultModules,'Compact playback':['Mission map','Progress'],'Field telemetry':[...defaultModules,'Energy history','Event log']}
 const pad = (n:number) => String(n).padStart(2,'0')
 const timeCode = (n:number) => pad(Math.floor(n/3600))+':'+pad(Math.floor(n%3600/60))+':'+pad(n%60)
 
-function Camera({ eva, progress, setProgress, playing, setPlaying }: {
-  eva?: boolean; progress:number; setProgress:(n:number)=>void; playing:boolean; setPlaying:(b:boolean)=>void
+function Playback({ progress, setProgress, playing, setPlaying }: {
+  progress: number; setProgress: (n: number) => void; playing: boolean; setPlaying: (value: boolean) => void
 }) {
-  const [source,setSource]=useState<(typeof feedback)[number]>('Simulated')
-  const [helmet,setHelmet]=useState('EV1')
-  const [expanded,setExpanded]=useState(false)
-  return <Panel name="Camera feed" className={(eva?'eva-camera ':'rover-camera ')+'striped'+(expanded?' expanded-camera':'')}>
-    <header className="section-heading">{eva?<span>Helmet · {helmet} <Badge>SIM</Badge></span>:<Segmented items={feedback} value={source} onChange={setSource} label="Footage source"/>}
-      {eva&&<div className="inline-controls"><IconButton aria-label="Switch helmet" onClick={()=>setHelmet(helmet==='EV1'?'EV2':'EV1')}><Swap size={15}/></IconButton><IconButton aria-label={expanded?'Restore camera':'Expand camera'} onClick={()=>setExpanded(!expanded)}><ArrowsOut size={15}/></IconButton></div>}</header>
-    <div className="camera-unavailable"><p>{source==='Archive'?'No archive connected':source==='Recorded'?'No recording loaded':'No footage source'}</p>
-      <span className="muted">{eva?'Simulated helmet camera or analogue recording':'Connect an archive or load a recording'}</span></div>
-    {(!eva||expanded)&&<footer><IconButton aria-label={playing?'Pause playback':'Play playback'} onClick={()=>setPlaying(!playing)}>{playing?<Pause size={16}/>:<Play size={16}/>}</IconButton>
-      <span className="mono">T+{timeCode(Math.round(progress*31.2))}</span><input type="range" style={{ background: `linear-gradient(to right, #f3eae0 ${progress}%, #423a32 ${progress}%)` }} min="0" max="100" step=".01" value={progress} aria-label="Playback position" onChange={e=>setProgress(Number(e.target.value))}/>
-      <span className="mono muted">00:52:00</span><IconButton aria-label={expanded?'Restore camera':'Expand camera'} onClick={()=>setExpanded(!expanded)}><ArrowsOut size={16}/></IconButton></footer>}
-  </Panel>
+  return <div className="route-playback" role="group" aria-label="Route playback">
+    <IconButton aria-label={playing ? 'Pause playback' : 'Play playback'} onClick={() => setPlaying(!playing)}>
+      {playing ? <Pause size={16}/> : <Play size={16}/>}
+    </IconButton>
+    <span className="mono">T+{timeCode(Math.round(progress * 31.2))}</span>
+    <input type="range" min="0" max="100" step=".01" value={progress} aria-label="Playback position"
+      onChange={event => setProgress(Number(event.target.value))}/>
+  </div>
 }
 
 function ModuleLibrary({ modules, toggle, reset }: { modules:string[]; toggle:(name:string)=>void; reset:()=>void }) {
@@ -65,7 +60,7 @@ function LayoutEditor({ modules, setModules, go, presets, savePreset, preset, se
     const minimized=collapsed.includes(name)
     return <section className={'glass layout-module '+area+(pinned?' pinned':'')+(minimized?' collapsed':'')} draggable={!pinned} onDragStart={()=>setMoving(name)}>
       <header><b>{name}</b><div className="inline-controls">{pinned&&<span className="mono accent">PINNED</span>}
-        {['Camera feed','Mission map'].includes(name)&&<button aria-label={(minimized?'Expand ':'Collapse ')+name} onClick={()=>setCollapsed(minimized?collapsed.filter(x=>x!==name):[...collapsed,name])}>{minimized?'+':'−'}</button>}
+        {name==='Mission map'&&<button aria-label={(minimized?'Expand ':'Collapse ')+name} onClick={()=>setCollapsed(minimized?collapsed.filter(x=>x!==name):[...collapsed,name])}>{minimized?'+':'−'}</button>}
         {!pinned&&<button aria-label={'Remove '+name} onClick={()=>{if(name==='Event log')setShowEvent(false);else if(name===extraSlot)setExtraSlot('');setModules(modules.filter(x=>x!==(name==='Battery'?'Power':name)))}}><X size={13}/></button>}
       </div></header><footer className="mono muted">{size}</footer>
     </section>
@@ -74,7 +69,6 @@ function LayoutEditor({ modules, setModules, go, presets, savePreset, preset, se
     <div className="layout-tools inline-controls"><label className="caption">Preset <select aria-label="Layout preset" value={preset} onChange={e=>{setPreset(e.target.value);setModules([...presets[e.target.value]]);setExtraSlot('');setMoving('')}}>{Object.keys(presets).map(value=><option key={value}>{value}</option>)}</select></label>
       <Action onClick={()=>dialog.current?.showModal()}>Save as</Action><Action onClick={()=>{setModules([...defaultModules]);setExtraSlot('');setMoving('');setShowEvent(true);setPreset('Rover Mission Control')}}>Reset</Action><Action primary onClick={()=>go('monitor','playback')}>Done</Action></div>
     <div className="layout-top">
-      {module('Camera feed','camera-layout','8 × 6 cells · cannot be removed in this preset',true)}
       {modules.includes('Mission map')?module('Mission map','map-layout','5 × 6 cells'):<button className="glass layout-module map-layout" onClick={()=>setModules([...modules,'Mission map'])}>Add mission map</button>}
       <div className="layout-slot">
         {extraSlot?module(extraSlot,'drop-layout','3 × 3 cells'): <button className="glass layout-module drop-layout" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();drop()}} onClick={drop}>Drop here <span className="mono muted">3 × 3 cells free</span></button>}
@@ -205,23 +199,21 @@ export function Monitoring(props:MissionProps) {
     setClosure(eva?'Return corridor closure at stop 1':'Obstruction on route '+mission.route+' · simulated')
     dialog.current?.showModal()
   }
-  const cameraProps={progress,setProgress,playing,setPlaying}
+  const playbackProps={progress,setProgress,playing,setPlaying}
   if(view==='layout')return <LayoutEditor {...{modules,setModules,go,presets,preset,setPreset}} savePreset={name=>{setPresets({...presets,[name]:[...modules]});setPreset(name)}}/>
   if(view==='salvage')return <Salvage props={props} decide={decide}/>
   if(view==='tradeoff'||eva&&view==='contingency')return <EvaTradeoff props={props} decide={decide}/>
   if(view==='contingency')return <RoverContingency props={props} decide={decide}/>
-  const camera=<Camera {...cameraProps} eva={eva}/>
   const elapsed=timeCode(5530+Math.round((progress-60.9)*12))
   return <>
     {eva?<div className="mission-canvas eva-monitor">
       <RouteMap astronaut monitor regionId={region.id} progress={progress}/>
       <div className="eva-clock"><span className="caption">EVA elapsed</span><h1 className="mono">{elapsed}</h1><p className="mono"><span className="caution">back by 2:08 · margin 0:22</span>　·　 window closes 2:30　·　 limit 3:00</p></div>
       <Panel name="Crew resources" className="resource-bars right-dock">{[['Oxygen',Math.round(100-progress*.312)+' %','min 30 %',81],['Water','1.0 L','min 0.3 L',69],['Return','+0:22','plan +0:35',37]].map(([label,value,limit,amount],i)=><div key={label} className={i===2?'caution':''}><span className="caption">{label}</span><div className="v-bar"><i style={{height:amount+'%'}}/></div><strong className="large-mono">{value}</strong><small className="mono muted">{limit}</small><Badge>{i===2?'CALC':'EST'}</Badge></div>)}</Panel>
-      {camera}
+      <Playback {...playbackProps}/>
       <div className="glass eva-return"><span className="caption">To base</span><span className="mono">1.8 km · 0:36</span><Action onClick={report}>Contingency</Action></div>
     </div>:<div className="rover-monitor">
-      <Panel name="Mission map" className="monitor-map">{modules.includes('Mission map')?<RouteMap monitor inset regionId={region.id} route={mission.route} progress={progress}/>:<Action onClick={()=>setModules([...modules,'Mission map'])}>Restore mission map</Action>}</Panel>
-      {modules.includes('Camera feed')?camera:<Panel name="Camera module hidden" className="rover-camera striped"><Action onClick={()=>setModules([...modules,'Camera feed'])}>Restore camera</Action></Panel>}
+      <Panel name="Mission map" className="monitor-map">{modules.includes('Mission map')?<RouteMap monitor inset regionId={region.id} route={mission.route} progress={progress}/>:<Action onClick={()=>setModules([...modules,'Mission map'])}>Restore mission map</Action>}<Playback {...playbackProps}/></Panel>
       <div className="glass monitor-telemetry">
         {modules.includes('Power')&&<div><div className="section-heading"><span className="caption">Battery</span><Badge>SIM</Badge></div><strong className="large-mono">{Math.round(100-progress*.476)} %</strong> <span className="mono muted">280 W · +160 Wh</span></div>}
         {modules.includes('Progress')&&<div><div className="section-heading"><span className="caption">Progress</span><Badge>SIM</Badge></div><strong className="large-mono">{(Math.floor(progress*1.85)/100).toFixed(2)} km</strong> <span className="mono muted">of 1.85 · ETA 0:21</span></div>}

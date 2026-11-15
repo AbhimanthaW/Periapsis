@@ -31,15 +31,36 @@ On the presentation machine, keep the matching checkout and provision its locked
 uv run --project documentation --locked --offline python -m runtime.release serve data/offline-release
 ```
 
-Open [Return Window](http://127.0.0.1:8000/mission), [the Atlas](http://127.0.0.1:8000/atlas), or [the Arcadia showcase](http://127.0.0.1:8000/demo/#demo/arcadia). To use another loopback port, pass `--port`. Launch verifies the checkout and every packaged file before binding the port. Local API failures return JSON errors. External citations are optional links.
+Open [Explore](http://127.0.0.1:8000/explore) or [the Research Atlas](http://127.0.0.1:8000/atlas). To use another loopback port, pass `--port`. Launch verifies the checkout and every packaged file before binding the port. Local API failures return JSON errors. External citations are optional links.
 
 ## Release acceptance
 
 1. Use a fresh browser profile on a second machine with networking disconnected.
-2. Open the Arcadia showcase. Inspect regional MOLA context and the refusal of 20 m stereo elevation. Switch to the evidence workspace and compare Jezero's reviewed 20 m elevation fallback with Solis Planum or Icaria Planum. Check that sparse regions show regional HEALPix context and uncertainty while withholding local calculations.
+2. Use the Demo button in Explore. Inspect regional MOLA context and the refusal of 20 m stereo elevation. Compare the Jezero engineering-control query cell HPX128:96848 with the Solis Planum or Icaria Planum anchor cells. Check that sparse regions show regional HEALPix context and uncertainty while withholding local calculations.
 3. Rank “ancient lakes with hydrothermal activity” in the Atlas. Confirm that the result states which terms were evaluated and which were skipped.
-4. Enter Simulated Marswalk. Confirm baseline return and science times of 40 s and 75 s, then 60 s and 95 s after closing the middle corridor. With 70 s remaining, expect an over-reserve refusal. Close both corridors and expect no route. Completed work must remain visible.
+4. Open the fixed-fixture regression at `/mission?view=simulation`. Confirm baseline return and science times of 40 s and 75 s, then 60 s and 95 s after closing the middle corridor. With 70 s remaining, expect an over-reserve refusal. Close both corridors and expect no route. Completed work must remain visible.
 5. Open the separate hazard drill. Advance to the closure and check that the active route only changes after explicit operator approval. Verify that stale readings prevent approval. The seasonal MDAD outlook and the synthetic station model do not grant terrain or hazard qualification.
 6. Record the tested commit, manifest digest, machine, results, and timing. Same-machine browser tests block external requests and cover the integration. The disconnected second-machine receipt is required for offline release acceptance.
 
 The [Jezero Float32 producer/consumer check](../evidence/jezero/README.md) is an independent archive control. The [moving-storm, SEP and emergency-hold scenarios](../runtime/docs/live-hazard-map.md) are separate CLI rehearsals. Neither control qualifies tactical routing.
+
+## Cell-first Explore and selectable-base rehearsal
+
+Open [Explore](http://127.0.0.1:8000/explore). Rotate the globe by dragging or
+with the arrow keys, then select a point or enter an HPX128 cell ID. Switch
+between Viking colour and MOLA relief without losing the selected cell or base.
+Use Ranked cells for the sourced ranking API. Named features are approximate
+orientation aids.
+
+Use **Demo** to fill the objective and select the Arcadia cell and its pinned
+local evidence review. Inspect the supported MOLA fallback and the withheld
+20 m calculation. Choose **Enter simulated Marswalk** to calculate the
+separate synthetic sortie. The preset starts at local row 1, column 1 with
+130 seconds, and both inputs can be changed. Approve a route in Monitor,
+record departure, report a simulated crew position and apply a closure.
+Recalculate from that position to the same base. The separate hazard replay
+shows local compute or bundled playback and requires operator approval.
+
+The original four-answer regression remains available in the fixed-fixture
+Mission simulation. For a second-machine acceptance, run both workflows
+with networking disconnected.

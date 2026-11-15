@@ -17,9 +17,9 @@ def read_pinned(root: Path, path: str, digest: str) -> bytes:
 class RegionEvidence:
     def __init__(self, root: Path):
         atlas = decode((root / "web/src/atlas/regions.json").read_bytes())
-        grid = Grid()
+        self.grid = Grid()
         self.anchors = {
-            region["id"]: grid.cell_at(region["geography"]["center"]).id
+            region["id"]: self.grid.cell_at(region["geography"]["center"]).id
             for region in atlas["regions"]
         }
         if len(self.anchors) != len(atlas["regions"]):
@@ -30,11 +30,19 @@ class RegionEvidence:
                 or not registry["sites"].keys() <= self.anchors.keys()):
             raise ValueError("Regional evidence registry does not match Atlas")
         self.pinned = {}
+        self.reviewed_cells = {}
         for region_id, site in registry["sites"].items():
             package = Package.model_validate_json(read_pinned(root, site["package"], site["package_sha256"]))
             query = CapabilityQuery.model_validate_json(read_pinned(root, site["query"], site["query_sha256"]))
             if (package.package_id, package.version) != (site["package_id"], site["package_version"]):
                 raise ValueError(f"Evidence package identity mismatch for Atlas region {region_id}")
+            geometry = query.geometry
+            point = geometry.coordinates[0][0] if geometry.type == "Polygon" else geometry.coordinates
+            if geometry.type == "Point":
+                point = geometry.coordinates
+            if geometry.type == "LineString":
+                point = geometry.coordinates[len(geometry.coordinates) // 2]
+            self.reviewed_cells[self.grid.cell_at(point).id] = region_id
             self.pinned[region_id] = {
                 "schema_version": 1,
                 "classification": "pinned_evidence",
@@ -48,6 +56,9 @@ class RegionEvidence:
         cell_id = self.anchors.get(region_id)
         if cell_id is None:
             return None
+        return {"region_id": region_id, "anchor_cell_id": cell_id, **self.context(cell_id, ranking, region_id)}
+
+    def context(self, cell_id, ranking, evidence_site_id=None):
         detail = ranking.detail(cell_id) if ranking is not None else None
         context = None
         if detail is not None:
@@ -64,10 +75,17 @@ class RegionEvidence:
             }
         return {
             "schema_version": 1,
-            "region_id": region_id,
-            "anchor_cell_id": cell_id,
             "cell_context": context,
-            "local_evidence": self.pinned.get(region_id),
+            "local_evidence": self.pinned.get(evidence_site_id),
             "tactical_routing": "withheld_no_qualified_pack",
             "live_hazards": "unavailable_no_qualified_feed",
+        }
+
+    def cell_context(self, cell_id, ranking):
+        cell = self.grid.cell(self.grid.parse_id(cell_id))
+        site = self.reviewed_cells.get(cell_id)
+        return {
+            "cell": cell.model_dump(mode="json"),
+            "evidence_site_id": site,
+            **self.context(cell_id, ranking, site),
         }

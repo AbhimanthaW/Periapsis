@@ -1,6 +1,6 @@
 import imagery from '../atlas/imagery.json'
 import sites from '../../../evidence/sites.v1.json'
-import arcadia from '../../../pipeline/evidence/arcadia-planitia/display-metadata.json'
+import arcadia from '../../../pipeline/evidence/arcadia-planitia/display-metadata.json' with { type: 'json' }
 import arcadiaImage from '../../../pipeline/evidence/arcadia-planitia/arcadia-mola-context.png?url'
 
 export type ContextAsset = {

@@ -1,0 +1,13 @@
+.cell-workspace { min-height: 100vh; }
+.cell-workspace button:not(.mission-link):not(.mission-button) {
+  border: 1px solid #62554b;
+  border-radius: 4px;
+  padding: .4rem .65rem;
+}
+.cell-workspace button[aria-pressed='true'] { border-color: #ffaa76; color: #ffbc92; }
+.cell-workspace button:disabled { opacity: .5; }
+.cell-workspace input, .cell-workspace select { max-width: 100%; }
+.cell-toolbar { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.cell-globe { display: grid; gap: .75rem; justify-items: start; }
+.cell-globe canvas { width: min(100%, 540px); height: auto; touch-action: none; cursor: grab; }
+.cell-globe canvas:active { cursor: grabbing; }

@@ -140,7 +140,7 @@ test('the primary Arcadia demo opens directly and survives reload with loopback 
 
   await page.goto('/')
   await submitObjective(page, 'Search for ancient biosignatures.')
-  await page.getByRole('link', { name: 'Arcadia demo', exact: true }).click()
+  await page.getByRole('button', { name: 'Demo', exact: true }).click()
   await expect(page).toHaveURL(/#demo\/arcadia$/)
   const demo = page.getByRole('main', { name: 'Arcadia Science Tasks' })
   await expect(demo.getByRole('heading', { name: 'Arcadia Planitia Science Tasks' })).toBeVisible()
