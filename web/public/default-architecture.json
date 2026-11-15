@@ -2045,8 +2045,8 @@
       "groupId": "pack",
       "category": "Storage artifact",
       "classification": "Architecture",
-      "purpose": "Store regional task IDs, objective, target, approved approach node, positional certainty, evidence IDs, dwell minutes, priority, expected artifact and limitations.",
-      "description": "Store regional task IDs, objective, target, approved approach node, positional certainty, evidence IDs, dwell minutes, priority, expected artifact and limitations. Convert minutes to seconds at runtime; omit invalid stations and unsupported tasks.",
+      "purpose": "Store regional task IDs, objective, target, approved approach node, positional certainty, evidence IDs, dwell_s in whole seconds, priority, expected artifact and limitations.",
+      "description": "Store regional task IDs, objective, target, approved approach node, positional certainty, evidence IDs, dwell_s in whole seconds, priority, expected artifact and limitations. Omit invalid stations and unsupported tasks.",
       "technology": [
         "Approaches",
         "tasks",
@@ -2626,7 +2626,7 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "site metadata",
+          "name": "synthetic fixture identity",
           "type": "JSON",
           "unit": "",
           "description": "",
@@ -2635,7 +2635,7 @@
           "defaultValue": ""
         },
         {
-          "name": "layer bounds and assets",
+          "name": "fixture grid shape and affine",
           "type": "JSON",
           "unit": "",
           "description": "",
@@ -2652,8 +2652,8 @@
       "groupId": "api",
       "category": "API",
       "classification": "Architecture",
-      "purpose": "Report ready when pack and solver are initialized.",
-      "description": "Report ready when pack and solver are initialized. Exact response body and status mapping TBD.",
+      "purpose": "Return HTTP 200 with status ready after fixture and configured component validation.",
+      "description": "Return HTTP 200 with status ready after fixture and configured component validation.",
       "technology": [
         "GET /healthz"
       ],
@@ -2681,8 +2681,8 @@
       "groupId": "api",
       "category": "API",
       "classification": "Architecture",
-      "purpose": "Accept a stateless full scenario request.",
-      "description": "Accept a stateless full scenario request. P0 closes predefined polygons. For a P1 drawn closure validate area, complexity and bounds before acceptance.",
+      "purpose": "Accept version, pack and scenario identity, checkpoint, shelter, completed tasks, remaining time and reserve in whole seconds, and predefined closure IDs.",
+      "description": "Accept version, pack and scenario identity, checkpoint, shelter, completed tasks, remaining time and reserve in whole seconds, and predefined closure IDs. Marswalk also supports optional profile and weather inputs.",
       "technology": [
         "POST /api/v1/plan"
       ],
@@ -2833,8 +2833,8 @@
       "groupId": "api",
       "category": "API",
       "classification": "Architecture",
-      "purpose": "Serialize pack_id, request_id, status, return_option, candidate_options[], recommended_id, evidence[] and warnings[].",
-      "description": "Serialize pack_id, request_id, status, return_option, candidate_options[], recommended_id, evidence[] and warnings[]. Each option includes task_id, outbound_s, dwell_s, return_s, margin_s, outbound_xy_m, return_xy_m, included_evidence_ids and reason_codes[]. Use nulls when unavailable.",
+      "purpose": "Return schema version, request and scenario identity, direct_return and reverse_control with ordered row/column cells and seconds, return margin, completed tasks, science options, recommendation and status.",
+      "description": "Return schema version, request and scenario identity, direct_return and reverse_control with ordered row/column cells and seconds, return margin, completed tasks, science options, recommendation and status. A refusal has no recommendation. Marswalk adds its full result in a separate field.",
       "technology": [
         "JSON",
         "IDs",
@@ -2911,7 +2911,7 @@
         "decision": "Adopted",
         "foundation": "Return Window strategy and Scientific Model Design Review",
         "availability": "Canonical versioned inputs. Source applicability and end-to-end validation pending.",
-        "value": "Serialize pack_id, request_id, status, return_option, candidate_options[], recommended_id, evidence[] and warnings[].",
+        "value": "Return schema version, request and scenario identity, direct_return and reverse_control with ordered row/column cells and seconds, return margin, completed tasks, science options, recommendation and status.",
         "difficulty": "Verify with scoped fixtures and source evidence.",
         "validationStatus": "Not evaluated",
         "uncertainty": "Applicability depends on declared input, scale and configuration."
@@ -13306,9 +13306,9 @@
       "id": "site-api--mission",
       "source": "site-api",
       "target": "mission",
-      "label": "Site context",
+      "label": "Synthetic fixture context",
       "kind": "Response",
-      "payload": "Site context",
+      "payload": "Synthetic fixture context",
       "format": "JSON",
       "protocol": "Same-origin HTTP · GET /api/v1/site",
       "description": "",

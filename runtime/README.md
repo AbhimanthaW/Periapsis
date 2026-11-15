@@ -115,10 +115,9 @@ Run the headless acceptance checks with
 A deterministic implementation of the **Human Marswalk** architecture view:
 Mission configuration (01) → Human traversal time (04) + Traversability (03)
 → Terrain routing (09) → Resource budgets (07) → Mission optimization (10).
-It is a separate module. `mission.py`, `planning_api.py` and their regression
-outputs are unchanged, and the planning API is not wired to it yet. That
-integration needs the route-geometry, units and refusal review described in
-the Senula handoff above.
+The planning API selects this module with `--engine marswalk`. The packaged
+launcher uses it for the synthetic planner. The fixture control profile
+preserves the v1 route geometry, units and refusal outcomes.
 
 | Module | Architecture boxes |
 | --- | --- |

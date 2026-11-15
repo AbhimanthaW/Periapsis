@@ -128,14 +128,14 @@ add('ui','inspector','Route and evidence inspector','Frontend component','Segmen
 add('ui','session','Versioned browser session','Frontend component','Memory or localStorage','Keep one browser session keyed by pack and schema version. Preserve completed tasks, chosen scenario and comparison state. Each plan request carries the full state.','§7 · Runtime storage')
 
 add('api','loader','Site pack loader','Backend service','Immutable startup · baseline cache','Load one pack and validate version, shape, assets and matching source metadata. Keep baseline graph cache keyed by pack/config. Apply per-request exclusions to copied/rebuilt adjacency rather than mutating shared graph.','§7 · Solver and runtime')
-add('api','site-api','Site information','API','GET /api/v1/site','Return the synthetic simulation fixture identity, fixed inputs and local grid. GET /api/v1/regions/{id} returns regional context, capability gates and pinned local evidence where available.','§7 · Solver and API',{outputs:[v('site metadata','JSON','','mission'),v('layer bounds and assets','JSON','','map')]})
-add('api','health-api','Health check','API','GET /healthz','Report ready when pack and solver are initialized. Exact response body and status mapping TBD.','§7 · Hosting')
-add('api','plan-api','Plan request','API','POST /api/v1/plan','Accept a stateless full scenario request. P0 closes predefined polygons. For a P1 drawn closure validate area, complexity and bounds before acceptance.','§7 · Request',{
+add('api','site-api','Site information','API','GET /api/v1/site','Return the synthetic simulation fixture identity, fixed inputs and local grid. GET /api/v1/regions/{id} returns regional context, capability gates and pinned local evidence where available.','§7 · Solver and API',{outputs:[v('synthetic fixture identity','JSON','','mission'),v('fixture grid shape and affine','JSON','','map')]})
+add('api','health-api','Health check','API','GET /healthz','Return HTTP 200 with status ready after fixture and configured component validation.','§7 · Hosting')
+add('api','plan-api','Plan request','API','POST /api/v1/plan','Accept version, pack and scenario identity, checkpoint, shelter, completed tasks, remaining time and reserve in whole seconds, and predefined closure IDs. Marswalk also supports optional profile and weather inputs.','§7 · Request',{
   inputs:['pack_id','request_id','checkpoint_id','shelter_id','completed_task_ids','remaining_s','reserve_s','scenario_id','closure_ids'].map(name => v(name,name.endsWith('_ids') ? 'string[]' : name.endsWith('_s') ? 'number' : 'string',name.endsWith('_s') ? 's' : '', 'freshness')),
   outputs:[v('full request','JSON','','request-check')],
 })
 add('api','request-check','Scenario input validation','Backend service','Full request · bounds · units','Validate pack and identifiers, manual checkpoint, shelter, completed tasks, numeric budgets and closure bounds. Resolve station IDs, scenario pace and closure polygons. Classify malformed or out-of-bounds inputs separately from missing terrain and over-budget return.','§6–7 · Inputs and request')
-add('api','serialize','Plan response','API','JSON · IDs · nulls + reason codes','Serialize pack_id, request_id, status, return_option, candidate_options[], recommended_id, evidence[] and warnings[]. Each option includes task_id, outbound_s, dwell_s, return_s, margin_s, outbound_xy_m, return_xy_m, included_evidence_ids and reason_codes[]. Use nulls when unavailable.','§7 · Response',{inputs:[v('recommendation and evidence','structured decision','','explain'),v('failure and reason codes','structured failure','','abstain')],outputs:[v('plan response','JSON','','freshness')]})
+add('api','serialize','Plan response','API','JSON · IDs · nulls + reason codes','Return schema version, request and scenario identity, direct_return and reverse_control with ordered row/column cells and seconds, return margin, completed tasks, science options, recommendation and status. A refusal has no recommendation. Marswalk adds its full result in a separate field.','§7 · Response',{inputs:[v('recommendation and evidence','structured decision','','explain'),v('failure and reason codes','structured failure','','abstain')],outputs:[v('plan response','JSON','','freshness')]})
 
 model('routing','grade','Directed edge geometry','Local metres · signed grade','Compute distances between cell centers and direction-specific signed grade from representative cell elevations.',{
   name:'Center distance and signed grade',family:'Grid geometry',formula:'d(i,j) = ‖xy[j] − xy[i]‖₂; g(i,j) = (z[j] − z[i]) / d(i,j)',method:'Use local easting/northing and z_m. Uphill and downhill directions use opposite signed grades.',validation:'Check flat cardinal and diagonal distance, gradient sign and units on a tiny fixture.',
@@ -226,7 +226,7 @@ edge('loader','grade','Elevation, affine and masks')
 edge('loader','graph','Immutable baseline by pack and config')
 edge('loader','tasks','Pack station and evidence records')
 edge('loader','explain','Asset IDs, provenance and rules')
-edge('site-api','mission','Site context',{kind:'Response',format:'JSON',protocol:'Same-origin HTTP · GET /api/v1/site'})
+edge('site-api','mission','Synthetic fixture context',{kind:'Response',format:'JSON',protocol:'Same-origin HTTP · GET /api/v1/site'})
 edge('site-api','map','Layer bounds and assets',{kind:'Response',protocol:'Same-origin HTTP'})
 edge('mission','freshness','Baseline planning inputs',{kind:'Control'})
 edge('field','session','Completed tasks and field state',{kind:'Control'})

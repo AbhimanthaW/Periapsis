@@ -176,14 +176,22 @@ class PlanningHandler(BaseHTTPRequestHandler):
         super().setup()
         self.connection.settimeout(5)
 
+    def send_payload(self, status, raw, content_type, *, cache_control=None):
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(raw)))
+            if cache_control:
+                self.send_header("Cache-Control", cache_control)
+            self.end_headers()
+            self.wfile.write(raw)
+        except (BrokenPipeError, ConnectionResetError):
+            # Browser navigation and superseded planner requests cancel in-flight responses.
+            self.close_connection = True
+
     def send_json(self, status, body):
-        raw = json.dumps(body, allow_nan=False).encode()
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(raw)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(raw)
+        self.send_payload(status, json.dumps(body, allow_nan=False).encode(), "application/json",
+                          cache_control="no-store")
 
     def reject(self, status, code, message, request_id=None):
         self.send_json(status, {
@@ -244,12 +252,7 @@ class PlanningHandler(BaseHTTPRequestHandler):
         artifact = (base / name).resolve()
         if not artifact.is_relative_to(base) or not artifact.is_file():
             return False
-        raw = artifact.read_bytes()
-        self.send_response(200)
-        self.send_header("Content-Type", guess_type(artifact)[0] or "application/octet-stream")
-        self.send_header("Content-Length", str(len(raw)))
-        self.end_headers()
-        self.wfile.write(raw)
+        self.send_payload(200, artifact.read_bytes(), guess_type(artifact)[0] or "application/octet-stream")
         return True
 
     def hazard_frame(self, step):
