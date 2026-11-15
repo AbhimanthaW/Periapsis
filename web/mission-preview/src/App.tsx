@@ -3,7 +3,7 @@ import { List, SquaresFour, Sun, Terminal } from '@phosphor-icons/react'
 import { Globe } from './Globe'
 import { EvidenceGallery, SitePack } from './RegionEvidence'
 import { initialMission, missionHref } from './mission'
-import { Planning } from './Planning'
+import { AdvisoryScienceTasks, Planning } from './Planning'
 import { Analysis } from './Analysis'
 import { Monitoring } from './Monitoring'
 import { Ranking } from './Ranking'
@@ -13,6 +13,15 @@ import {
 } from './regions'
 import type { Exclusion, Method, Profile, Sort } from './regions'
 import { globeHref, IconButton, rankingHref, regionHref, Segmented } from './ui'
+import { arcadiaScenario } from './objective-methods/arcadia'
+import { confirmGoals, interpretObjective as interpretMethods } from './objective-methods/interpret'
+import { recommendMethods } from './objective-methods/recommend'
+import type { GoalId } from './objective-methods/catalog'
+
+const advisoryHref = (profile: Profile) => '#route/' + profile.toLowerCase() + '/' + arcadiaScenario.regionId + '/tasks'
+const arcadiaDemoHref = (profile: Profile = arcadiaScenario.profile) =>
+  profile === 'Rover' ? '#demo/arcadia/rover' : '#demo/arcadia'
+const arcadiaDemoIntent = interpretMethods(arcadiaScenario.objective)
 
 function useScreen() {
   const [hash, setHash] = useState(window.location.hash)
@@ -23,17 +32,28 @@ function useScreen() {
   }, [])
   const [stage, mode, id, view = ''] = hash.slice(1).split('/')
   const missionStage = stage === 'route' || stage === 'analysis' || stage === 'monitor'
-  const region = allRegions.find(item => item.id === (missionStage ? id : mode))
-  const screen = missionStage ? stage : region && stage === 'pack' ? 'pack'
+  const regionId = missionStage ? id : mode
+  const arcadiaDemo = hash === arcadiaDemoHref() || hash === arcadiaDemoHref('Rover')
+  const advisory = arcadiaDemo
+    || ((missionStage || ['pack', 'evidence', 'region'].includes(stage)) && regionId === arcadiaScenario.regionId)
+  const profileSegment = arcadiaDemo ? id : mode
+  const region = advisory ? undefined : allRegions.find(item => item.id === regionId)
+  const screen = advisory ? 'science-advisory' : missionStage ? stage : region && stage === 'pack' ? 'pack'
     : region && stage === 'evidence' ? 'evidence' : region && stage === 'region' ? 'investigation'
     : hash === rankingHref ? 'ranking' : 'globe'
-  return { region, screen, view, missionStage, routeProfile: mode === 'astronaut' ? 'Astronaut' as const : 'Rover' as const }
+  return { region, screen, view, arcadiaDemo, missionStage: missionStage && !advisory,
+    routeProfile: profileSegment === 'rover' ? 'Rover' as const
+      : advisory || profileSegment === 'astronaut' ? 'Astronaut' as const : 'Rover' as const }
 }
 
 export default function App() {
-  const { region, screen, view, missionStage, routeProfile } = useScreen()
+  const { region, screen, view, arcadiaDemo, missionStage, routeProfile } = useScreen()
   const [selection, setSelection] = useState('43')
   const [objective, setObjective] = useState(defaultObjective)
+  const [intent, setIntent] = useState(() => interpretMethods(defaultObjective))
+  const [arcadiaLoaded, setArcadiaLoaded] = useState(false)
+  const [arcadiaVisited, setArcadiaVisited] = useState(false)
+  const [advisoryProfile, setAdvisoryProfile] = useState<Profile>(arcadiaScenario.profile)
   const [terms, setTerms] = useState(initialTerms)
   const [method, setMethod] = useState<Method>('Sample rock')
   const [excludes, setExcludes] = useState<Exclusion[]>(['Polar'])
@@ -52,6 +72,12 @@ export default function App() {
   const shortlist = rankRegions(terms, method, excludes, 'Match', profile)
     .filter(item => !isExcluded(item, excludes)).slice(0, 3)
   const selected = region ?? allRegions.find(item => item.id === selection) ?? ranked[0]
+  const advisoryScreen = screen === 'science-advisory'
+  const reviewProfile = advisoryScreen ? routeProfile : arcadiaLoaded ? advisoryProfile : profile
+  const proposal = recommendMethods(arcadiaDemo ? arcadiaDemoIntent : intent, arcadiaLoaded || advisoryScreen ? {
+    regionId: arcadiaScenario.regionId, footprint: arcadiaScenario.footprint, profile: reviewProfile,
+  } : { regionId: selected.id, profile: reviewProfile })
+  const reviewRegionName = arcadiaLoaded || advisoryScreen ? arcadiaScenario.regionName : selected.name
 
   useEffect(() => {
     if (previousScreen.current !== screen) heading.current?.focus()
@@ -59,10 +85,14 @@ export default function App() {
   }, [screen])
 
   useEffect(() => {
-    if (region) setSelection(region.id)
-    document.title = screen === 'investigation' ? region?.name + ' · Return Window'
+    if (region) {
+      setSelection(region.id)
+      setArcadiaLoaded(false)
+    }
+    document.title = advisoryScreen ? 'Arcadia Science Tasks · Return Window'
+      : screen === 'investigation' ? region?.name + ' · Return Window'
       : screen === 'ranking' ? 'Region Ranking · Return Window' : 'Return Window · Mars Exploration'
-  }, [region, screen])
+  }, [region, screen, advisoryScreen])
 
   function go(stage: string, nextView = '', nextProfile = profile) {
     if (nextProfile !== profile) setProfile(nextProfile)
@@ -93,6 +123,28 @@ export default function App() {
   function applyObjective(next: string) {
     setObjective(next)
     setTerms(interpretObjective(next))
+    setIntent(interpretMethods(next))
+  }
+
+  function loadArcadia() {
+    applyObjective(arcadiaScenario.objective)
+    setArcadiaLoaded(true)
+    setArcadiaVisited(true)
+    setAdvisoryProfile(arcadiaScenario.profile)
+  }
+
+  function selectRegion(id: string) {
+    setSelection(id)
+    setArcadiaLoaded(false)
+  }
+
+  function setReviewProfile(next: Profile) {
+    setAdvisoryProfile(next)
+    if (advisoryScreen) window.location.hash = arcadiaDemo ? arcadiaDemoHref(next) : advisoryHref(next)
+  }
+
+  function updateGoals(goals: readonly GoalId[]) {
+    setIntent(current => confirmGoals(current, goals))
   }
 
   return <div className={`shell screen-${screen}${contrast ? ' high-contrast' : ''}`}>
@@ -102,8 +154,9 @@ export default function App() {
         <span className="wordmark-full">Return Window</span><span className="wordmark-short" aria-hidden="true">RW</span>
       </a>
       <nav className="mission-nav" aria-label="Mission stages">
-        <a href={globeHref} aria-current={activeNav==='globe'||undefined}>Explore</a>
-        {['Route', 'Analysis', 'Monitor'].map(item => <a key={item}
+        <a href={globeHref} aria-current={activeNav === 'globe' && !advisoryScreen ? 'page' : undefined}>Explore</a>
+        {(screen === 'globe' || arcadiaDemo) && <a href={arcadiaDemoHref()} aria-current={arcadiaDemo ? 'page' : undefined}>Arcadia demo</a>}
+        {!advisoryScreen && ['Route', 'Analysis', 'Monitor'].map(item => <a key={item}
           href={missionHref(item.toLowerCase(), profile, selected)} aria-current={screen === item.toLowerCase() || undefined}>{item}</a>)}
       </nav>
       {screen==='monitor'&&view==='layout'?<span className="chip filter accent">Editing layout</span>:missionStage ? <nav className="breadcrumbs mission-breadcrumbs" aria-label="Mission">
@@ -111,6 +164,8 @@ export default function App() {
         {screen==='monitor'&&view==='salvage'?<><span>/</span><span>Salvage targets</span></>:screen==='route'&&['compare','tasks'].includes(view)?<><span aria-hidden="true">/</span><span>{view==='compare'?'Compare':'Science tasks'}</span></>:<span className="mono muted">{screen==='analysis'&&view==='record'?'Mission M-03 · revision '+(mission.decision?Math.max(4,mission.revision):4):profile === 'Rover' ? (screen==='monitor'&&view==='contingency'?'R-013':mission.plan) : 'EVA-A'}{screen==='analysis'&&view!=='record'&&profile==='Rover'?' · Rover '+mission.rover:''}{screen === 'monitor' && profile === 'Rover' ? (view==='contingency'?' · replan':' · Route ' + mission.route) : ''}</span>}
         {screen==='analysis'&&!view&&<span className="chip filter caution">Terrain SIM · weather dummy · illustrative result</span>}
         {screen === 'monitor' && <><span className="badge">{profile === 'Rover' ? 'SIMULATED PLAYBACK' : 'SIMULATION'}</span>{profile==='Astronaut'&&!view&&<span className="badge">LINK DELAY N/A</span>}</>}
+      </nav> : advisoryScreen ? <nav className="breadcrumbs" aria-label="Science Tasks">
+        <span>Arcadia Planitia · Science Tasks</span>
       </nav> : screen !== 'globe' && <nav className="breadcrumbs" aria-label="Explore">
         <a href={screen === 'pack' ? regionHref(selected.id) : globeHref}>{screen === 'ranking' ? 'Globe' : screen === 'pack' ? selected.name : 'Mars'}</a>
         <span aria-hidden="true">/</span><span aria-current="page">{screen === 'ranking' ? 'Ranking' : screen === 'pack' ? 'Site pack' : region?.name}</span>
@@ -118,8 +173,8 @@ export default function App() {
       {screen==='route'&&<IconButton className="icon-button compact-header-menu" aria-label="Planning menu" onClick={()=>mobileTools.current?.showModal()}><List size={17}/></IconButton>}
       <div className="topbar-end">
         {screen === 'globe' && <span className="event-name">NASA Space Apps Challenge 2026</span>}
-        {screen==='monitor'&&view==='contingency'?<span className="chip filter bad">Route {mission.route} invalid · rover holding</span>:screen==='monitor'&&view==='tradeoff'?<span className="mono">01:32:10</span>:screen==='monitor'&&['layout','salvage'].includes(view)?null:screen==='analysis'||screen==='route'&&['profiles','compare','tasks'].includes(view)?null:screen === 'pack' ? <span className="chip filter caution">Routing capability withheld</span> : screen !== 'investigation' &&
-          <Segmented items={profiles} value={profile} onChange={next => missionStage ? go(screen, '', next) : setProfile(next)} label="Mission profile" />}
+        {!advisoryScreen && (screen==='monitor'&&view==='contingency'?<span className="chip filter bad">Route {mission.route} invalid · rover holding</span>:screen==='monitor'&&view==='tradeoff'?<span className="mono">01:32:10</span>:screen==='monitor'&&['layout','salvage'].includes(view)?null:screen==='analysis'||screen==='route'&&['profiles','compare','tasks'].includes(view)?null:screen === 'pack' ? <span className="chip filter caution">Routing capability withheld</span> : screen !== 'investigation' &&
+          <Segmented items={profiles} value={profile} onChange={next => missionStage ? go(screen, '', next) : setProfile(next)} label="Mission profile" />)}
         {screen==='monitor'&&profile==='Astronaut'&&!view&&<span className="chip filter caution eva-overrun">⚠ Stop 1 overrun 0:13</span>}
         {!(screen==='monitor'&&['contingency','tradeoff','salvage','layout'].includes(view)) && screen !== 'ranking' && screen !== 'pack' && !(screen==='analysis'&&view) && !(screen==='route'&&['profiles','compare','tasks'].includes(view)) && <div className="utility">
           <IconButton aria-label="Keyboard shortcuts" title="Keyboard shortcuts"
@@ -132,17 +187,23 @@ export default function App() {
     </header>}
 
     <main ref={heading} tabIndex={-1} className="screen-content" aria-label={
-      screen === 'globe' ? 'Planetary Explore' : screen === 'ranking' ? 'Region Ranking' : screen === 'investigation' ? 'Region Investigation' : screen
+      screen === 'globe' ? 'Planetary Explore' : screen === 'ranking' ? 'Region Ranking' : screen === 'investigation' ? 'Region Investigation' : advisoryScreen ? 'Arcadia Science Tasks' : screen
     }>
       {screen === 'globe' && <Globe {...{ selected, shortlist, terms, objective, method, excludes, layer, zoom }}
-        select={setSelection} setLayer={setLayer} setZoom={setZoom} setMethod={setMethod} setTerms={setTerms}
-        applyObjective={applyObjective} toggleFilter={toggleFilter} />}
+        select={selectRegion} setLayer={setLayer} setZoom={setZoom} setMethod={setMethod} setTerms={setTerms}
+        applyObjective={applyObjective} toggleFilter={toggleFilter}
+        {...{ proposal, reviewRegionName, arcadiaLoaded, arcadiaVisited, loadArcadia }}
+        useSelectedRegion={() => setArcadiaLoaded(false)} restoreArcadia={() => setArcadiaLoaded(true)}
+        onConfirmGoals={updateGoals}
+        onProfile={setReviewProfile} reviewHref={advisoryHref(reviewProfile)} />}
       {screen === 'ranking' && <Ranking {...{ ranked, selected, objective, terms, method, excludes, sort, profile }}
-        select={setSelection} setSort={setSort} />}
+        select={selectRegion} setSort={setSort} />}
       {screen === 'investigation' && region && <Investigation key={region.id} {...{ region, shortlist, objective, terms, profile }} onPlan={startPlanning} />}
       {screen === 'evidence' && <EvidenceGallery region={selected} {...{ objective, terms }} onPlan={startPlanning} onSources={() => { window.location.hash = regionHref(selected.id) }} />}
       {screen === 'pack' && <SitePack region={selected} onPlan={() => startPlanning(profile)} />}
       {screen === 'route' && <Planning key={profile} {...missionProps} />}
+      {advisoryScreen && <AdvisoryScienceTasks proposal={arcadiaDemo || arcadiaLoaded ? proposal : undefined}
+        profile={reviewProfile} onProfile={setReviewProfile} />}
       {screen === 'analysis' && <Analysis {...missionProps} />}
       {screen === 'monitor' && <Monitoring key={profile} {...missionProps} />}
     </main>

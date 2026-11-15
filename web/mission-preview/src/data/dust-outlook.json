@@ -1,0 +1,54 @@
+{
+ "artifact_id": "dust-outlook-182ec685b11afe7c",
+ "classification": "historical_storm_climatology_and_conditional_model",
+ "schema_version": 1,
+ "source": {
+  "dataset_version": "MDAD v1.1",
+  "doi": "10.5281/zenodo.7480334",
+  "files": [
+   {
+    "mars_year": 28,
+    "name": "MDADMY28.nc",
+    "sha256": "4d410001144cf1b8c23157786a8829568cd2201a75878cbdf7fb3ff9b104875d"
+   },
+   {
+    "mars_year": 29,
+    "name": "MDADMY29.nc",
+    "sha256": "deae3441f92099cce52b98935b8ba456cd13c118083e04decabc59ba226f9955"
+   },
+   {
+    "mars_year": 30,
+    "name": "MDADMY30.nc",
+    "sha256": "1466b856ac35d8f2bd6ef4ef33626a96a04f35a7b460035263d8b66312918d99"
+   },
+   {
+    "mars_year": 31,
+    "name": "MDADMY31.nc",
+    "sha256": "ef63c5becb52ef3cafdb197f252ed3067e99d61bd378588bc2e9b5e07fc4a6cc"
+   },
+   {
+    "mars_year": 32,
+    "name": "MDADMY32.nc",
+    "sha256": "7727cf1b88744cf8d6d7ef0b507d3b4d836e791e5be9c926ff77945a06a104cc"
+   }
+  ],
+  "mars_years": [
+   28,
+   29,
+   30,
+   31,
+   32
+  ],
+  "series_sha256": "bb2da4d19723004bae62eba9821f981d49fd2d8c2a4a10ce56e6d07ca1b39a81"
+ },
+ "source_review": {
+  "status": "withheld",
+  "unverified_mars_years": [
+   28,
+   29,
+   30,
+   31,
+   32
+  ]
+ }
+}

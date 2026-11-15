@@ -167,3 +167,9 @@
   .atlas-map-footer{font-size:8px}
 }
 .atlas-entry{text-decoration:none}
+
+.atlas-ranking { max-width: 68rem; width: 100%; margin-inline: auto; padding: 1.5rem; overflow: auto; }
+.atlas-ranking form { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.atlas-ranking input { flex: 1 1 15rem; min-width: 0; padding: .55rem; font: inherit; }
+.atlas-ranking article { padding-block: 1rem; border-top: 1px solid currentColor; }
+.atlas-ranking summary { cursor: pointer; }

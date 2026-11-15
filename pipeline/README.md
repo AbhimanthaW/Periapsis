@@ -60,7 +60,7 @@ Candidates record browser runtime compatibility (G10) as unevaluated until the A
 
 ## Dust outlook (MDAD storm masks)
 
-The Explore region panel shows a dust outlook for each region: the historical chance that a mapped dust storm covers the configured share of observed pixels in the region's 100 km core disc within the next 7 sols, by season, and a model estimate for a quiet week and for a storm in the surrounding 800 km ring. The model is a numpy logistic regression on the seasonal baseline plus current and recent storm coverage. It is validated leave-one-Mars-year-out. The browser shows model values only when pooled Brier skill over the baseline is at least 0.02 and positive in most held-out years; otherwise it shows the baseline and says the model was withheld. The record ends at MY32, so this is not a live forecast.
+The Explore region panel supports a qualified historical dust outlook for each region: the historical chance that a mapped dust storm covers the configured share of observed pixels in the region's 100 km core disc within the next 7 sols, by season, and a model estimate for a quiet week and for a storm in the surrounding 800 km ring. The model is a numpy logistic regression on the seasonal baseline plus current and recent storm coverage. It is validated leave-one-Mars-year-out. The browser requires an independent outline match for every raster first. With that source check passed, model values require pooled Brier skill of at least 0.02 and positive skill in most held-out years. A qualified source with insufficient model skill supplies climatology only. The record ends at MY32, so this is not a live forecast.
 
 Source: [MDAD v1.1](https://doi.org/10.5281/zenodo.7480334), MY28–32. Download the five `MYxx.tar.gz` files and extract each into its own folder, for example `MY28/`. Install the extra with `pip install -e ".[dust]"`. Then run from `pipeline/`:
 
@@ -68,10 +68,10 @@ Source: [MDAD v1.1](https://doi.org/10.5281/zenodo.7480334), MY28–32. Download
 $work = Join-Path $env:TEMP "return-window-dust"
 .\.venv\Scripts\python.exe -m return_window_pipeline.dust inspect "$work\MY29"
 .\.venv\Scripts\python.exe -m return_window_pipeline.dust extract "$work\MY28" "$work\MY29" "$work\MY30" "$work\MY31" "$work\MY32" --regions ..\web\src\atlas\regions.json --output "$work\series"
-.\.venv\Scripts\python.exe -m return_window_pipeline.dust train "$work\series" --artifact ..\web\mission-preview\src\data\dust-outlook.json
+.\.venv\Scripts\python.exe -m return_window_pipeline.dust train "$work\series" --artifact "$work\dust-outlook.json"
 ```
 
-`inspect` checks the embedded NetCDF coordinate arrays and reports whether storm-outline CSVs independently agree. `extract` uses validated embedded axes when available, otherwise it requires the outline check or an explicit convention. All years must agree. Keep the generated artifact outside the web source during review. Record source digests, coordinate checks, any outline disagreements and per-year skill before approval of a bundled historical outlook. Fixture tests: `python -m pytest tests/test_dust_outlook.py`.
+`inspect` checks the embedded NetCDF coordinate arrays and reports whether storm-outline CSVs independently agree. `extract` uses validated embedded axes when available, otherwise it requires the outline check or an explicit convention. All raster axes must agree to run the study. When the outline cross-check fails, training reports diagnostic skill to the CLI and writes a source-status receipt with zero regional estimates. The bundled receipt is backed by [the five-year source manifest](evidence/mdad-v1.1/dust-series-manifest.json). Fixture tests: `python -m pytest tests/test_dust_outlook.py`.
 
 ## Minimal-sensor weather forecast
 

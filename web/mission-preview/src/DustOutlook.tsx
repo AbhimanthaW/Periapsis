@@ -34,6 +34,7 @@ export function DustOutlookSection({ regionId, load = dustOutlook }: { regionId:
 
   if (load.kind !== 'ready' || !region) {
     const message = load.kind === 'missing' ? 'Awaiting MDAD extraction'
+      : load.kind === 'withheld' ? 'Withheld · archive grid review pending'
       : load.kind === 'invalid' ? 'Artifact rejected · ' + load.reason : 'Region not in artifact'
     return <section className="summary-section dust-summary" aria-label="Dust outlook">
       <div className="section-heading"><span className="caption">Dust outlook</span><Badge>N/A</Badge></div>

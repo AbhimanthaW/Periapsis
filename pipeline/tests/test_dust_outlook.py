@@ -182,6 +182,7 @@ class DustOutlookTests(unittest.TestCase):
         artifact = build_artifact(series, settings, with_sensitivity=False)
         pooled = artifact["validation"]["pooled"]
         self.assertEqual(artifact["status"], "model_skilful", pooled)
+        self.assertEqual(artifact["source_review"], {"status": "qualified", "unverified_mars_years": []})
         self.assertGreater(pooled["brier_skill_score"], 0.05)
         target = artifact["regions"]["90"]
         peak = max(range(12), key=lambda i: target["climatology"][i] or 0)
@@ -189,6 +190,17 @@ class DustOutlookTests(unittest.TestCase):
         json.dumps(artifact, allow_nan=False)
         again = build_artifact(series, settings, with_sensitivity=False)
         self.assertEqual(artifact["artifact_id"], again["artifact_id"])
+
+    def test_source_disagreement_withholds_even_a_skilful_artifact(self):
+        series = self._pipeline("approach")
+        receipt = series["manifest"]["grid"]["calibration"][0]
+        receipt.update(basis="embedded_netcdf_coordinates", outline_agrees=False)
+        artifact = build_artifact(series, Settings(horizon_sols=3), with_sensitivity=False)
+
+        self.assertEqual(artifact["status"], "model_skilful")
+        self.assertEqual(artifact["source_review"], {
+            "status": "withheld", "unverified_mars_years": [receipt["mars_year"]]})
+        self.assertEqual(artifact["regions"], {})
 
     def test_gate_withholds_model_without_signal(self):
         series = self._pipeline("noise")

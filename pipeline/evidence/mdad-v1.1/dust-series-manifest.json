@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "kind": "mdad_region_series",
+  "source": {
+    "doi": "10.5281/zenodo.7480334",
+    "dataset_version": "MDAD v1.1",
+    "files": [
+      {
+        "name": "MDADMY28.nc",
+        "mars_year": 28,
+        "sha256": "4d410001144cf1b8c23157786a8829568cd2201a75878cbdf7fb3ff9b104875d"
+      },
+      {
+        "name": "MDADMY29.nc",
+        "mars_year": 29,
+        "sha256": "deae3441f92099cce52b98935b8ba456cd13c118083e04decabc59ba226f9955"
+      },
+      {
+        "name": "MDADMY30.nc",
+        "mars_year": 30,
+        "sha256": "1466b856ac35d8f2bd6ef4ef33626a96a04f35a7b460035263d8b66312918d99"
+      },
+      {
+        "name": "MDADMY31.nc",
+        "mars_year": 31,
+        "sha256": "ef63c5becb52ef3cafdb197f252ed3067e99d61bd378588bc2e9b5e07fc4a6cc"
+      },
+      {
+        "name": "MDADMY32.nc",
+        "mars_year": 32,
+        "sha256": "7727cf1b88744cf8d6d7ef0b507d3b4d836e791e5be9c926ff77945a06a104cc"
+      }
+    ]
+  },
+  "regions": {
+    "count": 56,
+    "catalog_sha256": "71c420cb36dcdcc7f0437d6f0f03ebd5729b43637722bf3fbce667c879da9e21"
+  },
+  "grid": {
+    "convention": {
+      "name": "east-180_south_up",
+      "lon_direction": "east",
+      "lon_origin_deg": -180.0,
+      "lat_ascending": true,
+      "registration": "node"
+    },
+    "calibration": [
+      {
+        "mars_year": 28,
+        "basis": "embedded_netcdf_coordinates",
+        "best": "east-180_south_up",
+        "accepted": true,
+        "outline_check": {
+          "mars_year": 28,
+          "outlines": 150,
+          "points": 161723,
+          "scores": {
+            "east+0_south_up": 0.0040130346332927285,
+            "east+0_north_down": 0.0018673905381423792,
+            "east-180_south_up": 0.0,
+            "east-180_north_down": 0.0,
+            "west+0_south_up": 0.0025599327244733277,
+            "west+0_north_down": 0.0023929805902685457
+          },
+          "best": "east+0_south_up",
+          "accepted": false,
+          "min_score": 0.7,
+          "min_margin": 0.2
+        },
+        "outline_agrees": false
+      },
+      {
+        "mars_year": 29,
+        "basis": "embedded_netcdf_coordinates",
+        "best": "east-180_south_up",
+        "accepted": true,
+        "outline_check": {
+          "mars_year": 29,
+          "outlines": 150,
+          "points": 140024,
+          "scores": {
+            "east+0_south_up": 0.0,
+            "east+0_north_down": 0.0,
+            "east-180_south_up": 0.0,
+            "east-180_north_down": 0.0,
+            "west+0_south_up": 0.0,
+            "west+0_north_down": 0.0
+          },
+          "best": "east+0_south_up",
+          "accepted": false,
+          "min_score": 0.7,
+          "min_margin": 0.2
+        },
+        "outline_agrees": false
+      },
+      {
+        "mars_year": 30,
+        "basis": "embedded_netcdf_coordinates",
+        "best": "east-180_south_up",
+        "accepted": true,
+        "outline_check": {
+          "mars_year": 30,
+          "outlines": 150,
+          "points": 126559,
+          "scores": {
+            "east+0_south_up": 0.0,
+            "east+0_north_down": 0.0,
+            "east-180_south_up": 0.0,
+            "east-180_north_down": 0.00047408718463325404,
+            "west+0_south_up": 0.0,
+            "west+0_north_down": 0.0
+          },
+          "best": "east-180_north_down",
+          "accepted": false,
+          "min_score": 0.7,
+          "min_margin": 0.2
+        },
+        "outline_agrees": false
+      },
+      {
+        "mars_year": 31,
+        "basis": "embedded_netcdf_coordinates",
+        "best": "east-180_south_up",
+        "accepted": true,
+        "outline_check": {
+          "mars_year": 31,
+          "outlines": 150,
+          "points": 119932,
+          "scores": {
+            "east+0_south_up": 0.0,
+            "east+0_north_down": 0.0,
+            "east-180_south_up": 0.0,
+            "east-180_north_down": 0.0,
+            "west+0_south_up": 0.0,
+            "west+0_north_down": 0.0
+          },
+          "best": "east+0_south_up",
+          "accepted": false,
+          "min_score": 0.7,
+          "min_margin": 0.2
+        },
+        "outline_agrees": false
+      },
+      {
+        "mars_year": 32,
+        "basis": "embedded_netcdf_coordinates",
+        "best": "east-180_south_up",
+        "accepted": true,
+        "outline_check": {
+          "mars_year": 32,
+          "outlines": 150,
+          "points": 122608,
+          "scores": {
+            "east+0_south_up": 0.0,
+            "east+0_north_down": 0.0008890121362390708,
+            "east-180_south_up": 0.0,
+            "east-180_north_down": 0.0,
+            "west+0_south_up": 0.0,
+            "west+0_north_down": 0.0
+          },
+          "best": "east+0_north_down",
+          "accepted": false,
+          "min_score": 0.7,
+          "min_margin": 0.2
+        },
+        "outline_agrees": false
+      }
+    ]
+  },
+  "method": {
+    "core_radius_km": 100.0,
+    "ring_radius_km": 800.0,
+    "mars_radius_km": 3389.5,
+    "count_fields": [
+      "core_valid",
+      "core_storm",
+      "ring_valid",
+      "ring_storm"
+    ],
+    "storm_values": "1-250",
+    "missing_value": 255,
+    "same_sol_merge": "pixel union of valid and storm observations across records of one sol"
+  },
+  "years": {
+    "28": {
+      "records": 340,
+      "sols": 309,
+      "duplicate_sols": 31,
+      "ls_first": 132.83,
+      "ls_last": 354.55
+    },
+    "29": {
+      "records": 551,
+      "sols": 502,
+      "duplicate_sols": 49,
+      "ls_first": 1.69,
+      "ls_last": 327.36
+    },
+    "30": {
+      "records": 616,
+      "sols": 542,
+      "duplicate_sols": 74,
+      "ls_first": 24.26,
+      "ls_last": 359.49
+    },
+    "31": {
+      "records": 623,
+      "sols": 518,
+      "duplicate_sols": 105,
+      "ls_first": 0.42,
+      "ls_last": 359.16
+    },
+    "32": {
+      "records": 358,
+      "sols": 298,
+      "duplicate_sols": 60,
+      "ls_first": 0.37,
+      "ls_last": 170.32
+    }
+  },
+  "series_sha256": "bb2da4d19723004bae62eba9821f981d49fd2d8c2a4a10ce56e6d07ca1b39a81"
+}

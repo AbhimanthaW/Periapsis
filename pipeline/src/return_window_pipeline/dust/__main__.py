@@ -116,9 +116,14 @@ def main(argv=None) -> int:
         else:
             settings = Settings(horizon_sols=args.horizon_sols, storm_fraction=args.storm_fraction)
             artifact = build_artifact(load_series(args.series), settings, with_sensitivity=not args.no_sensitivity)
+            publication = artifact
+            if artifact["source_review"]["status"] == "withheld":
+                publication = {key: artifact[key] for key in (
+                    "schema_version", "classification", "source", "source_review", "artifact_id")}
             args.artifact.parent.mkdir(parents=True, exist_ok=True)
-            args.artifact.write_text(json.dumps(artifact, indent=1, sort_keys=True, allow_nan=False) + "\n")
+            args.artifact.write_text(json.dumps(publication, indent=1, sort_keys=True, allow_nan=False) + "\n")
             result = {"artifact": str(args.artifact.resolve()), "artifact_id": artifact["artifact_id"],
+                      "source_review": artifact["source_review"],
                       "status": artifact["status"], "pooled": artifact["validation"]["pooled"],
                       "folds": artifact["validation"]["folds"]}
         print(json.dumps(result, indent=2, allow_nan=False))

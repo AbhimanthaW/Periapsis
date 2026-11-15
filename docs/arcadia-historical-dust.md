@@ -1,6 +1,6 @@
 # Return Window historical dust context
 
-> **Update 15 Nov 2026:** the team approved a validated dust outlook model for the Explore region panel (`pipeline/src/return_window_pipeline/dust/`, see the pipeline README). It compares a regional conditional estimate with seasonal climatology on held-out Mars years. The fixed-point historical count below is a separate query with its own coverage checks. The regional model needs archive and science review before bundling numbers in Explore.
+> **Update 15 Nov 2026:** the team approved a validated dust outlook model for the Explore region panel (`pipeline/src/return_window_pipeline/dust/`, see the pipeline README). It compares a regional conditional estimate with seasonal climatology on held-out Mars years. The fixed-point historical count below is a separate query with its own coverage checks. The source review currently withholds every regional estimate. The pinned NetCDF axes and the supplied outline cross-check disagree in all five archive years. [MDAD extraction receipt](../pipeline/evidence/mdad-v1.1/dust-series-manifest.json)
 
 **GO for a P2 historical context feature after the Arcadia elevation demo passes offline. The weather prediction model remains out of scope.** Yumeth owns extraction, evidence packaging, and the PR. Isath owns placement and wording review. The release owner signs off on the pinned source, release artifact, and offline replay.
 

@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Cursor, Jeep, MapPin, Ruler, Stack, Users, Crosshair, Polygon, X, ArrowSquareOut } from '@phosphor-icons/react'
 import type { MissionProps } from './mission'
-import { Badge, IconButton, Tabs, Segmented } from './ui'
+import { Badge, globeHref, IconButton, Tabs, Segmented } from './ui'
 import { Readouts, Section, Warn } from './RegionEvidence'
 import { Action, Bars, candidates, Panel, RangeChart, routeIds, RouteMap, Scale } from './MissionUI'
+import { profiles } from './regions'
+import type { Profile } from './regions'
+import { MethodReview } from './objective-methods/MethodReview'
+import type { AdvisoryProposal } from './objective-methods/recommend'
 
 const crewTabs = ['Crew','Resources','Movement','Return'] as const
 const resultStates = ['No route','Running','No feasible route','Result withheld','Run failed'] as const
@@ -13,6 +17,30 @@ const crewRows = [
   ['Oxygen supply','8:00 h','8:00 h'], ['Oxygen minimum at base','30 %','30 %'],
   ['Water','1.5 L','1.5 L'], ['Food','600 kcal','600 kcal'], ['Max continuous EVA','3:00 h','2:30 h'],
 ]
+
+export function AdvisoryScienceTasks({ proposal, profile, onProfile }: {
+  proposal?: AdvisoryProposal
+  profile: Profile
+  onProfile: (profile: Profile) => void
+}) {
+  return <article className="science-advisory glass" aria-labelledby="science-advisory-title">
+    <header>
+      <Badge>Advisory</Badge>
+      <h1 id="science-advisory-title">Arcadia Planitia Science Tasks</h1>
+      {proposal && <>
+        <p>{proposal.intent.objective}</p>
+        <p className="caution">Routing withheld. This area needs a validated terrain pack.</p>
+      </>}
+    </header>
+    <div className="method-actions">
+      <a className="button" href={globeHref}>Return to Explore</a>
+      {proposal && <Segmented items={profiles} value={profile} onChange={onProfile} label="Advisory profile" />}
+    </div>
+    {proposal ? <MethodReview proposal={proposal} /> : <p role="status">
+      Open Explore, choose Review methods, then load the Arcadia scenario to start a proposal.
+    </p>}
+  </article>
+}
 
 function Crew({ initial, violation, limit, changeLimit }: { initial: (typeof crewTabs)[number]; violation?: boolean; limit: string; changeLimit: (value: string) => void }) {
   const [tab,setTab] = useState(initial)
