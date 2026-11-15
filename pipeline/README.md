@@ -72,3 +72,7 @@ $work = Join-Path $env:TEMP "return-window-dust"
 ```
 
 `inspect` checks the embedded NetCDF coordinate arrays and reports whether storm-outline CSVs independently agree. `extract` uses validated embedded axes when available, otherwise it requires the outline check or an explicit convention. All raster axes must agree to run the study. When the outline cross-check fails, training reports diagnostic skill to the CLI and writes a source-status receipt with zero regional estimates. The bundled receipt is backed by [the five-year source manifest](evidence/mdad-v1.1/dust-series-manifest.json). Fixture tests: `python -m pytest tests/test_dust_outlook.py`.
+
+## Minimal-sensor weather forecast
+
+`python -m return_window_pipeline.forecast` trains a station forecaster for pressure, air temperature, wind and dust optical depth 1–6 Mars hours ahead. It evaluates smaller sensor kits against baselines, reports empirical P10–P90 bands and held-out coverage, and abstains to climatology outside its training range. `runtime/marswalk/forecast.py` turns the model into a command-centre view, a three-line astronaut view, and ADVISORY weather messages that never change the plan. Datasets, their verification status and the real-data steps are in [docs/weather-forecast-datasets.md](../docs/weather-forecast-datasets.md). The example in `examples/weather/` is SYNTHETIC. Tests: `python -m pytest tests/test_forecast_model.py` and, from the repository root, `python -m pytest runtime/tests/test_forecast.py`.
