@@ -27,7 +27,10 @@ export function AdvisoryScienceTasks({ proposal, profile, onProfile }: {
     <header>
       <Badge>Advisory</Badge>
       <h1 id="science-advisory-title">Arcadia Planitia Science Tasks</h1>
-      {proposal && <p>{proposal.intent.objective}</p>}
+      {proposal && <>
+        <p>{proposal.intent.objective}</p>
+        <p className="caution">Routing withheld. This area needs a validated terrain pack.</p>
+      </>}
     </header>
     <div className="method-actions">
       <a className="button" href={globeHref}>Return to Explore</a>

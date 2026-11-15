@@ -19,6 +19,9 @@ import { recommendMethods } from './objective-methods/recommend'
 import type { GoalId } from './objective-methods/catalog'
 
 const advisoryHref = (profile: Profile) => '#route/' + profile.toLowerCase() + '/' + arcadiaScenario.regionId + '/tasks'
+const arcadiaDemoHref = (profile: Profile = arcadiaScenario.profile) =>
+  profile === 'Rover' ? '#demo/arcadia/rover' : '#demo/arcadia'
+const arcadiaDemoIntent = interpretMethods(arcadiaScenario.objective)
 
 function useScreen() {
   const [hash, setHash] = useState(window.location.hash)
@@ -30,17 +33,21 @@ function useScreen() {
   const [stage, mode, id, view = ''] = hash.slice(1).split('/')
   const missionStage = stage === 'route' || stage === 'analysis' || stage === 'monitor'
   const regionId = missionStage ? id : mode
-  const advisory = (missionStage || ['pack', 'evidence', 'region'].includes(stage)) && regionId === arcadiaScenario.regionId
+  const arcadiaDemo = hash === arcadiaDemoHref() || hash === arcadiaDemoHref('Rover')
+  const advisory = arcadiaDemo
+    || ((missionStage || ['pack', 'evidence', 'region'].includes(stage)) && regionId === arcadiaScenario.regionId)
+  const profileSegment = arcadiaDemo ? id : mode
   const region = advisory ? undefined : allRegions.find(item => item.id === regionId)
   const screen = advisory ? 'science-advisory' : missionStage ? stage : region && stage === 'pack' ? 'pack'
     : region && stage === 'evidence' ? 'evidence' : region && stage === 'region' ? 'investigation'
     : hash === rankingHref ? 'ranking' : 'globe'
-  return { region, screen, view, missionStage: missionStage && !advisory,
-    routeProfile: mode === 'rover' ? 'Rover' as const : advisory || mode === 'astronaut' ? 'Astronaut' as const : 'Rover' as const }
+  return { region, screen, view, arcadiaDemo, missionStage: missionStage && !advisory,
+    routeProfile: profileSegment === 'rover' ? 'Rover' as const
+      : advisory || profileSegment === 'astronaut' ? 'Astronaut' as const : 'Rover' as const }
 }
 
 export default function App() {
-  const { region, screen, view, missionStage, routeProfile } = useScreen()
+  const { region, screen, view, arcadiaDemo, missionStage, routeProfile } = useScreen()
   const [selection, setSelection] = useState('43')
   const [objective, setObjective] = useState(defaultObjective)
   const [intent, setIntent] = useState(() => interpretMethods(defaultObjective))
@@ -67,7 +74,7 @@ export default function App() {
   const selected = region ?? allRegions.find(item => item.id === selection) ?? ranked[0]
   const advisoryScreen = screen === 'science-advisory'
   const reviewProfile = advisoryScreen ? routeProfile : arcadiaLoaded ? advisoryProfile : profile
-  const proposal = recommendMethods(intent, arcadiaLoaded || advisoryScreen ? {
+  const proposal = recommendMethods(arcadiaDemo ? arcadiaDemoIntent : intent, arcadiaLoaded || advisoryScreen ? {
     regionId: arcadiaScenario.regionId, footprint: arcadiaScenario.footprint, profile: reviewProfile,
   } : { regionId: selected.id, profile: reviewProfile })
   const reviewRegionName = arcadiaLoaded || advisoryScreen ? arcadiaScenario.regionName : selected.name
@@ -133,7 +140,7 @@ export default function App() {
 
   function setReviewProfile(next: Profile) {
     setAdvisoryProfile(next)
-    if (advisoryScreen) window.location.hash = advisoryHref(next)
+    if (advisoryScreen) window.location.hash = arcadiaDemo ? arcadiaDemoHref(next) : advisoryHref(next)
   }
 
   function updateGoals(goals: readonly GoalId[]) {
@@ -147,7 +154,8 @@ export default function App() {
         <span className="wordmark-full">Return Window</span><span className="wordmark-short" aria-hidden="true">RW</span>
       </a>
       <nav className="mission-nav" aria-label="Mission stages">
-        <a href={globeHref} aria-current={activeNav==='globe'||undefined}>Explore</a>
+        <a href={globeHref} aria-current={activeNav === 'globe' && !advisoryScreen ? 'page' : undefined}>Explore</a>
+        {(screen === 'globe' || arcadiaDemo) && <a href={arcadiaDemoHref()} aria-current={arcadiaDemo ? 'page' : undefined}>Arcadia demo</a>}
         {!advisoryScreen && ['Route', 'Analysis', 'Monitor'].map(item => <a key={item}
           href={missionHref(item.toLowerCase(), profile, selected)} aria-current={screen === item.toLowerCase() || undefined}>{item}</a>)}
       </nav>
@@ -194,7 +202,7 @@ export default function App() {
       {screen === 'evidence' && <EvidenceGallery region={selected} {...{ objective, terms }} onPlan={startPlanning} onSources={() => { window.location.hash = regionHref(selected.id) }} />}
       {screen === 'pack' && <SitePack region={selected} onPlan={() => startPlanning(profile)} />}
       {screen === 'route' && <Planning key={profile} {...missionProps} />}
-      {advisoryScreen && <AdvisoryScienceTasks proposal={arcadiaLoaded ? proposal : undefined}
+      {advisoryScreen && <AdvisoryScienceTasks proposal={arcadiaDemo || arcadiaLoaded ? proposal : undefined}
         profile={reviewProfile} onProfile={setReviewProfile} />}
       {screen === 'analysis' && <Analysis {...missionProps} />}
       {screen === 'monitor' && <Monitoring key={profile} {...missionProps} />}

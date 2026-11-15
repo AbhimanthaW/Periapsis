@@ -586,6 +586,10 @@ button.chip:hover { background: #f6e7db30; }
   .globe-marker.ranked:not([aria-pressed="true"]):not(:hover):not(:focus-visible) .marker-label { display: none; }
 }
 
+@media (min-width: 691px) and (max-width: 900px) {
+  .screen-globe .mission-nav > * { padding-inline: 8px; }
+}
+
 @media (max-width: 900px) {
   .breadcrumbs { gap: 9px; }
   .ranking-toolbar { align-items: flex-start; flex-direction: column; }

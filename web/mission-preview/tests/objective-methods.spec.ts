@@ -125,3 +125,41 @@ test('Arcadia direct links and reloads show recovery without entering the simula
   await page.reload()
   await expect(page.getByRole('main', { name: 'Arcadia Science Tasks' }).getByRole('status')).toBeVisible()
 })
+
+
+test('the primary Arcadia demo opens directly and survives reload with loopback only', async ({ page, baseURL }) => {
+  const origin = new URL(baseURL!).origin
+  const unexpected: string[] = []
+  page.on('pageerror', error => unexpected.push(error.message))
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url())
+    if (url.origin === origin && !url.pathname.startsWith('/api/')) return route.continue()
+    unexpected.push(url.href)
+    return route.abort()
+  })
+
+  await page.goto('/')
+  await submitObjective(page, 'Search for ancient biosignatures.')
+  await page.getByRole('link', { name: 'Arcadia demo', exact: true }).click()
+  await expect(page).toHaveURL(/#demo\/arcadia$/)
+  const demo = page.getByRole('main', { name: 'Arcadia Science Tasks' })
+  await expect(demo.getByRole('heading', { name: 'Arcadia Planitia Science Tasks' })).toBeVisible()
+  await expect(demo.getByText(objective, { exact: true })).toBeVisible()
+  await expect(demo.locator('[data-method-id="review-mola-context"]')).toContainText('Suggested')
+  await expect(demo.locator('[data-method-id="analyze-stereo-dtm"]')).toContainText('Pending')
+  await expect(demo.getByText(/routing withheld/i)).toBeVisible()
+  await expect(page.locator('.mission-map')).toHaveCount(0)
+
+  await demo.getByRole('button', { name: 'Rover', exact: true }).click()
+  await expect(page).toHaveURL(/#demo\/arcadia\/rover$/)
+  await page.setViewportSize({ width: 390, height: 840 })
+  await page.reload()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expect(demo.getByRole('button', { name: 'Rover', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  const image = demo.getByRole('img', { name: /coarse MOLA elevation context/i })
+  await image.evaluate((asset: HTMLImageElement) => asset.decode())
+  await expect(demo.getByRole('button', { name: 'Run with tasks' })).toHaveCount(0)
+  await demo.getByRole('link', { name: 'Return to Explore' }).click()
+  await expect(page.getByRole('textbox', { name: 'Objective', exact: true })).toHaveValue('ancient water and delta deposits')
+  expect(unexpected).toEqual([])
+})

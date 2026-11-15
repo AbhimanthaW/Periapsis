@@ -2,7 +2,7 @@
 
 Yumeth owns the catalog, recommender, tests, and handoff. The team reviewed `576d2c1`; the implementation branch starts at `7b61f94ac2d0050265f1149daa5ba6ec477d8a6b`.
 
-## Frozen demo
+## Primary demo
 
 - **Region and profile** — Arcadia Planitia (`03`), Astronaut, with the exact approximately 4 × 4 km polygon in the [handoff query](../../pipeline/evidence/arcadia-planitia/evidence-query.json).
 - **Objective** — “Map broad elevation context and assess local elevation at 20 m posting.”
@@ -26,6 +26,10 @@ The test-only fixture input preserves cell and recipe IDs and distinguishes a sy
 ## Demo replay
 
 Isath approved **Review methods** beside the Explore objective and a dedicated advisory-only Arcadia view in Science Tasks.
+
+Start a fresh session at `/#demo/arcadia` or choose **Arcadia demo** in Explore. Show the bundled regional MOLA context and the withheld local-elevation decision. The direct link opens the pinned walkthrough after a reload and keeps tactical routing gated. Jezero remains the comparison control.
+
+For the editable method-review rehearsal:
 
 1. In **Explore**, open **Review methods** and choose **Load Arcadia scenario**. Review the two goals, suggested regional MOLA context, and pending local stereo method.
 2. Choose **Open Science Tasks**. Review the same proposal in the Arcadia advisory view.
