@@ -4,7 +4,7 @@ import type { DustLoad, DustOutlook as Outlook } from './dust'
 import { Badge, Metrics } from './ui'
 
 const percent = (value: number | null | undefined) =>
-  value === null || value === undefined ? null : value < 0.01 ? '<1%' : Math.round(value * 100) + '%'
+  value === null || value === undefined ? null : value > 0 && value < 0.01 ? '<1%' : Math.round(value * 100) + '%'
 
 function peakBin(values: (number | null)[]) {
   let best = -1

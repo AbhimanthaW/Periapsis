@@ -1,6 +1,6 @@
 # Return Window historical dust context
 
-> **Update 15 Nov 2026:** the team approved a validated dust outlook model for the Explore region panel (`pipeline/src/return_window_pipeline/dust/`, see the pipeline README). It ships model values only if it beats the seasonal baseline on held-out Mars years. The historical-count method below remains the fallback and the basis of the baseline.
+> **Update 15 Nov 2026:** the team approved a validated dust outlook model for the Explore region panel (`pipeline/src/return_window_pipeline/dust/`, see the pipeline README). It compares a regional conditional estimate with seasonal climatology on held-out Mars years. The fixed-point historical count below is a separate query with its own coverage checks. The regional model needs archive and science review before bundling numbers in Explore.
 
 **GO for a P2 historical context feature after the Arcadia elevation demo passes offline. The weather prediction model remains out of scope.** Yumeth owns extraction, evidence packaging, and the PR. Isath owns placement and wording review. The release owner signs off on the pinned source, release artifact, and offline replay.
 

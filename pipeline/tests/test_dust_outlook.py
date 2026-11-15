@@ -57,7 +57,7 @@ def make_year(directory: Path, my: int, *, rng, mode="approach", sols=range(150,
         frame = mask[i]
         if mode == "noise" and rng.random() < 0.03:  # independent sols: nothing to learn beyond the base rate
             inside = _blob(frame, convention, 0.0, 45.0, 8.0, 1) | _blob(frame, convention, 40.0, 45.0, 4.0, 1)
-            np.savetxt(bundle / f"S{my}_day{i + 1:02d}_MEM_001.csv", _outline(inside, convention), delimiter=",", fmt="%.2f")
+            np.savetxt(bundle / f"S{my}_day{i + 1:02d}_S{my}_001.csv", _outline(inside, convention), delimiter=",", fmt="%.2f")
         for member, start, lon0, speed in events:
             if start <= sol < start + 10:
                 value = member + (133 if member % 5 == 0 else 0)
@@ -65,7 +65,7 @@ def make_year(directory: Path, my: int, *, rng, mode="approach", sols=range(150,
                 if sol - start == 2:
                     rows = _outline(inside, convention)
                     suffix = "b" if member % 5 == 0 else ""
-                    np.savetxt(bundle / f"S{my}_day{i + 1:02d}_MEM_{member:03d}{suffix}.csv", rows, delimiter=",", fmt="%.2f")
+                    np.savetxt(bundle / f"S{my}_day{i + 1:02d}_S{my}_{member:03d}{suffix}.csv", rows, delimiter=",", fmt="%.2f")
         holes = rng.random(frame.shape) < 0.02
         frame[holes] = 255
     path = bundle / f"MDAD_MY{my}.nc"
@@ -120,20 +120,27 @@ class DustOutlookTests(unittest.TestCase):
         li, ai = prints["core"]
         mask[0, li[:2], ai[:2]] = 140   # splitting member counts as storm
         mask[0, li[2:3], ai[2:3]] = 255  # missing is neither valid nor storm
-        mask[1, li[:1], ai[:1]] = 7      # same sol as record 0, fewer storm pixels
+        mask[1, li[2:3], ai[2:3]] = 7    # distinct storm pixel in the same sol
         mask[2, li, ai] = 255
         with netcdf_file(str(bundle / "MY30.nc"), "w") as nc:
             nc.createDimension("time", 3); nc.createDimension("lon", NLON); nc.createDimension("lat", NLAT)
             nc.createDimension("field", 8)
+            lon = nc.createVariable("lon", "d", ("lon",))
+            lon.units = "degrees east"
+            lon[:] = np.arange(NLON) * (360.0 / NLON)
+            lat = nc.createVariable("lat", "d", ("lat",))
+            lat.units = "degrees north"
+            lat[:] = TRUTH.lat_of_index(NLAT)
             nc.createVariable("MDAD", "b", ("time", "lon", "lat"))[:] = mask.view(np.int8)
             nc.createVariable("timeList", "d", ("time", "field"))[:] = np.array(
                 [[10, 10, 10.2, 10, 5, 5, 5, 5], [10, 10, 9.9, 10, 5, 5, 5, 5], [11, 11, 11, 11, 6, 6, 6, 6]])
         with MaskYear(bundle / "MY30.nc") as year:
-            out = extract_year(year, [region], TRUTH, core_km=200.0, ring_km=600.0)
+            self.assertEqual(year.convention, TRUTH)
+            out = extract_year(year, [region], year.convention, core_km=200.0, ring_km=600.0)
         total = len(li)
         np.testing.assert_array_equal(out["sol"], [10, 11])
         self.assertEqual(out["duplicate_sols"], 1)
-        np.testing.assert_array_equal(out["counts"][0, 0, :2], [total, 2])  # max over the two records of sol 10
+        np.testing.assert_array_equal(out["counts"][0, 0, :2], [total, 3])  # union over the two records of sol 10
         np.testing.assert_array_equal(out["counts"][1, 0, :2], [0, 0])
         self.assertEqual(out["core_total"][0], total)
 

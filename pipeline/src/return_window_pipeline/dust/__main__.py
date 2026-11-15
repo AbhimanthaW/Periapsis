@@ -30,12 +30,30 @@ def _bundle(path: Path) -> tuple[Path, list[Path]]:
     return masks[0], sorted(p for p in path.rglob("*.csv") if CSV_PATTERN.search(p.name))
 
 
+def _convention_check(year, csvs):
+    # Embedded axes identify the raster's coordinates directly. Keep outline
+    # disagreements in the receipt for independent source review.
+    if year.convention is None:
+        return calibrate_convention(year, csvs)
+    entry = {"mars_year": year.year, "basis": "embedded_netcdf_coordinates", "best": year.convention.name,
+             "accepted": True}
+    if csvs:
+        try:
+            outline = calibrate_convention(year, csvs)
+            entry["outline_check"] = outline
+            entry["outline_agrees"] = outline["accepted"] and outline["best"] == year.convention.name
+        except DustDataError as error:
+            entry["outline_agrees"] = False
+            entry["outline_error"] = str(error)
+    return entry
+
+
 def _choose_convention(calibrations: list[dict], forced: str | None):
     accepted = {c["best"] for c in calibrations if c["accepted"]}
     if forced:
         convention = convention_by_name(forced)
         if accepted and accepted != {forced}:
-            raise DustDataError(f"--convention {forced} contradicts the outline check {sorted(accepted)}")
+            raise DustDataError(f"--convention {forced} contradicts the outline check or embedded axes {sorted(accepted)}")
         return convention
     if len(accepted) != 1 or not all(c["accepted"] for c in calibrations):
         raise DustDataError("Grid convention not established for every year: "
@@ -71,8 +89,8 @@ def main(argv=None) -> int:
                 mask, csvs = _bundle(bundle)
                 with MaskYear(mask) as year:
                     entry = {"header": year.header(), "outline_csv_files": len(csvs)}
-                    if csvs:
-                        entry["convention_check"] = calibrate_convention(year, csvs)
+                    if csvs or year.convention:
+                        entry["convention_check"] = _convention_check(year, csvs)
                     result.append(entry)
         elif args.command == "extract":
             regions, regions_sha = load_regions(args.regions)
@@ -80,8 +98,8 @@ def main(argv=None) -> int:
             calibrations = []
             for (mask, csvs), _ in opened:
                 with MaskYear(mask) as year:
-                    if csvs:
-                        calibrations.append(calibrate_convention(year, csvs))
+                    if csvs or year.convention:
+                        calibrations.append(_convention_check(year, csvs))
                     elif not args.convention:
                         raise DustDataError(f"{mask.name}: no outline CSVs; cannot verify the grid convention")
             convention = _choose_convention(calibrations, args.convention)

@@ -6,8 +6,8 @@ For every region the extractor builds two footprints on the mask grid:
 * ring: pixels between ``core_radius_km`` and ``ring_radius_km`` (storms approaching the region)
 
 For each Mars sol it records how many footprint pixels were valid (not 255) and how many carried a
-storm value (1-250). Records sharing a sol are merged by taking the maximum valid and storm counts,
-so a storm seen in any swath of that sol counts once. Output is a compact NPZ plus a JSON manifest.
+storm value (1-250). Records sharing a sol are combined as pixel unions, so a
+pixel observed or flagged in any record counts once in that sol. Output is a compact NPZ plus a JSON manifest.
 """
 from __future__ import annotations
 
@@ -90,6 +90,20 @@ def extract_year(year: MaskYear, regions: list[Region], convention: GridConventi
     merged = np.zeros((len(unique), len(regions), 4), dtype=np.int32)
     position = np.searchsorted(unique, sols)
     np.maximum.at(merged, position, counts[usable])
+    source_rows = np.flatnonzero(usable)
+    for sol_index in np.flatnonzero(np.bincount(position, minlength=len(unique)) > 1):
+        rows = source_rows[position == sol_index]
+        valid = np.zeros((year.nlon, year.nlat), dtype=bool)
+        storm = np.zeros_like(valid)
+        for row in rows:
+            values = year.read(int(row), int(row) + 1)[0]
+            valid |= valid_mask(values)
+            storm |= storm_mask(values)
+        for r, footprint in enumerate(prints):
+            for k, part in enumerate(("core", "ring")):
+                pixels = footprint[part]
+                merged[sol_index, r, 2 * k] = valid[pixels].sum()
+                merged[sol_index, r, 2 * k + 1] = storm[pixels].sum()
     angles = np.radians(year.mean_ls[usable])
     ls = (np.degrees(np.arctan2(np.bincount(position, np.sin(angles)), np.bincount(position, np.cos(angles)))) + 360) % 360
     return {"sol": unique, "ls": ls, "counts": merged, "records": int(year.ntime), "duplicate_sols": int(len(sols) - len(unique)),
@@ -129,7 +143,7 @@ def write_series(output: Path, regions: list[Region], regions_sha: str, years: d
         "grid": {"convention": convention.as_dict(), "calibration": calibration},
         "method": {"core_radius_km": core_km, "ring_radius_km": ring_km, "mars_radius_km": MARS_RADIUS_KM,
                    "count_fields": list(SERIES_FIELDS), "storm_values": "1-250", "missing_value": 255,
-                   "same_sol_merge": "max valid and max storm pixels across records of one sol"},
+                   "same_sol_merge": "pixel union of valid and storm observations across records of one sol"},
         "years": {str(my): {"records": r["records"], "sols": int(len(r["sol"])), "duplicate_sols": r["duplicate_sols"],
                             "ls_first": round(float(r["ls"][0]), 2), "ls_last": round(float(r["ls"][-1]), 2)}
                   for my, r in sorted(years.items())},

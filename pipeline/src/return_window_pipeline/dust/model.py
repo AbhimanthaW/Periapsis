@@ -298,8 +298,8 @@ def build_artifact(series: dict, s: Settings, *, with_sensitivity: bool = True) 
         "schema_version": 1,
         "classification": "historical_storm_climatology_and_conditional_model",
         "target": {"horizon_sols": s.horizon_sols, "storm_fraction_of_core": s.storm_fraction,
-                   "definition": f"A mapped MDAD storm covers at least {s.storm_fraction:.0%} of the region's core disc "
-                                 f"on an observed sol within the next {s.horizon_sols} sols"},
+                   "definition": f"Mapped MDAD storms cover at least {s.storm_fraction:.0%} of observed pixels in the region's "
+                                 f"core disc on a sol meeting the coverage threshold within the next {s.horizon_sols} sols"},
         "geometry": {"core_radius_km": manifest["method"]["core_radius_km"], "ring_radius_km": manifest["method"]["ring_radius_km"],
                      "grid_convention": manifest["grid"]["convention"]["name"]},
         "source": {"doi": DOI, "dataset_version": DATASET_VERSION,

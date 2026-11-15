@@ -60,7 +60,7 @@ Candidates record browser runtime compatibility (G10) as unevaluated until the A
 
 ## Dust outlook (MDAD storm masks)
 
-The Explore region panel shows a dust outlook for each region: the historical chance that a mapped dust storm covers the region's 100 km core disc within the next 7 sols, by season, and a model estimate for a quiet week and for a storm in the surrounding 800 km ring. The model is a numpy logistic regression on the seasonal baseline plus current and recent storm coverage. It is validated leave-one-Mars-year-out. The browser shows model values only when pooled Brier skill over the baseline is at least 0.02 and positive in most held-out years; otherwise it shows the baseline and says the model was withheld. The record ends at MY32, so this is not a live forecast.
+The Explore region panel shows a dust outlook for each region: the historical chance that a mapped dust storm covers the configured share of observed pixels in the region's 100 km core disc within the next 7 sols, by season, and a model estimate for a quiet week and for a storm in the surrounding 800 km ring. The model is a numpy logistic regression on the seasonal baseline plus current and recent storm coverage. It is validated leave-one-Mars-year-out. The browser shows model values only when pooled Brier skill over the baseline is at least 0.02 and positive in most held-out years; otherwise it shows the baseline and says the model was withheld. The record ends at MY32, so this is not a live forecast.
 
 Source: [MDAD v1.1](https://doi.org/10.5281/zenodo.7480334), MY28–32. Download the five `MYxx.tar.gz` files and extract each into its own folder, for example `MY28/`. Install the extra with `pip install -e ".[dust]"`. Then run from `pipeline/`:
 
@@ -71,4 +71,4 @@ $work = Join-Path $env:TEMP "return-window-dust"
 .\.venv\Scripts\python.exe -m return_window_pipeline.dust train "$work\series" --artifact ..\web\mission-preview\src\data\dust-outlook.json
 ```
 
-`inspect` prints the file layout and scores each candidate grid convention against the storm-outline CSVs. `extract` stops unless one convention clearly wins in every year. Commit `dust-outlook.json` together with `series\dust-series-manifest.json` (input checksums, convention scores) and paste the `train` output (per-year skill) into the PR. Fixture tests: `python -m pytest tests/test_dust_outlook.py`.
+`inspect` checks the embedded NetCDF coordinate arrays and reports whether storm-outline CSVs independently agree. `extract` uses validated embedded axes when available, otherwise it requires the outline check or an explicit convention. All years must agree. Keep the generated artifact outside the web source during review. Record source digests, coordinate checks, any outline disagreements and per-year skill before approval of a bundled historical outlook. Fixture tests: `python -m pytest tests/test_dust_outlook.py`.

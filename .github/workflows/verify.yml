@@ -131,6 +131,7 @@ jobs:
           export RW_MOLA_WORKSPACE="$RUNNER_TEMP/mola"
           .venv/bin/return-window ingest configs/mola-global-4ppd-topography.json --workspace "$RW_MOLA_WORKSPACE"
           .venv/bin/return-window verify-cache --workspace "$RW_MOLA_WORKSPACE"
+          uv pip install --python .venv/bin/python scipy==1.17.1
           .venv/bin/python -m unittest discover -s tests -q
           .venv/bin/python scripts/check-mola.py --workspace "$RW_MOLA_WORKSPACE"
 
