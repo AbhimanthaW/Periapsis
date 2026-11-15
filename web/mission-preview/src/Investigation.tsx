@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { Region, Profile } from './regions'
 import { Badge, Metrics, rankingHref, regionHref, Tabs } from './ui'
+import { missionHref } from './mission'
 
 import { EvidenceBody, PlanButtons, regionTabs } from './RegionEvidence'
 import type { RegionTab } from './RegionEvidence'
@@ -100,6 +101,7 @@ export function Investigation({ region, shortlist, objective, terms, onPlan, pro
               <dt>Survey uncertainty</dt><dd>{jezero ? 'Low in observed areas, higher elsewhere' : 'Local uncertainty unassessed'}</dd>
             </Metrics>
             <PlanButtons onPlan={onPlan} />
+            {jezero && <a className="button region-hazard-link" href={missionHref('monitor', profile, region, 'hazards')}>Hazard drill</a>}
           </div>
         </>}
         {tab !== 'Data' && <EvidenceBody {...{ tab, region, objective, terms, profile }} onPlan={profile => onPlan(profile, tab === 'Science')} onSources={() => sourcesDialog.current?.showModal()} />}

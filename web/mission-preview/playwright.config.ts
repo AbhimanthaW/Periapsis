@@ -8,7 +8,7 @@ const origin = 'http://127.0.0.1:' + port
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: ['explore.spec.ts', 'mission.spec.ts', 'objective-methods.spec.ts'],
+  testMatch: ['explore.spec.ts', 'mission.spec.ts', 'hazards.spec.ts', 'objective-methods.spec.ts'],
   outputDir: './node_modules/.cache/return-window-playwright',
   use: {
     baseURL: origin,

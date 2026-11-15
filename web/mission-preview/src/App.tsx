@@ -6,6 +6,8 @@ import { initialMission, missionHref } from './mission'
 import { AdvisoryScienceTasks, Planning } from './Planning'
 import { Analysis } from './Analysis'
 import { Monitoring } from './Monitoring'
+import { HazardMission } from './hazards/HazardMission'
+import { useHazardReplay } from './hazards/replay'
 import { Ranking } from './Ranking'
 import { Investigation } from './Investigation'
 import {
@@ -61,6 +63,8 @@ export default function App() {
   const [localProfile, setProfile] = useState<Profile>('Rover')
   const profile = missionStage ? routeProfile : localProfile
   const [mission, setMission] = useState(initialMission)
+  const hazardView = missionStage && view === 'hazards' && region?.id === '43'
+  const hazards = useHazardReplay(hazardView)
   const [layer, setLayer] = useState<'viking' | 'mola'>('viking')
   const [zoom, setZoom] = useState(1)
   const [contrast, setContrast] = useState(false)
@@ -147,7 +151,7 @@ export default function App() {
     setIntent(current => confirmGoals(current, goals))
   }
 
-  return <div className={`shell screen-${screen}${contrast ? ' high-contrast' : ''}`}>
+  return <div className={`shell screen-${screen}${hazardView ? ' hazard-shell' : ''}${contrast ? ' high-contrast' : ''}`}>
     {screen !== 'evidence' && !(screen === 'route' && ['states','constraints'].includes(view)) && <header className="topbar">
         <a className="wordmark" href={globeHref}>
         <img className="brand-logo" src="./brand/nasa-logo.png" alt="" />
@@ -157,29 +161,32 @@ export default function App() {
         <a href={globeHref} aria-current={activeNav === 'globe' && !advisoryScreen ? 'page' : undefined}>Explore</a>
         {(screen === 'globe' || arcadiaDemo) && <a href={arcadiaDemoHref()} aria-current={arcadiaDemo ? 'page' : undefined}>Arcadia demo</a>}
         {!advisoryScreen && ['Route', 'Analysis', 'Monitor'].map(item => <a key={item}
-          href={missionHref(item.toLowerCase(), profile, selected)} aria-current={screen === item.toLowerCase() || undefined}>{item}</a>)}
+          href={missionHref(item.toLowerCase(), profile, selected, hazardView ? 'hazards' : '')} aria-current={screen === item.toLowerCase() || undefined}>{item}</a>)}
       </nav>
       {screen==='monitor'&&view==='layout'?<span className="chip filter accent">Editing layout</span>:missionStage ? <nav className="breadcrumbs mission-breadcrumbs" aria-label="Mission">
         <a href={screen==='route'&&['compare','tasks'].includes(view)?missionHref('route',profile,selected):screen==='monitor'&&view==='salvage'?missionHref('monitor',profile,selected,'contingency'):regionHref(selected.id)}>{screen==='route'&&view==='compare'?'Routes':screen==='route'&&view==='tasks'?'Route':screen==='monitor'&&view==='salvage'?'Contingency':selected.name}</a>
-        {screen==='monitor'&&view==='salvage'?<><span>/</span><span>Salvage targets</span></>:screen==='route'&&['compare','tasks'].includes(view)?<><span aria-hidden="true">/</span><span>{view==='compare'?'Compare':'Science tasks'}</span></>:<span className="mono muted">{screen==='analysis'&&view==='record'?'Mission M-03 · revision '+(mission.decision?Math.max(4,mission.revision):4):profile === 'Rover' ? (screen==='monitor'&&view==='contingency'?'R-013':mission.plan) : 'EVA-A'}{screen==='analysis'&&view!=='record'&&profile==='Rover'?' · Rover '+mission.rover:''}{screen === 'monitor' && profile === 'Rover' ? (view==='contingency'?' · replan':' · Route ' + mission.route) : ''}</span>}
+        {screen==='monitor'&&view==='salvage'?<><span>/</span><span>Salvage targets</span></>:screen==='route'&&['compare','tasks'].includes(view)?<><span aria-hidden="true">/</span><span>{view==='compare'?'Compare':'Science tasks'}</span></>:<span className="mono muted">{hazardView ? 'North ramp drill' : <>{screen==='analysis'&&view==='record'?'Mission M-03 · revision '+(mission.decision?Math.max(4,mission.revision):4):profile === 'Rover' ? (screen==='monitor'&&view==='contingency'?'R-013':mission.plan) : 'EVA-A'}{screen==='analysis'&&view!=='record'&&profile==='Rover'?' · Rover '+mission.rover:''}{screen === 'monitor' && profile === 'Rover' ? (view==='contingency'?' · replan':' · Route ' + mission.route) : ''}</>}</span>}
         {screen==='analysis'&&!view&&<span className="chip filter caution">Terrain SIM · weather dummy · illustrative result</span>}
-        {screen === 'monitor' && <><span className="badge">{profile === 'Rover' ? 'SIMULATED PLAYBACK' : 'SIMULATION'}</span>{profile==='Astronaut'&&!view&&<span className="badge">LINK DELAY N/A</span>}</>}
+        {screen === 'monitor' && !hazardView && <><span className="badge">{profile === 'Rover' ? 'SIMULATED PLAYBACK' : 'SIMULATION'}</span>{profile==='Astronaut'&&!view&&<span className="badge">LINK DELAY N/A</span>}</>}
       </nav> : advisoryScreen ? <nav className="breadcrumbs" aria-label="Science Tasks">
         <span>Arcadia Planitia · Science Tasks</span>
       </nav> : screen !== 'globe' && <nav className="breadcrumbs" aria-label="Explore">
         <a href={screen === 'pack' ? regionHref(selected.id) : globeHref}>{screen === 'ranking' ? 'Globe' : screen === 'pack' ? selected.name : 'Mars'}</a>
         <span aria-hidden="true">/</span><span aria-current="page">{screen === 'ranking' ? 'Ranking' : screen === 'pack' ? 'Site pack' : region?.name}</span>
       </nav>}
-      {screen==='route'&&<IconButton className="icon-button compact-header-menu" aria-label="Planning menu" onClick={()=>mobileTools.current?.showModal()}><List size={17}/></IconButton>}
+      {screen==='route'&&!hazardView&&<IconButton className="icon-button compact-header-menu" aria-label="Planning menu" onClick={()=>mobileTools.current?.showModal()}><List size={17}/></IconButton>}
       <div className="topbar-end">
         {screen === 'globe' && <span className="event-name">NASA Space Apps Challenge 2026</span>}
+        {missionStage && selected.id === '43' && !hazardView &&
+          <a className="button hazard-entry" href={missionHref(screen, profile, selected, 'hazards')}>Hazard drill</a>}
+        {hazardView && <a className="button hazard-entry" href={missionHref(screen, profile, selected)}>Exit drill view</a>}
         {!advisoryScreen && (screen==='monitor'&&view==='contingency'?<span className="chip filter bad">Route {mission.route} invalid · rover holding</span>:screen==='monitor'&&view==='tradeoff'?<span className="mono">01:32:10</span>:screen==='monitor'&&['layout','salvage'].includes(view)?null:screen==='analysis'||screen==='route'&&['profiles','compare','tasks'].includes(view)?null:screen === 'pack' ? <span className="chip filter caution">Routing capability withheld</span> : screen !== 'investigation' &&
-          <Segmented items={profiles} value={profile} onChange={next => missionStage ? go(screen, '', next) : setProfile(next)} label="Mission profile" />)}
+          <Segmented items={profiles} value={profile} onChange={next => missionStage ? go(screen, hazardView ? 'hazards' : '', next) : setProfile(next)} label="Mission profile" />)}
         {screen==='monitor'&&profile==='Astronaut'&&!view&&<span className="chip filter caution eva-overrun">⚠ Stop 1 overrun 0:13</span>}
         {!(screen==='monitor'&&['contingency','tradeoff','salvage','layout'].includes(view)) && screen !== 'ranking' && screen !== 'pack' && !(screen==='analysis'&&view) && !(screen==='route'&&['profiles','compare','tasks'].includes(view)) && <div className="utility">
           <IconButton aria-label="Keyboard shortcuts" title="Keyboard shortcuts"
             onClick={() => shortcuts.current?.showModal()}><Terminal size={16} weight="bold" /></IconButton>
-          {(screen==='route'||screen==='monitor'||screen==='analysis')&&<IconButton aria-label="Edit layout" title="Edit layout" onClick={()=>go('monitor','layout')}><SquaresFour size={16} weight="bold"/></IconButton>}
+          {!hazardView&&(screen==='route'||screen==='monitor'||screen==='analysis')&&<IconButton aria-label="Edit layout" title="Edit layout" onClick={()=>go('monitor','layout')}><SquaresFour size={16} weight="bold"/></IconButton>}
           <IconButton aria-label="High contrast" title="High contrast" aria-pressed={contrast}
             onClick={() => setContrast(value => !value)}><Sun size={17} weight="bold" /></IconButton>
         </div>}
@@ -189,7 +196,7 @@ export default function App() {
     <main ref={heading} tabIndex={-1} className="screen-content" aria-label={
       screen === 'globe' ? 'Planetary Explore' : screen === 'ranking' ? 'Region Ranking' : screen === 'investigation' ? 'Region Investigation' : advisoryScreen ? 'Arcadia Science Tasks' : screen
     }>
-      {screen === 'globe' && <Globe {...{ selected, shortlist, terms, objective, method, excludes, layer, zoom }}
+      {screen === 'globe' && <Globe {...{ selected, shortlist, terms, objective, method, excludes, layer, zoom, profile }}
         select={selectRegion} setLayer={setLayer} setZoom={setZoom} setMethod={setMethod} setTerms={setTerms}
         applyObjective={applyObjective} toggleFilter={toggleFilter}
         {...{ proposal, reviewRegionName, arcadiaLoaded, arcadiaVisited, loadArcadia }}
@@ -201,11 +208,14 @@ export default function App() {
       {screen === 'investigation' && region && <Investigation key={region.id} {...{ region, shortlist, objective, terms, profile }} onPlan={startPlanning} />}
       {screen === 'evidence' && <EvidenceGallery region={selected} {...{ objective, terms }} onPlan={startPlanning} onSources={() => { window.location.hash = regionHref(selected.id) }} />}
       {screen === 'pack' && <SitePack region={selected} onPlan={() => startPlanning(profile)} />}
-      {screen === 'route' && <Planning key={profile} {...missionProps} />}
+      {hazardView && (screen === 'route' || screen === 'analysis' || screen === 'monitor') &&
+        <HazardMission key={profile + screen} replay={hazards} platform={profile === 'Rover' ? 'rover' : 'human'}
+          stage={screen} go={stage => go(stage, 'hazards')} />}
+      {!hazardView && screen === 'route' && <Planning key={profile} {...missionProps} />}
+      {!hazardView && screen === 'analysis' && <Analysis {...missionProps} />}
+      {!hazardView && screen === 'monitor' && <Monitoring key={profile} {...missionProps} />}
       {advisoryScreen && <AdvisoryScienceTasks proposal={arcadiaDemo || arcadiaLoaded ? proposal : undefined}
         profile={reviewProfile} onProfile={setReviewProfile} />}
-      {screen === 'analysis' && <Analysis {...missionProps} />}
-      {screen === 'monitor' && <Monitoring key={profile} {...missionProps} />}
     </main>
 
     <dialog ref={mobileTools} className="dialog" aria-labelledby="planning-menu-title">
@@ -213,6 +223,7 @@ export default function App() {
       <div className="vertical-actions">
         {[['Rover profiles','profiles'],['Science tasks','tasks'],['Route result states','states']].map(([label,key])=>
           <button className="button" key={key} onClick={()=>{mobileTools.current?.close();go('route',key)}}>{label}</button>)}
+        {selected.id === '43' && <button className="button" onClick={()=>{mobileTools.current?.close();go('route','hazards')}}>Hazard drill</button>}
         <button className="button" onClick={()=>{mobileTools.current?.close();go('route','',profile==='Rover'?'Astronaut':'Rover')}}>Switch to {profile==='Rover'?'Astronaut':'Rover'}</button>
       </div>
       <form method="dialog" className="dialog-actions"><button className="button">Close</button></form>

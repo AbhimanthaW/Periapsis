@@ -54,13 +54,14 @@ class PlanRequest(BaseModel):
 
 
 class PlanningService:
-    def __init__(self, pack, evidence_result, ranking=None, *, engine="mission"):
+    def __init__(self, pack, evidence_result, ranking=None, *, engine="mission", hazard_replay=None):
         if engine not in ENGINES:
             raise ValueError(f"engine must be one of {', '.join(ENGINES)}")
         self.pack = pack
         self.evidence_result = evidence_result
         self.ranking = ranking
         self.engine = engine
+        self.hazard_replay = hazard_replay
         self.baseline = baseline_from_pack(pack) if engine == "marswalk" else None
         scenario = pack.scenario
         self.identity = {
@@ -189,6 +190,8 @@ class PlanningHandler(BaseHTTPRequestHandler):
             self.send_json(200, {"status": "ready"})
         elif self.path == "/api/v1/site":
             self.send_json(200, self.service.site())
+        elif self.path.startswith("/api/v1/hazard-replay/"):
+            self.hazard_frame(self.path.removeprefix("/api/v1/hazard-replay/"))
         elif self.path == "/api/v1/evidence":
             try:
                 self.send_json(200, self.service.evidence())
@@ -205,6 +208,20 @@ class PlanningHandler(BaseHTTPRequestHandler):
                 self.send_json(200, result)
         else:
             self.reject(404, "NOT_FOUND", "Unknown endpoint")
+
+    def hazard_frame(self, step):
+        replay = self.service.hazard_replay
+        if replay is None:
+            self.reject(503, "HAZARD_REPLAY_NOT_CONFIGURED", "The offline replay bundle is available in Mission Preview")
+            return
+        try:
+            if not step.isascii() or not step.isdecimal() or len(step) > 2:
+                raise IndexError
+            frame = replay.frame(int(step))
+        except IndexError:
+            self.reject(404, "HAZARD_FRAME_NOT_FOUND", "Unknown replay step")
+        else:
+            self.send_json(200, frame)
 
     def do_POST(self):
         if self.path not in ("/api/v1/plan", "/api/v1/rank"):
@@ -243,7 +260,7 @@ class PlanningHandler(BaseHTTPRequestHandler):
 
 
 def create_server(port=8000, *, evidence_package=None, evidence_query=None,
-                  ranking_pack=None, engine="mission"):
+                  ranking_pack=None, engine="mission", hazard_model=None):
     if (evidence_package is None) != (evidence_query is None):
         raise ValueError("Supply the evidence package and query together")
     result = None
@@ -251,9 +268,13 @@ def create_server(port=8000, *, evidence_package=None, evidence_query=None,
         package = Package.model_validate_json(evidence_package.read_bytes())
         query = CapabilityQuery.model_validate_json(evidence_query.read_bytes())
         result = DocumentationEngine(package).resolve(query).model_dump(mode="json")
+    replay = None
+    if hazard_model is not None:
+        from runtime.hazards.replay import HazardReplay
+        replay = HazardReplay(hazard_model)
     service = PlanningService(load_pack(FIXTURE, simulation=True), result,
                               RankingService(ranking_pack) if ranking_pack else None,
-                              engine=engine)
+                              engine=engine, hazard_replay=replay)
     return ThreadingHTTPServer(("127.0.0.1", port), partial(PlanningHandler, service=service))
 
 
@@ -265,11 +286,12 @@ def main():
     parser.add_argument("--engine", choices=ENGINES, default="mission",
                         help="planner behind POST /api/v1/plan (default: mission)")
     parser.add_argument("--ranking-pack", type=Path)
+    parser.add_argument("--hazard-model", type=Path, help="enable the local hazard replay with this synthetic station artifact")
     args = parser.parse_args()
     try:
         server = create_server(args.port, evidence_package=args.evidence_package,
                                evidence_query=args.evidence_query, ranking_pack=args.ranking_pack,
-                               engine=args.engine)
+                               engine=args.engine, hazard_model=args.hazard_model)
     except (OSError, ValueError, PackError) as error:
         parser.exit(2, f"Unable to initialize planning service: {error}\n")
     with server:
