@@ -232,7 +232,7 @@ export default function Atlas() {
     </>:<Suspense fallback={<p className="atlas-loading" role="status">Opening research…</p>}>
       {state.panel==='research'?<ResearchViewer region={selected ?? byRegion.get('06')!}
         select={id=>change({region:id})} back={returnToMap}/>:
-        state.panel==='ranking'?<RankedAreas/>:
+        state.panel==='ranking'?<RankedAreas back={returnToMap}/>:
         <div className="atlas-compare-shell"><div className="atlas-compare-top"><button className="button" onClick={returnToMap}><ArrowLeft size={14}/> Back to map</button>
           <label>Mission profile <select value={state.profile} onChange={e=>change({profile:e.target.value as Profile},true)}>{profiles.map(profile=><option key={profile} value={profile}>{profileLabels[profile]}</option>)}</select></label></div>
           <Comparison profile={state.profile} ids={compare} toggle={toggleCompare} openMap={id=>select(id,true)} openResearch={openResearch}/></div>}

@@ -281,7 +281,7 @@ class Engine:
             areas.append({"rank": rank, "tile": int(cells[0]) >> 4, "cells": [f"HPX128:{i}" for i in cells],
                 "best_cell": f"HPX128:{best}", "tier": tier,
                 "match_mean": int(values.sum(dtype=np.uint64) // len(values)), "match_best": int(values[best_offset]),
-                "safety_risk": self.terrain_risk.assess(cells),
+                "terrain_screening": self.terrain_risk.assess(cells),
                 "concepts": per_concept, "records": dict(zip(("ctx", "hirise", "dtm", "crism"), map(int, count))),
                 "method": "compatible" if method_mask is None or bool(method_mask[cells].any()) else "not established",
                 "sparse": bool(sparse[cells].any()), "label": label,
