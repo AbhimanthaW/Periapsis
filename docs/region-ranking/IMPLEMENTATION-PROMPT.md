@@ -237,6 +237,10 @@ Query relations at query time: exact = 1.0. Query for a child, evidence only on 
 - `habitability` = min(max(delta, lake, aqueous-alteration), max(age-noachian, age-hesperian)). Flag: *derived rule*.
 
 **H. Unsupported** (recognised words, reported as *no cell data yet*): `stratigraphy`, `hydrothermal`, `climate`, `ocean`, `groundwater`, `periglacial`, `layered-deposits`.
+
+Release packs retain these statuses. In a nonrelease DEMO pack, these terms
+have fixed-seed software controls that can be scored only with
+`include_demo: true`.
 </concepts>
 
 <rejected_uses>

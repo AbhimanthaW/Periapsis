@@ -15,6 +15,7 @@ from .inputs import N
 from .ledger import load
 from .lexicon import Parser, effective_negations
 from .pack import Pack
+from .risk import TerrainRisk
 
 
 SWIM_CONCEPTS = {"ice", "ice-shallow", "ice-deep"}
@@ -119,6 +120,7 @@ class Engine:
         self.neighbours = np.asarray(pack["neighbours"])
         self.records = np.asarray(pack["records"])
         self.real_support = np.asarray(pack["support"])
+        self.terrain_risk = TerrainRisk(self)
         self.cross_edges = tile_cross_edges(self.neighbours)
         self.database = (pack.directory / "cells.sqlite").resolve().as_uri() + "?mode=ro"
 
@@ -227,14 +229,22 @@ class Engine:
             direct &= ~mask
             partial &= ~mask
             thematic &= ~mask
+        # Compare eligible cells using only real support for objective
+        # negations, so synthetic exclusions carry provenance even when all
+        # positive scoring concepts are source-backed.
+        real_selection = direct | partial | thematic
         for cid in effective_negations(parsed, demo):
             j = self.ids[cid]
             mask = (support[j] >= 128) & self._coverage(j, demo)
             excluded[f"not {cid}"] = int((mask & eligible).sum())
+            if demo:
+                real_selection &= ~((real_support[j] >= 128) & self._coverage(j))
             direct &= ~mask
             partial &= ~mask
             thematic &= ~mask
-        scores[~(direct | partial | thematic)] = 0
+        selected_cells = direct | partial | thematic
+        demo_exclusion = demo and bool(np.any(real_selection & ~selected_cells))
+        scores[~selected_cells] = 0
         base["counts"] = {"direct_cells": int(direct.sum()), "partial_cells": int(partial.sum()),
                           "thematic_cells": int(thematic.sum()), "excluded": excluded}
         selected = direct if direct.any() else partial if partial.any() else thematic
@@ -279,10 +289,11 @@ class Engine:
             areas.append({"rank": rank, "tile": int(cells[0]) >> 4, "cells": [f"HPX128:{i}" for i in cells],
                 "best_cell": f"HPX128:{best}", "tier": tier,
                 "match_mean": int(values.sum(dtype=np.uint64) // len(values)), "match_best": int(values[best_offset]),
+                "terrain_screening": self.terrain_risk.assess(cells),
                 "concepts": per_concept, "records": dict(zip(("ctx", "hirise", "dtm", "crism"), map(int, count))),
                 "method": "compatible" if method_mask is None or bool(method_mask[cells].any()) else "not established",
                 "sparse": bool(sparse[cells].any()), "label": label,
                 "point_features": {k: sorted(v) for k, v in sorted(evidence.items()) if k not in {"structures", "gazetteer_approximate_bounds"}},
-                "demo": any(x["status"] == "DEMO" for x in per_concept.values())})
+                "demo": demo_exclusion or any(x["status"] == "DEMO" for x in per_concept.values())})
         base["areas"] = areas
         return base

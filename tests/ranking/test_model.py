@@ -135,6 +135,74 @@ def test_filters_and_response_stability(service):
     assert len(base64.b64decode(service.rank(request)["heat_nside32"])) == 12288
 
 
+DEMO_ONLY_OBJECTIVES = {"stratigraphy": "stratigraphy", "hydrothermal": "hydrothermal",
+                        "climate": "climate", "ocean": "ocean", "groundwater": "groundwater",
+                        "periglacial": "periglacial", "layered-deposits": "layered deposits"}
+DEMO_OBJECTIVES = ("alluvial fans", "valley networks", "clays", "sulfates", "carbonates",
+                   "silica", "glacial landforms", "magnetism", "olivine", *DEMO_ONLY_OBJECTIVES.values())
+
+
+def test_added_fixtures_keep_release_objectives_unsupported(service, demo_service):
+    assert {item["id"] for item in load() if item["status"] == "unsupported"} == DEMO_ONLY_OBJECTIVES.keys()
+    for cid, objective in DEMO_ONLY_OBJECTIVES.items():
+        request = RankRequest(schema_version=1, request_id="demo-policy", objective=objective)
+        disabled = demo_service.rank(request)
+        assert disabled["abstain"] and not disabled["areas"]
+        assert [(term["id"], term["included"]) for term in disabled["parse"]["demo"]] == [(cid, False)]
+        for include_demo in (False, True):
+            release = service.rank(request.model_copy(update={"include_demo": include_demo}))
+            assert release["abstain"] and not release["areas"]
+            assert not release["parse"]["demo"]
+            assert [term["id"] for term in release["parse"]["unsupported"]] == [cid]
+
+
+def test_demo_layers_fill_top_twenty(service, demo_service):
+    engine = demo_service.engine
+    receipt = engine.pack.manifest["synthetic_layers"][0]
+    assert receipt["synthetic"] is True and receipt["seed"] == 20261114
+    assert receipt["extended_seed"] == [20261114, 2]
+    controls = receipt["seeded_controls"]
+    demo_ids = sorted(item["id"] for item in engine.concepts if item["status"] == "demo")
+    assert sorted(controls) == [cid for cid in demo_ids if cid != "magnetism"]
+    assert all(len(points) == 8 for points in controls.values())
+    assert controls["delta"] == receipt["delta_controls"]
+    assert all(30 <= abs(lat) <= 50 for _, lat in controls["glacial-landform"])
+    from marsdoc.grid import Grid
+    glacial = engine.ids["glacial-landform"]
+    covered = np.flatnonzero(np.unpackbits(engine.pack["covered_demo"][glacial], count=196608))
+    latitudes = np.abs(Grid(128).centroids(covered)[:, 1])
+    assert np.all((latitudes >= 30 - 1e-6) & (latitudes <= 50 + 1e-6))
+    assert len(receipt["magnetism_sources"]) == 16
+    magnetism = engine.ids["magnetism"]
+    assert np.unpackbits(engine.pack["covered_demo"][magnetism], count=196608).all()
+    for objective in DEMO_OBJECTIVES:
+        request = RankRequest(schema_version=1, request_id="demo-density", objective=objective,
+                              include_demo=True, limit=20)
+        response = demo_service.rank(request)
+        assert len(response["areas"]) == 20, objective
+        assert all(area["demo"] and area["tier"] == "Direct" for area in response["areas"])
+        # The release pack must not gain any of this synthetic support.
+        assert all(not area["demo"] and area["tier"] != "Direct"
+                   for area in service.rank(request)["areas"]), objective
+
+
+@pytest.mark.parametrize(("objective", "negation"), [
+    ("cave candidates not carbonates", "carbonates"),
+    ("highlands not sedimentary", "sedimentary"),
+    ("lowlands without ocean", "ocean"),
+])
+def test_demo_negation_labels_ranking(demo_service, objective, negation):
+    request = RankRequest(schema_version=1, request_id="negation", objective=objective, limit=20)
+    ordinary = demo_service.rank(request)
+    enabled = demo_service.rank(request.model_copy(update={"include_demo": True}))
+    assert enabled["counts"]["excluded"][f"not {negation}"] > ordinary["counts"]["excluded"].get(
+        f"not {negation}", 0)
+    assert enabled["heat_nside32"] != ordinary["heat_nside32"]
+    assert len(enabled["areas"]) == 20
+    assert all(area["demo"] for area in enabled["areas"])
+    assert all(not area["demo"] for area in ordinary["areas"])
+
+
 def test_broader_is_not_direct(demo_service):
     # Query a real hydrated-mineral site with no synthetic clay coverage.
     engine = demo_service.engine

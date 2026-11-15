@@ -2,7 +2,7 @@
 
 `runtime.tradeoff` prices every option the Marswalk planner already produces and puts it in one of three classes. It **never decides and never executes**. Spec: `docs/tradeoff-model/plan.md` (PR #28). This is the deterministic P0 slice; the Monte Carlo and the burn-rate belief are P1 and are not here.
 
-Every crew, envelope and telemetry value it reads is **simulated** and must say so. The margin factor, floors and thresholds are **assumptions** awaiting review. Nothing in this package has been validated against flight data.
+Assessment requires synthetic terrain. Crew, envelope, telemetry and any acceptance records are scoped to the simulated rehearsal. The runtime planner exposes no acceptance endpoint. Operational authorization of L2 exceptions remains an open design decision. The margin factor, floors and thresholds are **assumptions** awaiting review. Nothing in this package has been validated against flight data.
 
 ```python
 from runtime.marswalk import plan_marswalk
@@ -64,7 +64,7 @@ Bad or missing inputs close the AMBER gates. They never change a GREEN, because 
 
 ## Acceptance
 
-AMBER needs signatures from `flight_director` and `crew_surgeon` (different people, each with a reason), consent from every walking astronaut (silence is not consent), and no veto. A `science_lead` signature is refused on the envelope and on an acceptance. An acceptance expires after `acceptance_valid_s` or with the envelope, and anyone can `withdraw()` it.
+AMBER needs signatures from `flight_director` and `crew_surgeon` (different people, each with a reason), consent from every walking astronaut (silence is not consent), and no veto. A `science_lead` signature is refused on the envelope and on an acceptance. An acceptance expires at the earliest of its validity duration, envelope expiry, decision deadline and telemetry expiry. Anyone can `withdraw()` it.
 
 **Risk budget (P0 form):** a count of accepted AMBER options per EVA against `max_accepted_amber_per_eva`. The plan's probability-sum budget (`risk_budget_per_eva`) is validated and stored but needs P1 probabilities.
 
