@@ -3,14 +3,23 @@ import { describeFailure, getFixtureSite, postSortie } from '../mission/api'
 import type { Cell, FixtureSite, SortiePlan, SortieRequest } from '../mission/api'
 import { FixtureGrid } from '../mission/FixtureGrid'
 import { signedSeconds, statusText } from '../mission/format'
-import type { Point } from './Globe'
+import type { Layer, Point } from './Globe'
+import { RouteMap } from './RouteMap'
+import { distanceFromBase, formatPoint, getCell, rankCells } from '../../mission-preview/src/cells'
+import { defaultObjective, methods, exclusions } from '../../mission-preview/src/regions'
+import type { Method } from '../../mission-preview/src/regions'
 
 const tabs = ['Route', 'Analysis', 'Monitor'] as const
 export type Stage = typeof tabs[number]
 const key = (cell: Cell) => cell.join(',')
 const same = (left: Cell, right: Cell) => key(left) === key(right)
 
-export function Sortie({ cellId, marsPoint, demo, initialStage = 'Route' }: { cellId: string; marsPoint: Point; demo: boolean; initialStage?: Stage }) {
+type ScienceInputs = {
+  scienceObjective?: string; methodInput?: string | null; exclusionsInput?: string[]; initialLayer?: Layer
+}
+type SortieProps = ScienceInputs & { cellId: string; marsPoint: Point; demo: boolean; initialStage?: Stage }
+
+export function Sortie({ cellId, marsPoint, demo, initialStage = 'Route', ...science }: SortieProps) {
   const [site, setSite] = useState<FixtureSite | null>(null)
   const [fault, setFault] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -27,7 +36,7 @@ export function Sortie({ cellId, marsPoint, demo, initialStage = 'Route' }: { ce
     {fault ? <><p role="alert">{fault}</p><button onClick={() => setAttempt(n => n + 1)}>Retry loading grid</button></>
       : <p role="status">Loading simulation grid…</p>}
   </section>
-  return <Planner site={site} cellId={cellId} marsPoint={marsPoint} demo={demo} initialStage={initialStage}/>
+  return <Planner site={site} cellId={cellId} marsPoint={marsPoint} demo={demo} initialStage={initialStage} {...science}/>
 }
 
 function GridPicker({ label, site, value, choose, disabled = false }: {
@@ -43,7 +52,69 @@ function GridPicker({ label, site, value, choose, disabled = false }: {
   </select></label>
 }
 
-function Planner({ site, cellId, marsPoint, demo, initialStage }: { site: FixtureSite; cellId: string; marsPoint: Point; demo: boolean; initialStage: Stage }) {
+function ScienceCorridor({ marsPoint, scienceObjective, methodInput, exclusionsInput, initialLayer = 'viking' }: ScienceInputs & { marsPoint: Point }) {
+  const objective = scienceObjective || defaultObjective
+  const method = methods.find(choice => choice === methodInput) ?? (objective === 'shallow subsurface ice' ? 'Investigate ice' : 'Remote survey') satisfies Method
+  const exclusionKey = exclusionsInput?.join(',') ?? ''
+  const [layer, setLayer] = useState(initialLayer)
+  const [attempt, setAttempt] = useState(0)
+  const [destination, setDestination] = useState<{ id: string; point: Point; label: string | null; pack: string; rank: number; tier: string; sparse: boolean }>()
+  const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading')
+  useEffect(() => {
+    const controller = new AbortController()
+    const { signal } = controller
+    setDestination(undefined)
+    setStatus('loading')
+    async function load() {
+      try {
+        const result = await rankCells(objective, method, exclusions.filter(item => exclusionKey.split(',').includes(item)), signal)
+        const best = result.abstain ? undefined : result.areas.reduce<(typeof result.areas)[number] | undefined>(
+          (first, area) => !first || area.rank < first.rank ? area : first, undefined)
+        if (!best) { if (!signal.aborted) setStatus('empty'); return }
+        const { cell } = await getCell(best.best_cell, signal)
+        if (signal.aborted) return
+        setDestination({ id: cell.id, point: cell.centroid, label: best.label, pack: result.pack.version, rank: best.rank, tier: best.tier, sparse: best.sparse })
+        setStatus('ready')
+      } catch {
+        if (!signal.aborted) setStatus('error')
+      }
+    }
+    void load()
+    return () => controller.abort()
+  }, [attempt, objective, method, exclusionKey])
+
+  return <section className="science-corridor" aria-labelledby="science-destination">
+    <RouteMap base={marsPoint} target={destination?.point} layer={layer}/>
+    <div className="corridor-tools">
+      <label>Basemap <select value={layer} onChange={event => setLayer(event.target.value as Layer)}>
+        <option value="viking">Viking colour</option>
+        <option value="mola">MOLA relief</option>
+      </select></label>
+    </div>
+    <div className="corridor-target" aria-live="polite">
+      <span className="mission-badge">Exploratory ranking</span>
+      <h2 id="science-destination">Science destination</h2>
+      <p>{objective}</p>
+      {status === 'loading' && <p>Ranking Mars cells…</p>}
+      {status === 'empty' && <p>The ranking model found no supported destination for this objective.</p>}
+      {status === 'error' && <><p>Science destination unavailable.</p><button className="mission-button" onClick={() => setAttempt(n => n + 1)}>Retry ranking</button></>}
+      {destination && <>
+        <p><strong>{destination.label ? 'Near ' + destination.label : destination.id}</strong>
+          {destination.label && <> · <code>{destination.id}</code></>}</p>
+        <p>{formatPoint(destination.point, 4)} · Rank {destination.rank} · {destination.tier} match</p>
+        <p>{distanceFromBase(marsPoint, destination.point).toLocaleString(undefined, { maximumFractionDigits: 1 })} km surface separation</p>
+        {destination.sparse && <p>Sparse evidence. Local conditions are unverified.</p>}
+        <p className="mission-muted">Data pack {destination.pack}</p>
+      </>}
+    </div>
+    <div className="corridor-caption">
+      <span>{layer === 'viking' ? 'Viking colour mosaic' : 'MOLA shaded relief'} · Mars context</span>
+      <strong>{destination ? 'Dashed line shows location only' : 'Map centered on saved base'} · Tactical routing withheld</strong>
+    </div>
+  </section>
+}
+
+function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...science }: SortieProps & { site: FixtureSite }) {
   const [stage, setStage] = useState<Stage>(initialStage)
   const [sortie, setSortie] = useState(() => crypto.randomUUID())
   const start: Cell = demo ? [1, 1] : site.shelter_cell
@@ -132,22 +203,14 @@ function Planner({ site, cellId, marsPoint, demo, initialStage }: { site: Fixtur
           <span className="mission-badge">SIMULATION</span>
           <h1>{stage} · Synthetic Marswalk</h1>
           <p>Mars context <code>{cellId}</code> · Saved Mars base {Math.abs(marsPoint[1]).toFixed(4)}°{marsPoint[1] < 0 ? 'S' : 'N'}, {Math.abs(marsPoint[0]).toFixed(4)}°{marsPoint[0] < 0 ? 'W' : 'E'}</p>
-          <p>The map below simulates crew movement on a local grid. It does not show a traversable route on Mars.</p>
+
         </header>
-        {pending && <p className="sortie-result" aria-live="polite">Calculating a proposal…</p>}
-        {!pending && !fault && !result && <p className="sortie-result">Settings changed. Calculate again to review a new route.</p>}
-        {result && <section aria-label="Planning result" className="sortie-result">
-          <div><h2>{statusText[result.status]}</h2>
-            <p>Recommendation: {result.recommendation ?? 'None'}</p>
-            <p>Return margin {signedSeconds(result.return_margin_s)} · {approved ? 'Operator approved' : 'Not approved'}</p>
-          </div>
-          {stage === 'Route' && result.status === 'OK' && route &&
-            <button className="mission-button mission-button-primary" onClick={() => setStage('Monitor')}>Review route in Monitor</button>}
-        </section>}
-        <div className="sortie-map">
+        <ScienceCorridor marsPoint={marsPoint} {...science}/>
+        <details className="sortie-map" open={stage === 'Monitor' ? true : undefined}>
+          <summary>Simulated route · routing algorithm</summary>
           <FixtureGrid site={{ ...site, checkpoint_cell: current, shelter_cell: base }} activeClosures={closures}
             route={routeCells} inspectOnly={!approved}/>
-        </div>
+        </details>
         {stage === 'Analysis' && result && <section aria-labelledby="route-comparison">
           <h2 id="route-comparison">Route comparison</h2>
           <p>Feasibility checks use the synthetic grid and the current time budget.</p>
@@ -172,7 +235,24 @@ function Planner({ site, cellId, marsPoint, demo, initialStage }: { site: Fixtur
       </section>
     </div>
     <aside className="sortie-controls">
-      <h2>Simulation controls</h2>
+      <header className="sortie-panel-heading">
+        <span className="mission-badge">Synthetic terrain</span>
+        <h2>Simulated sortie</h2>
+        <p>Routing algorithm runs on the rehearsal grid. It does not use the Mars imagery.</p>
+      </header>
+        {pending && <p className="sortie-result" aria-live="polite">Calculating a proposal…</p>}
+        {!pending && !fault && !result && <p className="sortie-result">Settings changed. Calculate again to review a new route.</p>}
+        {result && <section aria-label="Planning result" className="sortie-result">
+          <div><h2>{statusText[result.status]}</h2>
+            <p>Recommendation: {result.recommendation ?? 'None'}</p>
+            <p>Return margin {signedSeconds(result.return_margin_s)} · {approved ? 'Operator approved' : 'Not approved'}</p>
+          </div>
+          {stage === 'Route' && result.status === 'OK' && route &&
+            <button className="mission-button mission-button-primary" onClick={() => setStage('Monitor')}>Review route in Monitor</button>}
+        </section>}
+      <details className="sortie-settings" open={stage === 'Monitor' ? true : undefined}>
+        <summary>Simulation controls</summary>
+        <div>
       <GridPicker label="Synthetic base" site={site} value={base} disabled={departed} choose={selectBase}/>
       {departed && <GridPicker label="Report simulated crew position" site={site} value={current}
         choose={point => { invalidate(); setCurrent(point) }}/>}
@@ -185,6 +265,8 @@ function Planner({ site, cellId, marsPoint, demo, initialStage }: { site: Fixtur
         }}/> Close {closure.id} corridor</label>)}
       <button className="mission-button mission-button-primary" onClick={() => void calculate()} disabled={pending}>{departed ? 'Recalculate return' : 'Calculate sortie'}</button>
       {departed && <button onClick={() => { setDeparted(false); selectBase(base); setClosures([]); setRemaining(site.remaining_s) }}>Start new sortie</button>}
+        </div>
+      </details>
       {fault && <><p role="alert">{fault}</p><button onClick={() => void calculate(true)}>Retry calculation</button></>}
       {result && <div className="sortie-details">
         <p>Completed work: {result.completed_task_ids.join(', ') || 'None'}</p>

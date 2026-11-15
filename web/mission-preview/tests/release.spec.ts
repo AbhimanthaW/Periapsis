@@ -199,6 +199,7 @@ test('the globe rotates, switches basemaps and passes its picked cell to the bas
 test('selects a different base and uses current crew position to replan to it', async ({ page }) => {
   await page.goto('/explore?demo=1')
   await page.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
+  await page.getByText('Simulation controls', { exact: true }).click()
   await page.getByLabel('Synthetic base').selectOption('0,2')
   await page.getByRole('button', { name: 'Calculate sortie' }).click()
   await expect(page.getByRole('region', { name: 'Planning result' })).toContainText('science-a')
@@ -288,6 +289,8 @@ test('a base entered in east longitude reaches the planner as the equivalent sig
   await page.getByRole('link', { name: 'Route', exact: true }).click()
   await expect(page.getByRole('heading', { name: /HPX128:43896/ })).toBeVisible()
   const calculation = page.waitForResponse(response => response.url().endsWith('/api/v2/plan'))
+  const ranking = page.waitForResponse(response => response.url().endsWith('/api/v1/rank'))
+  const imagery = page.waitForResponse(response => /\/atlas\/viking\/[12]\/.+\.webp$/.test(response.url()) && response.ok())
   await page.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
   const response = await calculation
   expect(response.ok()).toBe(true)
@@ -296,4 +299,12 @@ test('a base entered in east longitude reaches the planner as the equivalent sig
   expect(plan.mars_base_point).toEqual([-171.85, 49.02])
   await expect(page.getByText(/Saved Mars base 49.0200°N, 171.8500°W/)).toBeVisible()
   await expect(page.getByRole('region', { name: 'Planning result' })).toBeVisible()
+  const ranked = await (await ranking).json()
+  expect(ranked.areas[0].best_cell).toMatch(/^HPX128:/)
+  await expect(page.getByRole('region', { name: 'Science destination' })).toContainText(ranked.areas[0].best_cell)
+  await imagery
+  await expect(page.getByRole('img', { name: 'Mars map of the saved base and science destination' })).toBeVisible()
+  await expect(page.getByText('Dashed line shows location only', { exact: false })).toBeVisible()
+  await page.getByText('Simulated route · routing algorithm').click()
+  await expect(page.getByTestId('mission-route')).toBeAttached()
 })

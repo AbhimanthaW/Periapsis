@@ -219,7 +219,8 @@ export default function App() {
   }
 
   const walkParams = base && new URLSearchParams({
-    cell: base.cell.id, base: base.coordinates.join(','),
+    cell: base.cell.id, base: base.coordinates.join(','), objective: rankQuery, method,
+    exclude: excludes.join(','), layer,
   })
   const walkOrigin = packaged ? '' : (import.meta.env.VITE_MARSWALK_ORIGIN ?? 'http://127.0.0.1:4175')
   const walkHref = walkParams ? walkOrigin + '/explore?' + walkParams : undefined

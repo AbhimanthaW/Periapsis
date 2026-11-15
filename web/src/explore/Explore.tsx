@@ -25,7 +25,9 @@ function initialSelection() {
   const coords = parts?.length === 2 && parts.every(part => part.trim()) ? parts.map(Number) : undefined
   const base = coords && Math.abs(coords[0]) <= 180 && Math.abs(coords[1]) <= 90 ? coords as Point : undefined
   const stage = ({ route: 'Route', analysis: 'Analysis', monitor: 'Monitor' } as Record<string, Stage | undefined>)[params.get('walk') ?? '']
-  return { cell, base, stage, region: params.get('region'), demo: params.get('demo') === '1', ranking: params.get('panel') === 'ranking' }
+  return { cell, base, stage, objective: params.get('objective')?.trim().slice(0, 300) ?? '',
+    method: params.get('method'), excludes: params.get('exclude')?.split(','),
+    layer: params.get('layer') === 'mola' ? 'mola' as const : 'viking' as const, region: params.get('region'), demo: params.get('demo') === '1', ranking: params.get('panel') === 'ranking' }
 }
 
 export default function Explore() {
@@ -34,9 +36,9 @@ export default function Explore() {
   const [cell, setCell] = useState<CellContext | null>(null)
   const [base, setBase] = useState(initial.base)
   const [center, setCenter] = useState<Point>([0, 0])
-  const [layer, setLayer] = useState<Layer>('viking')
+  const [layer, setLayer] = useState<Layer>(initial.layer)
   const [pickBase, setPickBase] = useState(false)
-  const [objective, setObjective] = useState('')
+  const [objective, setObjective] = useState(initial.objective)
   const [demoPreset, setDemoPreset] = useState(false)
   const [draftId, setDraftId] = useState(initial.cell)
   const [orientation, setOrientation] = useState<string>()
@@ -172,7 +174,9 @@ export default function Explore() {
       lastPick.current = null
       setLocating(false)
       select(id)
-    }}/> : simulation && base && baseChecked ? <Sortie key={cellId + '/' + base.join(',')} cellId={cellId} marsPoint={base} demo={demoPreset} initialStage={initial.stage}/> :
+    }}/> : simulation && base && baseChecked ? <Sortie key={cellId + '/' + base.join(',')} cellId={cellId} marsPoint={base} demo={demoPreset} initialStage={initial.stage}
+      scienceObjective={demoPreset ? 'shallow subsurface ice' : objective} methodInput={initial.method}
+      exclusionsInput={initial.excludes} initialLayer={layer}/> :
       <div className="mission-site">
         <div className="mission-site-main">
           <section className="mission-card">
