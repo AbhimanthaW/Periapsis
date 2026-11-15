@@ -6,9 +6,11 @@ from pathlib import Path
 
 PATH = Path(__file__).with_name("concepts.json")
 STATUSES = {"live", "live-flagged", "catalogue", "demo", "unsupported"}
+DEMO_ONLY = {"stratigraphy", "hydrothermal", "climate", "ocean", "groundwater",
+             "periglacial", "layered-deposits"}
 
 
-def load(path: Path = PATH) -> list[dict]:
+def load(path: Path = PATH, *, with_demo: bool = False) -> list[dict]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("version") != "cell-concepts-v2":
         raise ValueError("unexpected concept ledger version")
@@ -21,4 +23,9 @@ def load(path: Path = PATH) -> list[dict]:
             raise ValueError(f"invalid concept {item['id']}")
         if item["id"] in item["broader"]:
             raise ValueError(f"self-parent concept {item['id']}")
+        if with_demo and item["id"] in DEMO_ONLY and item["status"] == "unsupported":
+            item.update(status="demo", source="synthetic", support="seeded-spatial",
+                        coverage="demo-footprint")
+        if with_demo and item["id"] == "magnetism" and item["status"] == "demo":
+            item.update(support="seeded-scalar-field", coverage="demo-global")
     return concepts

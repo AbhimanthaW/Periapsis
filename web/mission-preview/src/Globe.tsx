@@ -1,9 +1,14 @@
+import { DustOutlookSection } from './DustOutlook'
 import { useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { ArrowBendDownLeft, Crosshair, Minus, Plus, Stack } from '@phosphor-icons/react'
-import { allRegions, exclusions, isExcluded, methods } from './regions'
+import { allRegions, exclusions, isExcluded, methods, profiles } from './regions'
 import type { Exclusion, Method, Profile, Region } from './regions'
-import { Badge, IconButton, Metrics, rankingHref, regionHref } from './ui'
+import { Badge, IconButton, Metrics, rankingHref, regionHref, Segmented } from './ui'
+import { MethodReview } from './objective-methods/MethodReview'
+import { arcadiaScenario } from './objective-methods/arcadia'
+import type { GoalId } from './objective-methods/catalog'
+import type { AdvisoryProposal } from './objective-methods/recommend'
 import { missionHref } from './mission'
 
 interface GlobeProps {
@@ -23,12 +28,28 @@ interface GlobeProps {
   setTerms: (terms: string[]) => void
   applyObjective: (objective: string) => void
   toggleFilter: (filter: Exclusion) => void
+  proposal: AdvisoryProposal
+  reviewRegionName: string
+  arcadiaLoaded: boolean
+  arcadiaVisited: boolean
+  loadArcadia: () => void
+  restoreArcadia: () => void
+  useSelectedRegion: () => void
+  onConfirmGoals: (goals: readonly GoalId[]) => void
+  onProfile: (profile: Profile) => void
+  reviewHref: string
 }
 
-function ObjectiveControls({ objective, terms, method, excludes, setMethod, setTerms, applyObjective, toggleFilter }: GlobeProps) {
+function ObjectiveControls({
+  objective, terms, method, excludes, setMethod, setTerms, applyObjective, toggleFilter,
+  proposal, reviewRegionName, arcadiaLoaded, arcadiaVisited, loadArcadia, restoreArcadia,
+  useSelectedRegion, onConfirmGoals, onProfile, reviewHref,
+}: GlobeProps) {
   const editor = useRef<HTMLDialogElement>(null)
+  const review = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState(objective)
   const [targetDraft, setTargetDraft] = useState('')
+  const [reviewSession, setReviewSession] = useState(0)
   function apply(event: FormEvent) {
     event.preventDefault()
     if (!draft.trim()) return
@@ -46,6 +67,8 @@ function ObjectiveControls({ objective, terms, method, excludes, setMethod, setT
       <input id="objective" required value={draft} onChange={event => setDraft(event.target.value)}
         maxLength={160} spellCheck={false} />
       <IconButton aria-label="Apply objective" title="Apply objective" type="submit"><ArrowBendDownLeft size={11} /></IconButton>
+      <button type="button" className="button compact review-methods-trigger" aria-haspopup="dialog"
+        onClick={() => { setReviewSession(current => current + 1); review.current?.showModal() }}>Review methods</button>
     </form>
     <div className="objective-options">
       <div className="objective-row">
@@ -85,6 +108,26 @@ function ObjectiveControls({ objective, terms, method, excludes, setMethod, setT
         </div>
       </form>
     </dialog>
+    <dialog ref={review} className="dialog method-dialog" aria-labelledby="review-methods-title">
+      <div className="section-heading">
+        <h2 id="review-methods-title">Review methods</h2>
+        <form method="dialog"><button className="button compact">Close</button></form>
+      </div>
+      <p>{reviewRegionName} · {objective}</p>
+      <div className="method-actions">
+        <button type="button" className="button" onClick={arcadiaLoaded ? useSelectedRegion : () => {
+          loadArcadia()
+          setDraft(arcadiaScenario.objective)
+        }}>{arcadiaLoaded ? 'Use selected region' : 'Load Arcadia scenario'}</button>
+        {!arcadiaLoaded && arcadiaVisited && <button type="button" className="button"
+          onClick={restoreArcadia}>Use Arcadia footprint</button>}
+        {arcadiaLoaded && <Segmented items={profiles} value={proposal.context.profile}
+          onChange={onProfile} label="Advisory profile" />}
+        {arcadiaLoaded && <a className="button primary" href={reviewHref}
+          onClick={() => review.current?.close()}>Open Science Tasks</a>}
+      </div>
+      <MethodReview key={reviewSession + ':' + objective} proposal={proposal} onConfirmGoals={onConfirmGoals} />
+    </dialog>
   </section>
 }
 
@@ -114,6 +157,7 @@ function RegionSummary({ region, profile }: { region: Region; profile: Profile }
         <dt>Terrain model</dt><dd className="caution">none</dd>
       </Metrics>
     </section>
+    <DustOutlookSection key={region.id} regionId={region.id} />
     <div className="summary-actions">
       <a className="button primary" href={regionHref(region.id)}>Investigate</a>
       <a className="button" href={rankingHref}>Compare</a>
