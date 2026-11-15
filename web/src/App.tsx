@@ -353,6 +353,7 @@ function Workspace() {
         <div><h1>{doc.title}</h1><p>SYSTEM ARCHITECTURE <span>·</span> NASA SPACE APPS 2026</p></div>
       </div>
       <div className="mast-actions">
+        <a className="button" href="/explore">Explore cells</a>
         <a className="button atlas-entry" href={atlasSelectionHref()}>Mars Atlas <ArrowUpRight size={13}/></a>
         <div className="history">
           <IconButton label="Undo" disabled={!history.past.length} onClick={undo}><Undo2 size={16}/></IconButton>

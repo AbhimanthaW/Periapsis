@@ -146,7 +146,7 @@ export default function Atlas() {
       <div className="brand"><div className="brand-icon"><Orbit size={23} strokeWidth={1.3}/></div><div><h1>Return Window</h1><p>PLANETARY RESEARCH <span>·</span> PERIAPSIS</p></div></div>
       <nav aria-label="Return Window modules" className="atlas-modules">
         <button className="button atlas-current" aria-current="page" onClick={returnToMap}><Globe2 size={15}/> Atlas</button>
-        <a className="button" href="/architecture">Architecture</a>
+        <a className="button" href="/explore">Explore cells</a><a className="button" href="/architecture">Architecture</a>
         <a className="button atlas-model-nav" href="/architecture?view=models">Scientific models</a>
       </nav>
       <nav aria-label="Atlas tools" className="atlas-toolnav">

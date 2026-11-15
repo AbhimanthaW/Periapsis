@@ -323,17 +323,8 @@ progress::-webkit-progress-value { background: #f4ede5; border-radius: 8px; }
 .analysis-nav .aux-nav:not(:focus-visible):not(:hover) { color: var(--muted); }
 .analysis-mono th:last-child:has(+*) { text-align: right; }
 .rover-monitor { padding: 68px 24px 20px; min-height: 100svh; display: grid; grid-template-columns: 1.73fr 1fr; grid-template-rows: minmax(420px,1fr) 104px auto; gap: 16px; background: #080707; }
-.monitor-map,.rover-camera { min-height: 0; position: relative; isolation: isolate; overflow: hidden; }
 .monitor-map .docked-map { border-radius: inherit; }
 .monitor-map .route-overlay path { vector-effect: non-scaling-stroke; }
-.rover-camera,.eva-camera { display: flex; flex-direction: column; justify-content: space-between; padding: 14px 16px; background-color: #0b0907; }
-.camera-unavailable { position: absolute; inset: 50% 4px auto; transform: translateY(-50%); text-align: center; line-height: 1.55; pointer-events: none; }
-.camera-unavailable p { font-size: 14px; margin-bottom: 6px; }
-.camera-unavailable span { font-size: 12px; }
-.rover-camera footer,.eva-camera footer { display: flex; align-items: center; gap: 11px; font-size: 11.5px; margin-top: auto; }
-.rover-camera footer input,.eva-camera footer input { min-width: 30px; flex: 1; accent-color: #f3eae0; height: 3px; }
-.rover-camera footer .icon-button:first-child { width: 32px; height: 32px; background: #f6e7db24; }
-.expanded-camera { position: fixed!important; inset: 62px 20px 20px!important; width: auto!important; height: auto!important; z-index: 15; }
 .monitor-telemetry { grid-column: 1/-1; display: flex; background: #120e0c; }
 .monitor-telemetry > div { flex: 1; min-width: 0; padding: 15px 20px; }
 .monitor-telemetry > div+div { border-left: 1px solid var(--line); }
@@ -401,8 +392,6 @@ progress::-webkit-progress-value { background: #f4ede5; border-radius: 8px; }
 .caution .v-bar i { background: #f4cd60; }
 .resource-bars .large-mono { font-size: 22px; }
 .resource-bars small { font-size: 10.5px; }
-.eva-camera { position: absolute; bottom: 24px; left: 24px; width: 468px; height: 279px; border: 8px solid #30271fee; padding: 8px 12px; }
-.eva-camera header { font-size: 12px; }
 .eva-return { position: absolute; bottom: 24px; right: 24px; display: flex; gap: 14px; align-items: center; padding: 6px 8px 6px 17px; background: #251b13eb; }
 .eva-tradeoff { position: absolute; inset: 84px 6.1% 36px; overflow: auto; background: #1b1511f6; display: grid; grid-template-rows: auto 1fr auto; }
 .eva-tradeoff > header { display: grid; grid-template-columns: 1fr minmax(310px,35%); align-items: start; gap: 16px; padding: 22px 28px; min-height: 144px; }
@@ -439,13 +428,11 @@ progress::-webkit-progress-value { background: #f4ede5; border-radius: 8px; }
  .eva-tradeoff { inset:70px 22px 22px; }
  .eva-tradeoff footer { flex-wrap: wrap; }
  .tradeoff-grid button { flex-wrap: wrap; }
- .eva-camera { width: min(43vw,468px); }
  .eva-clock { left: 42%; }
  .layout-tools { gap: 6px; }
 }
 @media(max-width:700px) {
  .rover-monitor { display: flex; flex-direction: column; padding: 12px; }
- .monitor-map,.rover-camera { height: 320px; }
  .monitor-telemetry { flex-wrap:wrap; }
  .monitor-telemetry > div { flex: 1 0 50%; }
  .module-library { top: 118px; }
@@ -487,11 +474,17 @@ progress::-webkit-progress-value { background: #f4ede5; border-radius: 8px; }
 }
 .analysis-screen .analysis-console input { text-align: left; }
 .analysis-map svg { transform: none; }
-.rover-camera footer input,.eva-camera footer input { appearance:none; border-radius:3px; cursor:pointer; }
-.rover-camera footer input::-webkit-slider-thumb,.eva-camera footer input::-webkit-slider-thumb { appearance:none; width:12px; height:12px; border-radius:50%; background:transparent; }
-.rover-camera footer input:hover::-webkit-slider-thumb,.rover-camera footer input:focus-visible::-webkit-slider-thumb,.eva-camera footer input:hover::-webkit-slider-thumb,.eva-camera footer input:focus-visible::-webkit-slider-thumb { background:#f3eae0; }
 @media(max-width:900px) {
   .rover-planner .route-results .route-selected { min-height: 191px; padding-top: 15px; }
   .rover-planner .route-results .mission-actions { margin-top: 17px; }
   .rover-planner .route-results .mission-bars > div { gap: 14px; }
 }
+
+.rover-monitor { grid-template-columns: 1fr; }
+.monitor-map { min-height: 0; position: relative; isolation: isolate; overflow: hidden; }
+.route-playback { position: absolute; z-index: 4; left: 12px; right: 12px; bottom: 12px; display: flex; align-items: center;
+  gap: 12px; padding: 8px; background: #171310; border: 1px solid #51463c; border-radius: 6px; }
+.route-playback input { min-width: 0; flex: 1; accent-color: #f4ac79; }
+.eva-monitor .route-playback { top: auto; bottom: 95px; max-width: 440px; }
+.layout-top { grid-template-columns: minmax(0, 1fr) minmax(0, .65fr); }
+@media (max-width: 800px) { .monitor-map { height: 320px; } }

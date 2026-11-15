@@ -15,3 +15,23 @@ The [reviewed site registry](../../evidence/sites.v1.json) pins the package and 
 For a region with no reviewed local query, the page distinguishes qualitative survey estimates, cell-level context, and missing local support. Historic dust and station models supply advisory context under their own provenance gates. The capability gate withholds tactical calculations and live hazard assessment for every current region. Moving into the synthetic planner preserves the return link to the selected region. The simulation uses its own fixed profile, geometry and state.
 
 See the [build, launch and release acceptance steps](../../docs/offline-readiness.md).
+
+## Cell-first workflow
+
+The packaged app opens the cell-first workflow at `/explore`. A cell is
+addressable at `/explore?cell=HPX128:<index>`. The Research Atlas and older
+named entries remain available for orientation and source citations. The
+same-origin `GET /api/v1/cell-at?lon=&lat=` resolves a coordinate to the
+canonical cell. `GET /api/v1/cell-context/{id}` returns regional cell context
+and a pinned local query when that cell has one. Cell identity does not
+establish eligibility for a local calculation.
+
+`POST /api/v2/plan` accepts the Mars cell and exact base coordinates, plus
+the scenario and pack identity, sortie ID and revision. For the synthetic
+mode, send the local base and current positions as row/column indices.
+The service verifies the Mars point against the cell, validates each
+synthetic position and preserves the base and completed work across
+revisions. A duplicate of the latest accepted request returns the same
+result. The service retains sortie state for the lifetime of the loopback
+process. Tactical mode requires a qualified analytical pack, which is
+currently unavailable. The fixed-fixture v1 contract remains available.

@@ -264,3 +264,51 @@ export type RegionEvidence = z.infer<typeof regionEvidenceSchema>
 export const getRegionEvidence = (regionId: string, signal?: AbortSignal) =>
   requestJson('/api/v1/regions/' + encodeURIComponent(regionId), regionEvidenceSchema, { signal })
 export const postPlan = (request: PlanRequest, signal?: AbortSignal) => requestJson(endpoints.plan, planResponseSchema, { signal, body: request })
+
+export const hpxId = z.string().regex(/^HPX128:(0|[1-9]\d{0,5})$/)
+const marsPoint = z.tuple([z.number(), z.number().min(-90).max(90)])
+const hpxCell = z.object({ id: hpxId, centroid: marsPoint, nside: z.literal(128), area_km2: z.number() })
+export const locateCell = (point: [number, number], signal?: AbortSignal) =>
+  requestJson('/api/v1/cell-at?' + new URLSearchParams({ lon: String(point[0]), lat: String(point[1]) }), hpxCell, { signal })
+
+const cellContextSchema = regionEvidenceSchema.omit({ region_id: true, anchor_cell_id: true }).extend({
+  cell: hpxCell,
+  evidence_site_id: z.string().nullable(),
+})
+export type CellContext = z.infer<typeof cellContextSchema>
+export const getCellContext = (id: string, signal?: AbortSignal) =>
+  requestJson('/api/v1/cell-context/' + encodeURIComponent(id), cellContextSchema, { signal })
+
+const sortiePlanSchema = planResponseSchema.extend({
+  schema_version: z.literal(2),
+  sortie_id: id,
+  revision: z.number().int(),
+  context_cell_id: hpxId,
+  mars_base_point: marsPoint,
+  base_cell: cell,
+  current_cell: cell,
+  marswalk: z.object({ candidates: z.array(z.object({
+    id, passed: z.boolean(), legs: z.array(z.object({ cells: z.array(cell) })),
+    failure_reasons: z.array(z.string()),
+  })) }),
+})
+export type SortiePlan = z.infer<typeof sortiePlanSchema>
+export type SortieRequest = {
+  schema_version: 2
+  request_id: string
+  sortie_id: string
+  revision: number
+  context_cell_id: string
+  mars_base_point: [number, number]
+  pack_id: string
+  pack_version: string
+  scenario_id: string
+  mode: 'simulation'
+  base_cell: Cell
+  current_cell: Cell
+  closure_ids: string[]
+  completed_task_ids: string[]
+  remaining_s: number
+}
+export const postSortie = (body: SortieRequest, signal?: AbortSignal) =>
+  requestJson('/api/v2/plan', sortiePlanSchema, { body, signal })

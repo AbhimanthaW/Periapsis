@@ -358,3 +358,61 @@ def test_regional_evidence_rejects_same_version_changed_bytes(tmp_path, region_i
     target.write_text(json.dumps(data))
     with pytest.raises(ValueError, match="Pinned regional evidence changed"):
         RegionEvidence(tmp_path)
+
+
+@pytest.mark.parametrize("point", [(180, 0), (-180, 0), (20, 90), (0, -90), (-171.85, 49.02)])
+def test_cell_lookup_and_context(call, point):
+    from marsdoc.grid import Grid
+
+    status, cell = call(f"/api/v1/cell-at?lon={point[0]}&lat={point[1]}")
+    assert status == 200
+    assert cell["id"] == Grid().cell_at(point).id
+    status, context = call(f"/api/v1/cell-context/{cell['id']}")
+    assert status == 200
+    assert context["cell"]["id"] == cell["id"]
+    assert context["tactical_routing"] == "withheld_no_qualified_pack"
+    if point == (-171.85, 49.02):
+        assert context["local_evidence"]["result"]["supported_fallback_ids"] == ["coarse_elevation_context"]
+
+
+@pytest.mark.parametrize("call", [{"engine": "marswalk"}], indirect=True)
+def test_sortie_uses_selected_base_and_preserves_it_when_rerouting(call):
+    _, site = call("/api/v1/site")
+    fields = ("pack_id", "pack_version", "scenario_id", "completed_task_ids", "remaining_s")
+    request = {**{name: site[name] for name in fields}, "schema_version": 2,
+               "request_id": "start", "sortie_id": "a", "revision": 1, "mode": "simulation",
+               "context_cell_id": "HPX128:43896", "mars_base_point": [-171.85, 49.02],
+               "base_cell": [1, 0], "current_cell": [1, 0], "closure_ids": []}
+
+    def plan(**updates):
+        return call("/api/v2/plan", {**request, **updates})
+
+    code, start = plan()
+    assert code == 200
+    assert start["status"] == "OK"
+    candidate = next(item for item in start["marswalk"]["candidates"] if item["id"] == "science:science-a")
+    assert candidate["legs"][0]["cells"][0] == candidate["legs"][-1]["cells"][-1] == [1, 0]
+
+    code, different = plan(sortie_id="b", base_cell=[0, 0], current_cell=[0, 0])
+    assert code == 200
+    candidate = next(item for item in different["marswalk"]["candidates"] if item["id"] == "science:science-a")
+    assert candidate["legs"][0]["cells"][0] == candidate["legs"][-1]["cells"][-1] == [0, 0]
+
+    code, reroute = plan(request_id="blocked", revision=2, current_cell=[1, 4], closure_ids=["mid"])
+    assert code == 200
+    assert reroute["base_cell"] == [1, 0]
+    assert reroute["current_cell"] == [1, 4]
+    assert reroute["direct_return"]["seconds"] == 60
+    assert reroute["completed_task_ids"] == ["survey-done"]
+    assert plan(request_id="blocked", revision=2, current_cell=[1, 4], closure_ids=["mid"]) == (code, reroute)
+    for attributes, expected in [
+        ({"base_cell": [1, 2], "closure_ids": ["mid"]}, "BLOCKED_POSITION"),
+        ({"base_cell": [8, 8]}, "INVALID_POSITION"),
+        ({"context_cell_id": "HPX128:0"}, "CELL_MISMATCH"),
+        ({"request_id": "stale"}, "STALE_REVISION"),
+        ({"base_cell": [0, 0], "revision": 3}, "SCENARIO_MISMATCH"),
+        ({"mode": "tactical"}, "TERRAIN_UNQUALIFIED"),
+    ]:
+        code, result = plan(**attributes)
+        assert code in {400, 409}
+        assert result["error"] == expected

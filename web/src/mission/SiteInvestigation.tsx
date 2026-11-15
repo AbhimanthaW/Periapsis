@@ -76,7 +76,7 @@ function Assessment({ label, spec, assessment }: { label: string; spec: Spec | u
   )
 }
 
-function EvidencePanel({ data }: { data: EvidenceResponse }) {
+export function EvidencePanel({ data }: { data: EvidenceResponse }) {
   const { result } = data
   const fallbackSpecs = new Map(result.query.fallbacks.map(spec => [spec.id, spec]))
   return (
@@ -116,11 +116,11 @@ function EvidencePanel({ data }: { data: EvidenceResponse }) {
   )
 }
 
-function RegionalContext({ data }: { data: RegionEvidence }) {
+export function RegionalContext({ data }: { data: Pick<RegionEvidence, 'anchor_cell_id' | 'cell_context'> }) {
   const context = data.cell_context
   return <section className="mission-card">
     <h2>Regional evidence</h2>
-    <p><code>{data.anchor_cell_id}</code> · HEALPix Nside 128 cell containing the Atlas anchor. The cell does not define the region boundary or the local evidence query.</p>
+    <p><code>{data.anchor_cell_id}</code> · HEALPix Nside 128 cell for regional context. Local calculations use the exact reviewed query footprint.</p>
     {context ? <>
       <dl className="mission-facts mission-region-facts">
         <dt>Terrain documentation</dt><dd>{context.terrain.tier} · bounds {context.terrain.bounds.lower.toFixed(1)}–{context.terrain.bounds.upper.toFixed(1)}</dd>

@@ -51,6 +51,11 @@ function useScreen() {
 }
 
 export default function App() {
+  useEffect(() => {
+    if (import.meta.env.BASE_URL !== '/demo/') return
+    if (location.hash.startsWith('#demo/arcadia')) location.replace('/explore?demo=1')
+    else if (!location.hash || location.hash === '#globe') location.replace('/explore')
+  }, [])
   const { region, regionId, screen, view, arcadiaDemo, missionStage, routeProfile } = useScreen()
   const [selection, setSelection] = useState('43')
   const [objective, setObjective] = useState(defaultObjective)
@@ -68,6 +73,7 @@ export default function App() {
   const packaged = import.meta.env.BASE_URL === '/demo/'
   const sourceSelection = new URLSearchParams(location.search)
   const sourceRegion = sourceSelection.get('region')
+  const sourceCell = sourceSelection.get('cell')
   const sourceProfile = sourceSelection.get('profile')
   const hazardView = missionStage && view === 'hazards' && region?.id === '43'
   const hazards = useHazardReplay(hazardView)
@@ -170,7 +176,11 @@ export default function App() {
             region: hazardView && sourceRegion ? sourceRegion : arcadiaDemo ? arcadiaScenario.regionId : selected.id,
             profile: hazardView && sourceProfile ? sourceProfile : (arcadiaDemo ? reviewProfile : profile) === 'Rover' ? 'rover' : 'human',
           })}>Atlas evidence workspace</a>}
-        {(screen === 'globe' || arcadiaDemo) && <a href={arcadiaDemoHref()} aria-current={arcadiaDemo ? 'page' : undefined}>Arcadia demo</a>}
+        {screen === 'globe' && <button onClick={() => {
+          if (packaged) location.assign('/explore?demo=1')
+          else location.hash = arcadiaDemoHref()
+        }}>Demo</button>}
+        {packaged && hazardView && sourceCell && <a href={'/explore?' + sourceSelection}>Return to cell evidence</a>}
         {!advisoryScreen && screen !== 'site-withheld' && ['Route', 'Analysis', 'Monitor'].map(item => <a key={item}
           href={missionHref(item.toLowerCase(), profile, selected, hazardView ? 'hazards' : '')} aria-current={screen === item.toLowerCase() || undefined}>{item}</a>)}
       </nav>

@@ -61,7 +61,7 @@ export function RegionInspector({region,profile,components,compare,compared,loca
         <button className="button" onClick={locate}><Crosshair size={14}/> Locate</button>
         <button className="button" aria-pressed={compared} onClick={compare}><Plus size={14}/>{compared?'Added to compare':'Compare'}</button>
         <button className="button" onClick={research}><BookOpen size={14}/> Full research</button>
-        <a className="button" href={'/mission?' + new URLSearchParams({ region: region.id, profile })}>Investigate site</a>
+        <a className="button" href={'/explore?' + new URLSearchParams({ region: region.id, profile })}>Investigate site</a>
       </div>
     </header>
     <nav aria-label="Region sections" className="atlas-region-tabs">
