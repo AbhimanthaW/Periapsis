@@ -35,7 +35,7 @@ def report_markdown(artifact: dict) -> str:
     lines = [f"# Forecast evaluation: {st.get('name') or st.get('station_id')}", "",
              f"Model `{artifact['model_id']}` · provenance **{st.get('provenance')}** · "
              f"blocks: {artifact['blocks']['train_sols']} train / {artifact['blocks']['calibration_sols']} calibration / "
-             f"{artifact['blocks']['test_sols']} test sols", "",
+             f"{artifact['blocks']['selection_sols']} selection / {artifact['blocks']['test_sols']} held-out test sols", "",
              "## Selected kit per target and horizon", "",
              "| Target | Horizon | Status | Kit (fewest sensors) | Skill vs climatology | Skill vs best baseline | ML adds? | P10–P90 coverage | Test n |",
              "|---|---|---|---|---:|---:|---|---:|---:|"]
@@ -44,7 +44,8 @@ def report_markdown(artifact: dict) -> str:
             lines.append(f"| {target} | {key} | {sel['status']} | {sel['kit']} | {_f(sel.get('skill_vs_climatology'))} | "
                          f"{_f(sel.get('skill_vs_best_baseline'))} | {_yn(sel.get('ml_adds_over_best_baseline'))} | "
                          f"{_f(sel.get('coverage_p10_p90'))} | {sel.get('n_test', '')} |")
-    lines += ["", "## Every kit and baseline on the common test set", "",
+    lines += ["", "## Every kit and baseline on the common held-out test set", "",
+              "Kits use the clock fallback when sensors are missing or outside the training range.", "",
               "| Target | Horizon | Kit | Sensors | MAE | Skill vs climatology | Skill vs best baseline | Coverage | Abstain |",
               "|---|---|---|---:|---:|---:|---:|---:|---:|"]
     for r in artifact["rows"]:

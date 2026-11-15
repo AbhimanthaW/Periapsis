@@ -9,11 +9,11 @@ and dust optical depth 1, 3 and 6 Mars hours ahead at one site?
 * Bands: split-conformal. Residual percentiles from a separate calibration block give P10/P50/P90
   and exceedance probabilities; no distributional assumption.
 * Abstain: features outside the training range -> climatology, with the reason.
-* Selection: for each target and horizon, the smallest kit whose test skill is within ``tolerance``
-  of the best kit, beats every baseline (climatology, persistence, anomaly persistence) and keeps
+* Selection: for each target and horizon, the smallest kit whose selection-block skill is within ``tolerance``
+  of the best kit, meets the baseline thresholds (climatology, persistence, anomaly persistence) and keeps
   P10-P90 coverage >= ``min_coverage``. If none qualifies, the target ships as climatology.
 
-Blocks are contiguous by sol (train | gap | calibration | gap | test) so nothing leaks forward.
+Blocks are contiguous by sol (train | gap | calibration | gap | selection | gap | test).
 """
 from __future__ import annotations
 
@@ -40,7 +40,8 @@ class Settings:
     min_clim_count: int = 3
     l2: float = 1.0
     train_frac: float = 0.6
-    cal_frac: float = 0.2
+    cal_frac: float = 0.15
+    selection_frac: float = 0.10
     gap_sols: int = 1
     tolerance: float = 0.02
     min_gain: float = 0.02
@@ -160,15 +161,17 @@ class Ridge:
 
 
 def _blocks(n_sols: int, s: Settings) -> np.ndarray:
-    """0 = train, 1 = calibration, 2 = test, -1 = gap."""
+    """0 = train, 1 = calibration, 2 = test, 3 = selection, -1 = gap."""
     block = np.full(n_sols, -1)
     a = int(round(n_sols * s.train_frac))
     b = int(round(n_sols * (s.train_frac + s.cal_frac)))
     block[:a] = 0
     block[a + s.gap_sols:b] = 1
-    block[b + s.gap_sols:] = 2
-    if (block == 0).sum() < 10 or (block == 1).sum() < 3 or (block == 2).sum() < 3:
-        raise StationDataError(f"Too few sols ({n_sols}) for train/calibration/test blocks")
+    c = int(round(n_sols * (s.train_frac + s.cal_frac + s.selection_frac)))
+    block[b + s.gap_sols:c] = 3
+    block[c + s.gap_sols:] = 2
+    if any(int((block == i).sum()) < minimum for i, minimum in enumerate((10, 3, 3, 3))):
+        raise StationDataError(f"Too few sols ({n_sols}) for train/calibration/selection/test blocks")
     return block
 
 
@@ -233,6 +236,55 @@ def _metrics(pred, y, lo=None, hi=None, ref_mae=None):
     return out
 
 
+def _comparison(p, target, h, idx):
+    """A common set defined by target observations, independent of sensor availability."""
+    observed = np.isfinite(p.values[target][idx]) & np.isfinite(p.values[target][idx + h])
+    idx = idx[observed]
+    y = p.values[target][idx + h]
+    clim = p.climv[target][idx + h]
+    baselines = {"climatology": clim, "persistence": p.values[target][idx],
+                 "anomaly_persistence": clim + p.anom[target][idx]}
+    errors = {name: np.abs(pred - y).mean() for name, pred in baselines.items()} if len(idx) else {}
+    ref = {"skill_vs_climatology": errors["climatology"],
+           "skill_vs_best_baseline": min(errors.values())} if errors else {}
+    return idx, y, baselines, ref
+
+
+def _kit_metrics(p, target, kit, h, idx, y, ref, fitted):
+    model, pct, _ = fitted[kit]
+    pred, abstain = _predict(p, target, kit, h, idx, model)
+    fallback_pct = fitted[()][1]
+    lo = np.where(abstain, pred + fallback_pct[9], pred + pct[9])
+    hi = np.where(abstain, pred + fallback_pct[89], pred + pct[89])
+    metrics = _metrics(pred, y, lo, hi, ref)
+    metrics["abstain_rate"] = float(abstain.mean())
+    return metrics
+
+
+def _select_kits(p, target, h, idx, fitted, s):
+    idx, y, _, ref = _comparison(p, target, h, idx)
+    if len(idx) < 20:
+        return []
+    candidates = {}
+    for kit in fitted:
+        if not kit:
+            continue
+        metrics = _kit_metrics(p, target, kit, h, idx, y, ref, fitted)
+        skill = metrics["skill_vs_climatology"]
+        best_baseline_skill = metrics["skill_vs_best_baseline"]
+        if (skill is not None and skill >= s.min_gain and best_baseline_skill is not None
+                and best_baseline_skill >= -s.tolerance and metrics["coverage_p10_p90"] >= s.min_coverage):
+            candidates[kit] = skill
+    ranked = []
+    while candidates:
+        best = max(candidates.values())
+        kit = min((kit for kit, skill in candidates.items() if skill >= best - s.tolerance),
+                  key=lambda kit: (len(kit), -candidates[kit]))
+        ranked.append(kit)
+        del candidates[kit]
+    return ranked
+
+
 def train_and_evaluate(grid: Grid, s: Settings = Settings(), *, transfer: Grid | None = None) -> dict:
     present = grid.meta["variables_present"]
     if not present:
@@ -251,7 +303,7 @@ def train_and_evaluate(grid: Grid, s: Settings = Settings(), *, transfer: Grid |
         for h_hours, h in horizons.items():
             n = len(p.k) - h
             same = lambda b: np.nonzero((block_of[:n] == b) & (block_of[h:h + n] == b))[0]
-            train_idx, cal_idx, test_idx = same(0), same(1), same(2)
+            train_idx, cal_idx, test_idx, selection_idx = same(0), same(1), same(2), same(3)
             fitted = {}
             for kit in kits:  # kits[0] is the clock kit; its bands are the fallback for abstained points
                 model = _fit_kit(p, target, kit, h, train_idx, s) if kit else None
@@ -269,67 +321,43 @@ def train_and_evaluate(grid: Grid, s: Settings = Settings(), *, transfer: Grid |
             if () not in fitted:
                 selection[target][f"{h_hours}h"] = {"status": "insufficient_calibration_data", "kit": "clock"}
                 continue
-            # common test set: target observed at issue and at valid time, and every fitted kit valid
-            y_now = p.values[target][test_idx]
-            y_true = p.values[target][test_idx + h]
-            common = np.isfinite(y_now) & np.isfinite(y_true)
-            for kit in fitted:
-                if kit:
-                    common &= build_features(p.anom, kit, test_idx, h, p.bins, p.ls, target)[1]
-            idx = test_idx[common]
-            y = p.values[target][idx + h]
             key = f"{h_hours}h"
+            ranked = _select_kits(p, target, h, selection_idx, fitted, s)
+            selected = ranked[0] if ranked else ()
+            selection[target][key] = {
+                "status": "model" if selected else "climatology",
+                "kit": kit_id(selected),
+                "sensors": list(selected),
+                "eligible_kits": [kit_id(kit) for kit in ranked],
+            }
+            models[target][key] = {kit_id(kit): _serialise(kit, model, pct, n_cal, h, target)
+                                   for kit, (model, pct, n_cal) in fitted.items()}
+            idx, y, baselines, ref = _comparison(p, target, h, test_idx)
+            selection[target][key]["n_test"] = int(len(idx))
             if len(idx) < 20:
-                selection[target][key] = {"status": "insufficient_test_data", "kit": "clock", "n_test": int(len(idx))}
+                selection[target][key]["reason"] = "insufficient held-out observations to report test skill"
                 continue
-            clim_pred = p.climv[target][idx + h]
-            persist = p.values[target][idx]
-            anom_persist = clim_pred + p.anom[target][idx]
-            ref = {"skill_vs_climatology": np.abs(clim_pred - y).mean()}
-            best_baseline = min(np.abs(clim_pred - y).mean(), np.abs(persist - y).mean(), np.abs(anom_persist - y).mean())
-            ref["skill_vs_best_baseline"] = best_baseline
-            for name, pred in (("baseline:climatology", clim_pred), ("baseline:persistence", persist),
-                               ("baseline:anomaly_persistence", anom_persist)):
-                rows.append({"target": target, "horizon_h": h_hours, "kit": name, "sensors": 0, **_metrics(pred, y, ref_mae=ref)})
-            models[target][key] = {}
-            candidates = []
-            for kit, (model, pct, n_cal) in fitted.items():
-                pred, abstain = _predict(p, target, kit, h, idx, model)
-                clock_pct = fitted[()][1]
-                lo = np.where(abstain, pred + clock_pct[9], pred + pct[9])
-                hi = np.where(abstain, pred + clock_pct[89], pred + pct[89])
-                m = _metrics(pred, y, lo, hi, ref)
-                m["abstain_rate"] = float(abstain.mean())
+            for name, pred in baselines.items():
+                rows.append({"target": target, "horizon_h": h_hours, "kit": f"baseline:{name}",
+                             "sensors": 0, **_metrics(pred, y, ref_mae=ref)})
+            for kit in fitted:
+                m = _kit_metrics(p, target, kit, h, idx, y, ref, fitted)
                 rows.append({"target": target, "horizon_h": h_hours, "kit": kit_id(kit), "sensors": len(kit), **m})
-                models[target][key][kit_id(kit)] = _serialise(kit, model, pct, n_cal, h, target)
-                if (kit and m["skill_vs_climatology"] >= s.min_gain and m["skill_vs_best_baseline"] >= -s.tolerance
-                        and m["coverage_p10_p90"] >= s.min_coverage):
-                    candidates.append((kit, m))
+                if kit == selected:
+                    gain = m["skill_vs_best_baseline"]
+                    selection[target][key].update(
+                        skill_vs_climatology=m["skill_vs_climatology"], skill_vs_best_baseline=gain,
+                        ml_adds_over_best_baseline=bool(gain is not None and gain >= s.min_gain),
+                        coverage_p10_p90=m["coverage_p10_p90"])
             if gbm is not None and len(fitted) > 1:
                 full = max((k for k in fitted if k), key=len)
                 rows.append(_gbm_row(gbm, p, target, full, h, train_idx, idx, y, ref, h_hours))
-            if candidates:
-                best = max(m["skill_vs_climatology"] for _, m in candidates)
-                good = [(kit, m) for kit, m in candidates if m["skill_vs_climatology"] >= best - s.tolerance]
-                kit, m = min(good, key=lambda item: (len(item[0]), -item[1]["skill_vs_climatology"]))
-                gain = m["skill_vs_best_baseline"]
-                selection[target][key] = {"status": "model", "kit": kit_id(kit), "sensors": list(kit),
-                                          "base": "anomaly_persistence" if uses_persistence(kit, target) else "climatology",
-                                          "skill_vs_climatology": m["skill_vs_climatology"],
-                                          "skill_vs_best_baseline": gain,
-                                          "ml_adds_over_best_baseline": bool(gain >= s.min_gain),
-                                          "coverage_p10_p90": m["coverage_p10_p90"], "best_kit_skill": best, "n_test": m["n"]}
-            else:
-                anomaly_skill = 1 - np.abs(anom_persist - y).mean() / ref["skill_vs_climatology"]
-                selection[target][key] = {"status": "climatology", "kit": "clock", "sensors": [], "n_test": int(len(idx)),
-                                          "reason": (f"no sensor kit beat climatology by {s.min_gain}, stayed within "
-                                                     f"{s.tolerance} of every baseline and kept P10-P90 coverage >= {s.min_coverage}"),
-                                          "anomaly_persistence_skill_vs_climatology": float(anomaly_skill)}
     result = {"climatology": clim.to_dict(), "models": models, "rows": [_round(r) for r in rows],
               "selection": _round(selection), "kits": {kit_id(k): list(k) for k in kits},
               "horizons": {f"{h}h": b for h, b in horizons.items()},
               "blocks": {"train_sols": int((blocks == 0).sum()), "calibration_sols": int((blocks == 1).sum()),
-                         "test_sols": int((blocks == 2).sum()), "gap_sols": s.gap_sols},
+                         "test_sols": int((blocks == 2).sum()), "selection_sols": int((blocks == 3).sum()),
+                         "gap_sols": s.gap_sols},
               "challenger": "sklearn HistGradientBoostingRegressor on the full kit (evaluation only)" if gbm else None}
     if transfer is not None:
         result["transfer"] = evaluate_transfer(result, transfer, s)
@@ -356,11 +384,16 @@ def _gbm():
 
 def _gbm_row(cls, p, target, kit, h, train_idx, idx, y, ref, h_hours):
     x, ok = build_features(p.anom, kit, train_idx, h, p.bins, p.ls, target)
-    yt = p.anom[target][train_idx + h] - p.anom[target][train_idx]
+    persistence = uses_persistence(kit, target)
+    yt = p.anom[target][train_idx + h] - (p.anom[target][train_idx] if persistence else 0.0)
     ok &= np.isfinite(yt)
     model = cls(max_iter=200, random_state=0).fit(x[ok], yt[ok])
-    xt, _ = build_features(p.anom, kit, idx, h, p.bins, p.ls, target)
-    pred = p.climv[target][idx + h] + p.anom[target][idx] + model.predict(xt)
+    xt, valid = build_features(p.anom, kit, idx, h, p.bins, p.ls, target)
+    pred = p.climv[target][idx + h].copy()
+    if valid.any():
+        pred[valid] += model.predict(xt[valid])
+        if persistence:
+            pred[valid] += p.anom[target][idx[valid]]
     return {"target": target, "horizon_h": h_hours, "kit": "challenger:gbm:" + kit_id(kit), "sensors": len(kit),
             **_metrics(pred, y, ref_mae=ref)}
 
@@ -390,10 +423,12 @@ def evaluate_transfer(result: dict, other: Grid, s: Settings) -> list[dict]:
                 if any(v not in present for v in kit):
                     continue
                 model = _model_from(entry) if kit else None
-                _, valid = build_features(p.anom, kit, idx, h, p.bins, p.ls, target) if kit else (None, np.ones(len(idx), bool))
-                pred, abstain = _predict(p, target, kit, h, idx[valid], model)
+                pred, abstain = _predict(p, target, kit, h, idx, model)
                 pct = np.asarray(entry["residual_percentiles"])
-                m = _metrics(pred, y[valid], pred + pct[9], pred + pct[89], {"skill_vs_local_climatology": clim_mae})
+                clock = np.asarray(kits["clock"]["residual_percentiles"])
+                lo = pred + np.where(abstain, clock[9], pct[9])
+                hi = pred + np.where(abstain, clock[89], pct[89])
+                m = _metrics(pred, y, lo, hi, {"skill_vs_local_climatology": clim_mae})
                 rows.append(_round({"target": target, "horizon_h": int(key[:-1]), "kit": name, **m,
                                     "abstain_rate": float(abstain.mean())}))
     return rows
@@ -433,7 +468,8 @@ def build_artifact(grid: Grid, s: Settings = Settings(), *, transfer: Grid | Non
         "settings": {k: list(v) if isinstance(v, tuple) else v for k, v in asdict(s).items()},
         "method": ("climatology (local-time bin x Ls window) + ridge correction from the kit's recent anomalies; "
                    "split-conformal P10/P50/P90 from a held-out calibration block; abstain to climatology outside "
-                   "the training feature range; the smallest kit within tolerance of the best kit that beats climatology by "
+                   "the training feature range; kit choice on a separate selection block, using the smallest kit within tolerance "
+                   "of the best kit that beats climatology by "
                    "min_gain with adequate coverage. ml_adds_over_best_baseline says whether the learned correction beats "
                    "plain persistence baselines by min_gain, i.e. whether ML, not persistence, earns the skill"),
         **result,
