@@ -281,9 +281,10 @@ test('the packaged Operations UI opens unselected and connects ranking and missi
 test('a base entered in east longitude reaches the planner as the equivalent signed point', async ({ page }) => {
   await page.goto('/demo/')
   await page.getByRole('button', { name: 'Set Mars base' }).click()
-  await page.getByLabel('Latitude').fill('49.02')
-  await page.getByLabel('Longitude').fill('188.15')
-  await page.getByRole('button', { name: 'Set base', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Mars base coordinates' })
+  await dialog.getByLabel('Latitude').fill('49.02')
+  await dialog.getByLabel('Longitude').fill('188.15')
+  await dialog.getByRole('button', { name: 'Set base', exact: true }).click()
   await page.getByRole('link', { name: 'Route', exact: true }).click()
   await expect(page.getByRole('heading', { name: /HPX128:43896/ })).toBeVisible()
   await page.getByRole('button', { name: 'Enter simulated Marswalk' }).click()
