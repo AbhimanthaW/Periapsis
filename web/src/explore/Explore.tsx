@@ -11,6 +11,7 @@ import display from '../../../pipeline/evidence/arcadia-planitia/display-metadat
 import { Globe } from './Globe'
 import type { Layer, Point } from './Globe'
 import { Sortie } from './Sortie'
+import type { Stage } from './Sortie'
 import '../mission/mission.css'
 import '../atlas/atlas.css'
 import './explore.css'
@@ -23,7 +24,11 @@ function initialSelection() {
   const parts = params.get('base')?.split(',')
   const coords = parts?.length === 2 && parts.every(part => part.trim()) ? parts.map(Number) : undefined
   const base = coords && Math.abs(coords[0]) <= 180 && Math.abs(coords[1]) <= 90 ? coords as Point : undefined
-  return { cell, base, region: params.get('region'), demo: params.get('demo') === '1', ranking: params.get('panel') === 'ranking' }
+  const requestedStage = params.get('walk')
+  const stage = (['Route', 'Analysis', 'Monitor'] as const).find((candidate: Stage) => candidate.toLowerCase() === requestedStage)
+  return { cell, base, stage, objective: params.get('objective')?.trim().slice(0, 300) ?? '',
+    method: params.get('method'), excludes: params.get('exclude')?.split(','),
+    layer: params.get('layer') === 'mola' ? 'mola' as const : 'viking' as const, region: params.get('region'), demo: params.get('demo') === '1', ranking: params.get('panel') === 'ranking' }
 }
 
 export default function Explore() {
@@ -32,14 +37,15 @@ export default function Explore() {
   const [cell, setCell] = useState<CellContext | null>(null)
   const [base, setBase] = useState(initial.base)
   const [center, setCenter] = useState<Point>([0, 0])
-  const [layer, setLayer] = useState<Layer>('viking')
+  const [layer, setLayer] = useState<Layer>(initial.layer)
   const [pickBase, setPickBase] = useState(false)
-  const [objective, setObjective] = useState('')
+  const [objective, setObjective] = useState(initial.objective)
   const [demoPreset, setDemoPreset] = useState(false)
   const [draftId, setDraftId] = useState(initial.cell)
   const [orientation, setOrientation] = useState<string>()
   const [rank, setRank] = useState(initial.ranking)
-  const [simulation, setSimulation] = useState(false)
+  const [simulation, setSimulation] = useState(Boolean(initial.stage && initial.base))
+  const [baseChecked, setBaseChecked] = useState(!initial.stage || !initial.base)
   const [fault, setFault] = useState('')
   const [attempt, setAttempt] = useState(0)
   const [locating, setLocating] = useState(false)
@@ -138,7 +144,8 @@ export default function Explore() {
     locateCell(initial.base, controller.signal).then(response => {
       if (controller.signal.aborted) return
       if (!response.ok || response.data.id !== initial.cell) setBase(value => value === initial.base ? undefined : value)
-    }, () => {})
+      setBaseChecked(true)
+    }, () => { if (!controller.signal.aborted) { setBase(undefined); setBaseChecked(true) } })
     return () => controller.abort()
   }, [initial])
 
@@ -155,7 +162,10 @@ export default function Explore() {
 
   return <main className="mission-app cell-workspace">
     <header className="mission-masthead">
-      <a className="mission-brand" href="/explore">Return Window</a>
+      <a className="mission-brand cell-brand" href="/explore">
+        {import.meta.env.VITE_PACKAGED_RELEASE === '1' && <img src="/demo/brand/nasa-logo.svg" width="32" height="28" alt=""/>}
+        Return Window
+      </a>
       <nav className="mission-nav" aria-label="Workspaces">
         <button className="mission-link" onClick={() => { setRank(false); setSimulation(false) }}>Explore</button>
         <button className="mission-link" onClick={() => { setRank(true); setSimulation(false) }}>Ranked cells</button>
@@ -168,7 +178,9 @@ export default function Explore() {
       lastPick.current = null
       setLocating(false)
       select(id)
-    }}/> : simulation && base ? <Sortie key={cellId + '/' + base.join(',')} cellId={cellId} marsPoint={base} demo={demoPreset}/> :
+    }}/> : simulation && base && baseChecked ? <Sortie key={cellId + '/' + base.join(',')} cellId={cellId} marsPoint={base} demo={demoPreset} initialStage={initial.stage}
+      scienceObjective={demoPreset ? 'shallow subsurface ice' : objective} methodInput={initial.method}
+      exclusionsInput={initial.excludes} initialLayer={layer}/> :
       <div className="mission-site">
         <div className="mission-site-main">
           <section className="mission-card">

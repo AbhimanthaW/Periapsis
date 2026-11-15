@@ -288,7 +288,13 @@ const sortiePlanSchema = planResponseSchema.extend({
   base_cell: cell,
   current_cell: cell,
   marswalk: z.object({ candidates: z.array(z.object({
-    id, passed: z.boolean(), legs: z.array(z.object({ cells: z.array(cell) })),
+    id, passed: z.boolean(),
+    legs: z.array(z.object({
+      name: z.string(), cells: z.array(cell), length_m: z.number().nullable(), max_slope_deg: z.number().nullable(),
+    })),
+    ledger: z.object({ total_use: z.number().nullable() }).nullable(),
+    margin_s: z.number().nullable(),
+    constraints: z.array(z.object({ rule: z.string(), outcome: z.string(), reason: z.string() })),
     failure_reasons: z.array(z.string()),
   })) }),
 })

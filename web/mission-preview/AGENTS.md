@@ -11,3 +11,5 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 Arcadia Planitia is the primary demo region. Its pinned MOLA handoff supports regional context and an evidence decision. Keep tactical routing gated until a qualifying local terrain pack is available. Jezero is the comparison control and the setting for separate simulation rehearsals.
 
 For Explore, Ranked Areas, and Investigation, launch unselected. Named landmarks orient the operator; ranking and investigation use HEALPix Nside 128 cells. Keep a user-entered Mars base separate from the science target. The base is the starting location passed to the simulated Marswalk workspace.
+
+In the saved-base Marswalk workspace, open Route on the Mars imagery with separate access to the computed rehearsal route. Use the demo's comparison layout for Analysis and its map, playback bar, and status strip for Monitor. Keep synthetic path geometry separate from georeferenced Mars imagery.
