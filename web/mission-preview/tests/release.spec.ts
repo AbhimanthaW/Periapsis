@@ -103,10 +103,10 @@ test('replays the four planning outcomes separately from the current region', as
 })
 
 test('serves the offline Arcadia showcase and keeps operator control over simulated reroutes', async ({ page }) => {
-  await page.goto('/#globe')
-  await page.getByRole('button', { name: 'Demo', exact: true }).click()
+  await page.goto('/demo/#globe')
+  await page.getByRole('link', { name: 'Demo', exact: true }).click()
   await expect(page.getByRole('heading', { name: /Arcadia Planitia.*HPX128:43896/ })).toBeVisible()
-  await expect(page).toHaveURL(/cell=HPX128%3A43896.*#globe$/)
+  await expect(page).toHaveURL(/\/explore\?cell=HPX128%3A43896/)
   await page.reload()
   await expect(page.getByLabel('Basemap')).toHaveValue('mola')
   await expect(page.getByRole('heading', { name: 'coarse_elevation_context' })).toBeVisible()
@@ -117,7 +117,7 @@ test('serves the offline Arcadia showcase and keeps operator control over simula
   await page.getByRole('button', { name: 'Monitor', exact: true }).click()
   await expect(page.getByText('Awaiting a current operator-approved route')).toBeVisible()
   await page.getByRole('link', { name: 'Open the separate hazard replay' }).click()
-  await expect(page.getByText(/Update 1 \/ 6 · (Local compute|Bundled fallback)/)).toBeVisible()
+  await expect(page.getByText('Update 1 / 6 · Local compute')).toBeVisible()
   const next = page.getByRole('button', { name: 'Next update' })
   for (let update = 0; update < 3; update++) await next.click()
   await expect(page.getByRole('status')).toHaveText('Active route blocked')
@@ -272,7 +272,8 @@ test('the packaged Operations UI opens unselected and connects ranking and missi
   }
 
   await page.getByRole('link', { name: 'Ranked areas', exact: true }).click()
-  await expect(page.getByText(/196,608 cells searched/)).toBeVisible()
+  await expect(page.getByText(/196,608 cells in grid/)).toBeVisible()
+  await expect(page.getByText(/Exploratory ranking/)).toBeVisible()
   await page.getByRole('region', { name: 'Cell ranking table' }).locator('tbody button').first().click()
   await page.getByRole('link', { name: /^Investigate / }).click()
   await expect(page.getByRole('complementary', { name: 'Region investigation panel' })).toBeVisible()

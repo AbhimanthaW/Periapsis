@@ -42,7 +42,7 @@ test('captures the Explore, service ranking and Jezero investigation states', as
 
   await rankLink(page).click()
   await expect(page.getByRole('main', { name: 'Ranked Areas' })).toBeFocused()
-  await expect(page.locator('.ranking-pack')).toContainText('196,608 cells searched')
+  await expect(page.locator('.ranking-pack')).toContainText('196,608 cells in grid')
   await expect(rankTable(page).getByRole('row')).toHaveCount(4)
   // Select a real result to capture the reference's selected row treatment.
   const first = rankTable(page).locator('tbody th button').first()
