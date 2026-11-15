@@ -23,7 +23,7 @@ function initialSelection() {
   const parts = params.get('base')?.split(',')
   const coords = parts?.length === 2 && parts.every(part => part.trim()) ? parts.map(Number) : undefined
   const base = coords && Math.abs(coords[0]) <= 180 && Math.abs(coords[1]) <= 90 ? coords as Point : undefined
-  return { cell, base, region: params.get('region'), demo: params.get('demo') === '1' }
+  return { cell, base, region: params.get('region'), demo: params.get('demo') === '1', ranking: params.get('panel') === 'ranking' }
 }
 
 export default function Explore() {
@@ -38,7 +38,7 @@ export default function Explore() {
   const [demoPreset, setDemoPreset] = useState(false)
   const [draftId, setDraftId] = useState(initial.cell)
   const [orientation, setOrientation] = useState<string>()
-  const [rank, setRank] = useState(false)
+  const [rank, setRank] = useState(initial.ranking)
   const [simulation, setSimulation] = useState(false)
   const [fault, setFault] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -160,8 +160,6 @@ export default function Explore() {
         <button className="mission-link" onClick={() => { setRank(false); setSimulation(false) }}>Explore</button>
         <button className="mission-link" onClick={() => { setRank(true); setSimulation(false) }}>Ranked cells</button>
         {import.meta.env.VITE_PACKAGED_RELEASE === '1' && <a href="/demo/">Operations UI</a>}
-        <a href="/atlas">Research Atlas</a>
-        <a href="/architecture">Architecture</a>
         <button className="mission-button mission-button-primary" onClick={demo}>Demo</button>
       </nav>
     </header>
@@ -217,7 +215,7 @@ export default function Explore() {
           {context && <>
             <section className="mission-card">
               <h2>{feature ? feature.name + ' · ' : ''}{cellId}</h2>
-              {namedFeature && <a href={'/atlas?region=' + namedFeature.id}>{namedFeature.name} · approximate research label</a>}
+              {namedFeature && <p>{namedFeature.name} · approximate research label</p>}
               {base ? <p>Candidate base {base[1].toFixed(5)}°, {base[0].toFixed(5)}° east longitude.</p>
                 : <p>Set a base to record an exact Mars position.</p>}
               <p><strong>Tactical routing withheld.</strong> A qualified terrain pack is required for the base and route.</p>

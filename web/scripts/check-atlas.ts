@@ -2,8 +2,7 @@ import { strict as assert } from 'node:assert'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import registry from '../src/atlas/regions.json'
-import { initialArchitecture } from '../src/initial'
-import { assets, assetIds, assessmentFor, atlasModelIds, byRegion, globalExtent, modes, normalizeLongitude, planningContext, ratingColor, regions, researchProvenance } from '../src/atlas/data'
+import { assets, assetIds, assessmentFor, byRegion, globalExtent, modes, normalizeLongitude, planningContext, ratingColor, regions, researchProvenance } from '../src/atlas/data'
 
 const path = (name:string) => new URL('../public/atlas/'+name,import.meta.url)
 const archive = readFileSync(path('MARS_REGIONAL_RESEARCH.md'))
@@ -39,8 +38,6 @@ for (const region of registry.regions) assert.deepEqual(Object.keys(region.asses
 assert.notEqual(ratingColor('science',5),ratingColor('traversal',5))
 assert.notEqual(ratingColor('traversal',null),ratingColor('traversal',3))
 
-const components=new Set(initialArchitecture.components.map(item=>item.id))
-for (const id of [...Object.values(atlasModelIds).flat(),'rover-travel','rover-energy','traverse','human-profile']) assert.ok(components.has(id),id)
 assert.deepEqual(globalExtent,[-180,-90,180,90])
 for (const id of assetIds) {
   const layer=assets[id]
@@ -56,4 +53,4 @@ for (const id of assetIds) {
     for (let zoom=0;zoom<=2;zoom++) for (let x=0;x<2**(zoom+1);x++) for(let y=0;y<2**zoom;y++) assert.ok(existsSync(path(`${id}/${zoom}/${x}/${y}.webp`)))
   }
 }
-console.log('Atlas validated: 56 regions, exact survey archive and section spans, Gazetteer bounds, research scales, all local raster tiles and canonical model links.')
+console.log('Atlas validated: 56 regions, exact survey archive and section spans, Gazetteer bounds, research scales, all local raster tiles.')

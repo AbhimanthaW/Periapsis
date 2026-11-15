@@ -338,7 +338,7 @@ class PlanningHandler(BaseHTTPRequestHandler):
         request_path = unquote(urlsplit(self.path).path)
         if request_path.startswith("/api/") or request_path == "/healthz":
             return False
-        if request_path in {"/", "/atlas", "/atlas/", "/mission", "/mission/", "/architecture", "/architecture/", "/explore", "/explore/"}:
+        if request_path in {"/", "/atlas", "/atlas/", "/mission", "/mission/", "/explore", "/explore/"}:
             directory, name = "app", "index.html"
         elif request_path == "/demo":
             self.send_response(308)

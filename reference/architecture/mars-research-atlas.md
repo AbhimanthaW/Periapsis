@@ -1,6 +1,6 @@
 # Mars Research Atlas
 
-Open `/atlas` on the local Return Window server. The root and `/architecture` open the existing architecture editor. From the Atlas, choose **Research** to read the complete selected section or **Compare** to sort and inspect regions side by side. The traversal and science modes and the geographic feature type mode share the same location registry. Region IDs, research panel, profile and comparison choices have shareable URLs. Camera, layers and the last view persist on the browser origin.
+Explore uses the regional registry for approximate orientation and the packaged rasters for its basemaps. The original survey and source metadata are retained for provenance.
 
 ## Geographic products
 
@@ -33,7 +33,6 @@ python3 scripts/extract-atlas-research.py "/path/to/Regions Nasa Space Apps.md" 
 # With Pillow installed in a local Python environment:
 python3 scripts/prepare-atlas-imagery.py
 npm run check:atlas
-npm run check:data
 npm run build
 ```
 

@@ -63,7 +63,7 @@ export default function Mission() {
   const { view, regionId, profile } = selection
   const region = byRegion.get(regionId)
   const simulation = view === 'simulation'
-  const atlasHref = '/atlas?' + new URLSearchParams({ region: region?.id ?? 'none', profile })
+  const exploreHref = region ? '/explore?' + new URLSearchParams({ region: region.id }) : '/explore'
   const setView = (view: View) => update({ ...selection, view })
   useEffect(() => {
     document.title = `${simulation ? 'Simulated Marswalk' : 'Site investigation'} · Return Window`
@@ -71,7 +71,7 @@ export default function Mission() {
   return (
     <main className="mission-app" data-view={view}>
       <header className="mission-masthead">
-        <a className="mission-brand" href={atlasHref}>Return Window</a>
+        <a className="mission-brand" href={exploreHref}>Return Window</a>
         <div className="mission-crumbs">
           {simulation ? (
             <>
@@ -84,8 +84,7 @@ export default function Mission() {
         </div>
         <nav className="mission-nav" aria-label="Workspaces">
           <ServiceStatus/>
-          <a href={atlasHref}>Mars Atlas</a>
-          <a href="/architecture">Architecture</a>
+          <a href={exploreHref}>Explore Mars</a>
         </nav>
       </header>
       {simulation && (
@@ -98,7 +97,7 @@ export default function Mission() {
           onChange={regionId => update({ ...selection, regionId })} onEnterSimulation={() => setView('simulation')}/>
         : <section className="mission-card" role="alert">
           <h1>Unknown Atlas region</h1>
-          <p>Choose a valid region in the <a href={atlasHref}>Mars Atlas</a>.</p>
+          <p>Choose a valid region in the <a href={exploreHref}>Mars Atlas</a>.</p>
         </section>}
     </main>
   )

@@ -1,6 +1,6 @@
 # Return Window
 
-Return Window is Team Periapsis's offline Marswalk decision-support project for NASA Space Apps Colombo 2026. The editor and Atlas present the architecture and regional evidence. Mission capability depends on the pack, runtime and release checks.
+Return Window is Team Periapsis's offline Marswalk decision-support project for NASA Space Apps Colombo 2026. Explore and Operations show regional evidence and support the synthetic mission rehearsal. Mission capability depends on the pack, runtime and release checks.
 
 Start with the [offline release runbook](docs/offline-readiness.md). See [development setup](docs/development.md), [source provenance](docs/source-provenance.md), and [development references](reference/README.md).
 

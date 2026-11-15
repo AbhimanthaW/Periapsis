@@ -6,7 +6,7 @@
 
 **Verdict.** Rank regions against a typed objective with a reviewed concept vocabulary, a rule-based objective parser and a fielded relevance score computed on concepts. Show science interest, documentation and traversal as separate criteria and never add them together. The same vocabulary can also score the 196,608 HEALPix cells through structured layers. A standard-library prototype runs on the current 56-region registry. It puts Jezero, Icaria Planum and Margaritifer Terra first for *ancient water and delta deposits*, stays deterministic across input orders, and keeps the same top region on six benchmark objectives under ±20 % changes to any parameter. The lexicon and weights are drafts. Isath must review them before any ranking is shown as a team result.
 
-This document implements the `rank-regions` node of the [Data Pipeline architecture](../../web/src/pipeline-data.ts) and the science screening model in the [Scientific Model Design Review](../../reference/architecture/scientific-model-design-review.md). It does not change route costs, pack contracts or the documentation engine.
+This document implements the regional ranking and science screening model in the [Scientific Model Design Review](../../reference/architecture/scientific-model-design-review.md). It does not change route costs, pack contracts or the documentation engine.
 
 [Prototype](prototype/rank_regions.py) · [Draft lexicon](prototype/lexicon-v0.json) · [Evaluation](prototype/evaluate.py) · [Tests](prototype/test_prototype.py)
 

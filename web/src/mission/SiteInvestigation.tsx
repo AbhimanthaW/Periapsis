@@ -190,7 +190,6 @@ export function SiteInvestigation({ region, profile, onChange, onEnterSimulation
         <h2>Model applicability</h2>
         <p><strong>Tactical routing withheld.</strong> No qualified local routing pack for {region.name}.</p>
         <p><strong>Live hazard assessment unavailable.</strong> No qualified feed is bound to this region. Keep local slope, trafficability, resource cost, and hazard exposure unevaluated.</p>
-        <a href={'/architecture?' + new URLSearchParams({ view: 'models', region: region.id, profile })}>Scientific model requirements</a>
       </section>
     </div>
     <aside className="mission-site-side" aria-label="Evidence">

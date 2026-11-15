@@ -1,6 +1,6 @@
 # Return Window offline launch
 
-The release serves the architecture workspace, Atlas, region evidence, scoped ranking and both rehearsals from one loopback process. Source products and the synthetic scenarios retain independent identities. No internet service or external credentials are required at launch.
+The release serves Explore, Operations, region evidence, scoped ranking and both rehearsals from one loopback process. Source products and the synthetic scenarios retain independent identities. No internet service or external credentials are required at launch.
 
 ## Build once with network access
 
@@ -31,13 +31,13 @@ On the presentation machine, keep the matching checkout and provision its locked
 uv run --project documentation --locked --offline python -m runtime.release serve data/offline-release
 ```
 
-Open [Explore](http://127.0.0.1:8000/explore), [the Operations UI](http://127.0.0.1:8000/demo/) or [the Research Atlas](http://127.0.0.1:8000/atlas). To use another loopback port, pass `--port`. Launch verifies the checkout and every packaged file before binding the port. Local API failures return JSON errors. External citations are optional links.
+Open [Explore](http://127.0.0.1:8000/explore) or [the Operations UI](http://127.0.0.1:8000/demo/). To use another loopback port, pass `--port`. Launch verifies the checkout and every packaged file before binding the port. Local API failures return JSON errors. External citations are optional links.
 
 ## Release acceptance
 
 1. Use a fresh browser profile on a second machine with networking disconnected.
 2. Open the Operations UI and choose **Demo**. Inspect regional MOLA context and the refusal of 20 m stereo elevation. Enter the synthetic Marswalk, approve the proposed route in Monitor, record departure, report a crew position and close the middle corridor. Verify the recomputed return reaches the same synthetic base and awaits approval. Compare the Jezero control, HPX128:96848, with a sparse cell such as HPX128:0. Sparse cells should show regional evidence and uncertainty while withholding unsupported local calculations.
-3. Rank “ancient lakes with hydrothermal activity” in the Atlas. Confirm that the result states which terms were evaluated and which were skipped.
+3. Rank “ancient lakes with hydrothermal activity” in Ranked cells. Confirm that the result states which terms were evaluated and which were skipped.
 4. Open the fixed-fixture regression at `/mission?view=simulation`. Confirm baseline return and science times of 40 s and 75 s, then 60 s and 95 s after closing the middle corridor. With 70 s remaining, expect an over-reserve refusal. Close both corridors and expect no route. Completed work must remain visible.
 5. Open the separate hazard drill. Advance to the closure and check that the active route only changes after explicit operator approval. Verify that stale readings prevent approval. The seasonal MDAD outlook and the synthetic station model do not grant terrain or hazard qualification.
 6. Record the tested commit, manifest digest, machine, results, and timing. Same-machine browser tests block external requests and cover the integration. The disconnected second-machine receipt is required for offline release acceptance.

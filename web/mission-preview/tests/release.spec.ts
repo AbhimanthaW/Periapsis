@@ -7,9 +7,6 @@ test.beforeEach(async ({ page, baseURL }) => {
 
 test('offline Atlas named selection migrates to a canonical cell', async ({ page }) => {
   await page.goto('/atlas?region=25&profile=human')
-  const inspector = page.getByRole('complementary', { name: 'Region inspector' })
-  await expect(inspector.getByRole('heading', { name: 'Solis Planum' })).toBeVisible()
-  await inspector.getByRole('link', { name: 'Investigate site' }).click()
   await expect(page).toHaveURL(/cell=HPX128%3A115505/)
   await expect(page.getByRole('heading', { name: 'HPX128:115505' })).toBeVisible()
   await expect(page.getByText('MOLA gridded elevation at cell centroid')).toBeVisible()
@@ -69,7 +66,7 @@ test('rejects an inconsistent query and preserves survey fallback during an API 
 })
 
 test('uses the sourced ranking pack and discloses terms excluded from the result', async ({ page }) => {
-  await page.goto('/atlas?panel=ranking')
+  await page.goto('/explore?panel=ranking')
   const objective = page.getByLabel('Science objective')
   await objective.fill('ancient lakes with hydrothermal activity')
   await page.getByRole('button', { name: 'Rank areas' }).click()
@@ -160,7 +157,7 @@ test('blocks planning deep links without moving a rehearsal to the selected site
   await expect(page.getByRole('link', { name: 'Open the Jezero simulation' })).toBeVisible()
   await page.getByRole('link', { name: 'Investigate Atlas region' }).click()
   await expect(page).toHaveURL(/cell=HPX128%3A/)
-  await expect(page.getByRole('link', { name: 'Utopia Planitia · approximate research label' })).toBeVisible()
+  await expect(page.getByText('Utopia Planitia · approximate research label', { exact: true })).toBeVisible()
 })
 
 test('the packaged station and hazard API returns six labeled simulated steps', async ({ request }) => {
