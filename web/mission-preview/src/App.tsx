@@ -385,9 +385,9 @@ export default function App() {
 
     <dialog ref={missionEntry} className="dialog" aria-labelledby="mission-entry-title">
       <h2 id="mission-entry-title">{entryStage} workspace</h2>
-      <p>Set a Mars base to open the simulated Marswalk workspace, or open the separate Jezero rehearsal.</p>
+      <p>{walkHref ? 'Open your saved Mars base in the simulated workspace.' : 'Set a Mars base to open the simulated workspace, or open the separate Jezero rehearsal.'}</p>
       <div className="shortcut-links">
-        {walkHref ? <a className="button primary" href={walkHref} onClick={() => missionEntry.current?.close()}>Open simulated Marswalk</a>
+        {walkHref ? <a className="button primary" href={walkHref + '&walk=' + entryStage.toLowerCase()} onClick={() => missionEntry.current?.close()}>Open simulated Marswalk</a>
           : <BaseLocation onChange={updateBase} />}
         <a className="button" href={missionHref(entryStage.toLowerCase(), profile, allRegions[0])}
           onClick={() => missionEntry.current?.close()}>Open Jezero rehearsal</a>

@@ -26,3 +26,23 @@
 .sortie-map .mission-grid svg { max-height: 280px; }
 .sortie-controls label { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .sortie-controls select, .sortie-controls input[type='number'] { padding: .35rem .5rem; }
+
+.sortie-shell { max-width: none; padding: clamp(1rem, 2.5vw, 2.5rem); gap: clamp(1rem, 3vw, 3rem); background: radial-gradient(ellipse at 12% 0%, #271d15, #0d0b0a 60%); min-height: calc(100vh - 64px); }
+.sortie-content, .sortie-controls { display: grid; align-content: start; min-width: 0; gap: 1rem; }
+.sortie-controls { margin-top: 3rem; background: #211912; border: 1px solid #46382c; padding: 1.25rem; border-radius: .9rem; }
+.sortie-controls .mission-button-primary { width: 100%; }
+.sortie-map .mission-grid { background: radial-gradient(ellipse at 42% 45%, #4d3929, #231910 75%); border-color: #5e4735; border-radius: .9rem; padding: 1rem; }
+.sortie-map .mission-grid svg { max-height: 55vh; }
+.sortie-map .mission-grid figcaption { color: #ded0c2; }
+.sortie-map .mission-cell { fill: #3c2b20; stroke: #886b52; }
+.sortie-map .mission-cell-closable { fill: #514034; }
+.sortie-map .mission-cell-closed { fill: #582e29; }
+.sortie-map .mission-cell-label { fill: #eadacd; }
+.sortie-map .mission-route-inspect { stroke: #f1a172; }
+.sortie-shell[data-stage='analysis'] .sortie-map { order: 3; }
+.sortie-shell[data-stage='analysis'] svg { max-height: 250px; }
+.sortie-table { overflow-x: auto; }
+.sortie-table table { border-collapse: collapse; width: 100%; }
+.sortie-table :is(th, td) { padding: .75rem; text-align: left; border-bottom: 1px solid #46382c; }
+.sortie-table thead th { color: #c4b7aa; font-weight: 500; }
+@media (max-width: 900px) { .sortie-controls { margin-top: 0; } }

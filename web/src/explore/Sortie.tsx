@@ -6,11 +6,11 @@ import { signedSeconds, statusText } from '../mission/format'
 import type { Point } from './Globe'
 
 const tabs = ['Route', 'Analysis', 'Monitor'] as const
-type Stage = typeof tabs[number]
+export type Stage = typeof tabs[number]
 const key = (cell: Cell) => cell.join(',')
 const same = (left: Cell, right: Cell) => key(left) === key(right)
 
-export function Sortie({ cellId, marsPoint, demo }: { cellId: string; marsPoint: Point; demo: boolean }) {
+export function Sortie({ cellId, marsPoint, demo, initialStage = 'Route' }: { cellId: string; marsPoint: Point; demo: boolean; initialStage?: Stage }) {
   const [site, setSite] = useState<FixtureSite | null>(null)
   const [fault, setFault] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -27,7 +27,7 @@ export function Sortie({ cellId, marsPoint, demo }: { cellId: string; marsPoint:
     {fault ? <><p role="alert">{fault}</p><button onClick={() => setAttempt(n => n + 1)}>Retry loading grid</button></>
       : <p role="status">Loading simulation grid…</p>}
   </section>
-  return <Planner site={site} cellId={cellId} marsPoint={marsPoint} demo={demo}/>
+  return <Planner site={site} cellId={cellId} marsPoint={marsPoint} demo={demo} initialStage={initialStage}/>
 }
 
 function GridPicker({ label, site, value, choose, disabled = false }: {
@@ -43,8 +43,8 @@ function GridPicker({ label, site, value, choose, disabled = false }: {
   </select></label>
 }
 
-function Planner({ site, cellId, marsPoint, demo }: { site: FixtureSite; cellId: string; marsPoint: Point; demo: boolean }) {
-  const [stage, setStage] = useState<Stage>('Route')
+function Planner({ site, cellId, marsPoint, demo, initialStage }: { site: FixtureSite; cellId: string; marsPoint: Point; demo: boolean; initialStage: Stage }) {
+  const [stage, setStage] = useState<Stage>(initialStage)
   const [sortie, setSortie] = useState(() => crypto.randomUUID())
   const start: Cell = demo ? [1, 1] : site.shelter_cell
   const [base, setBase] = useState(start)
@@ -122,12 +122,12 @@ function Planner({ site, cellId, marsPoint, demo }: { site: FixtureSite; cellId:
   const route = result?.marswalk.candidates.find(candidate => candidate.passed &&
     (candidate.id === result.recommendation || candidate.id === 'science:' + result.recommendation))
   const routeCells = route?.legs.flatMap(leg => leg.cells) ?? result?.direct_return?.cells ?? null
-  return <div className="mission-site sortie-shell" aria-label="Simulated Marswalk workspace">
+  return <div className="mission-site sortie-shell" data-stage={stage.toLowerCase()} aria-label="Simulated Marswalk workspace">
     <div className="mission-site-main">
       <nav className="cell-toolbar sortie-tabs" aria-label="Marswalk stages">
         {tabs.map(tab => <button className="mission-button" key={tab} aria-pressed={stage === tab} onClick={() => setStage(tab)}>{tab}</button>)}
       </nav>
-      <section className="mission-card">
+      <section className="sortie-content">
         <header className="sortie-title">
           <span className="mission-badge">SIMULATION</span>
           <h1>{stage} · Synthetic Marswalk</h1>
@@ -148,8 +148,19 @@ function Planner({ site, cellId, marsPoint, demo }: { site: FixtureSite; cellId:
           <FixtureGrid site={{ ...site, checkpoint_cell: current, shelter_cell: base }} activeClosures={closures}
             route={routeCells} inspectOnly={!approved}/>
         </div>
-        {stage === 'Analysis' && result && <ul>{result.marswalk.candidates.map(candidate =>
-          <li key={candidate.id}>{candidate.id} · {candidate.passed ? 'Feasible' : candidate.failure_reasons.join(', ') || 'Withheld'}</li>)}</ul>}
+        {stage === 'Analysis' && result && <section aria-labelledby="route-comparison">
+          <h2 id="route-comparison">Route comparison</h2>
+          <p>Feasibility checks use the synthetic grid and the current time budget.</p>
+          <div className="sortie-table"><table>
+            <thead><tr><th scope="col">Candidate</th><th scope="col">Decision</th><th scope="col">Legs</th><th scope="col">Reason</th></tr></thead>
+            <tbody>{result.marswalk.candidates.map(candidate => <tr key={candidate.id}>
+              <th scope="row">{candidate.id}</th>
+              <td>{candidate === route ? 'Recommended' : candidate.passed ? 'Feasible' : 'Withheld'}</td>
+              <td>{candidate.legs.length}</td>
+              <td>{candidate.failure_reasons.join(', ') || '—'}</td>
+            </tr>)}</tbody>
+          </table></div>
+        </section>}
         {stage === 'Monitor' && <>
           <p role="status">{pending ? 'Computing on the local API' : approved ? 'Operator approved · local API' : 'Awaiting a current operator-approved route'}</p>
           {result?.status === 'OK' && route && <button className="mission-button mission-button-primary" onClick={() => setApproved(true)} disabled={approved}>Approve route</button>}
@@ -160,7 +171,7 @@ function Planner({ site, cellId, marsPoint, demo }: { site: FixtureSite; cellId:
         </>}
       </section>
     </div>
-    <aside className="mission-card sortie-controls">
+    <aside className="sortie-controls">
       <h2>Simulation controls</h2>
       <GridPicker label="Synthetic base" site={site} value={base} disabled={departed} choose={selectBase}/>
       {departed && <GridPicker label="Report simulated crew position" site={site} value={current}
