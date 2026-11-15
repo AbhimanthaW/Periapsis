@@ -55,7 +55,7 @@ function Planner({ site, cellId, marsPoint, demo }: { site: FixtureSite; cellId:
   const [result, setResult] = useState<SortiePlan | null>(null)
   const [approved, setApproved] = useState(false)
   const [fault, setFault] = useState('')
-  const [pending, setPending] = useState(false)
+  const [pending, setPending] = useState(true)
   const revision = useRef(0)
   const active = useRef<AbortController | null>(null)
   const previousRequest = useRef<SortieRequest | null>(null)
@@ -114,37 +114,54 @@ function Planner({ site, cellId, marsPoint, demo }: { site: FixtureSite; cellId:
   }
 
   useEffect(() => {
-    if (demo) void calculate()
+    void calculate()
     return () => active.current?.abort()
-    // Submit the initial rehearsal once, with the preset inputs.
+    // Submit the initial rehearsal once, with the current inputs.
   }, [])
 
   const route = result?.marswalk.candidates.find(candidate => candidate.passed &&
     (candidate.id === result.recommendation || candidate.id === 'science:' + result.recommendation))
   const routeCells = route?.legs.flatMap(leg => leg.cells) ?? result?.direct_return?.cells ?? null
-  return <div className="mission-site" aria-label="Simulated Marswalk workspace">
+  return <div className="mission-site sortie-shell" aria-label="Simulated Marswalk workspace">
     <div className="mission-site-main">
-      <nav className="cell-toolbar" aria-label="Marswalk stages">
-        {tabs.map(tab => <button key={tab} aria-pressed={stage === tab} onClick={() => setStage(tab)}>{tab}</button>)}
+      <nav className="cell-toolbar sortie-tabs" aria-label="Marswalk stages">
+        {tabs.map(tab => <button className="mission-button" key={tab} aria-pressed={stage === tab} onClick={() => setStage(tab)}>{tab}</button>)}
       </nav>
       <section className="mission-card">
-        <h1>{stage} · Synthetic Marswalk</h1>
-        <p>Mars context <code>{cellId}</code>. Crew and base positions below are on the independent synthetic grid.</p>
-        <FixtureGrid site={{ ...site, checkpoint_cell: current, shelter_cell: base }} activeClosures={closures}
-          route={routeCells} inspectOnly={!approved}/>
+        <header className="sortie-title">
+          <span className="mission-badge">SIMULATION</span>
+          <h1>{stage} · Synthetic Marswalk</h1>
+          <p>Mars context <code>{cellId}</code> · Saved Mars base {Math.abs(marsPoint[1]).toFixed(4)}°{marsPoint[1] < 0 ? 'S' : 'N'}, {Math.abs(marsPoint[0]).toFixed(4)}°{marsPoint[0] < 0 ? 'W' : 'E'}</p>
+          <p>The map below simulates crew movement on a local grid. It does not show a traversable route on Mars.</p>
+        </header>
+        {pending && <p className="sortie-result" aria-live="polite">Calculating a proposal…</p>}
+        {!pending && !fault && !result && <p className="sortie-result">Settings changed. Calculate again to review a new route.</p>}
+        {result && <section aria-label="Planning result" className="sortie-result">
+          <div><h2>{statusText[result.status]}</h2>
+            <p>Recommendation: {result.recommendation ?? 'None'}</p>
+            <p>Return margin {signedSeconds(result.return_margin_s)} · {approved ? 'Operator approved' : 'Not approved'}</p>
+          </div>
+          {stage === 'Route' && result.status === 'OK' && route &&
+            <button className="mission-button mission-button-primary" onClick={() => setStage('Monitor')}>Review route in Monitor</button>}
+        </section>}
+        <div className="sortie-map">
+          <FixtureGrid site={{ ...site, checkpoint_cell: current, shelter_cell: base }} activeClosures={closures}
+            route={routeCells} inspectOnly={!approved}/>
+        </div>
         {stage === 'Analysis' && result && <ul>{result.marswalk.candidates.map(candidate =>
           <li key={candidate.id}>{candidate.id} · {candidate.passed ? 'Feasible' : candidate.failure_reasons.join(', ') || 'Withheld'}</li>)}</ul>}
         {stage === 'Monitor' && <>
           <p role="status">{pending ? 'Computing on the local API' : approved ? 'Operator approved · local API' : 'Awaiting a current operator-approved route'}</p>
-          {result?.status === 'OK' && route && <button onClick={() => setApproved(true)} disabled={approved}>Approve route</button>}
-          {approved && !departed && routeCells?.some(cell => !same(cell, current)) && <button onClick={() => setDeparted(true)}>Record departure</button>}
+          {result?.status === 'OK' && route && <button className="mission-button mission-button-primary" onClick={() => setApproved(true)} disabled={approved}>Approve route</button>}
+          {approved && !departed && routeCells?.some(cell => !same(cell, current)) && <button className="mission-button mission-button-primary" onClick={() => setDeparted(true)}>Record departure</button>}
           <a href={'/demo/?' + new URLSearchParams({ cell: cellId, base: marsPoint.join(',') }) + '#monitor/rover/43/hazards'}>
             Open the separate hazard replay
           </a>
         </>}
       </section>
     </div>
-    <aside className="mission-card">
+    <aside className="mission-card sortie-controls">
+      <h2>Simulation controls</h2>
       <GridPicker label="Synthetic base" site={site} value={base} disabled={departed} choose={selectBase}/>
       {departed && <GridPicker label="Report simulated crew position" site={site} value={current}
         choose={point => { invalidate(); setCurrent(point) }}/>}
@@ -155,15 +172,12 @@ function Planner({ site, cellId, marsPoint, demo }: { site: FixtureSite; cellId:
           invalidate()
           setClosures(checked => event.target.checked ? [...checked, closure.id] : checked.filter(item => item !== closure.id))
         }}/> Close {closure.id} corridor</label>)}
-      <button onClick={() => void calculate()} disabled={pending}>{departed ? 'Recalculate return' : 'Calculate sortie'}</button>
+      <button className="mission-button mission-button-primary" onClick={() => void calculate()} disabled={pending}>{departed ? 'Recalculate return' : 'Calculate sortie'}</button>
       {departed && <button onClick={() => { setDeparted(false); selectBase(base); setClosures([]); setRemaining(site.remaining_s) }}>Start new sortie</button>}
       {fault && <><p role="alert">{fault}</p><button onClick={() => void calculate(true)}>Retry calculation</button></>}
-      {result && <section aria-label="Planning result">
-        <h2>{statusText[result.status]}</h2>
-        <p>Return margin {signedSeconds(result.return_margin_s)}</p>
-        <p>{result.recommendation ?? 'No recommendation'}</p>
-        <p>Completed work {result.completed_task_ids.join(', ')}</p>
-      </section>}
+      {result && <div className="sortie-details">
+        <p>Completed work: {result.completed_task_ids.join(', ') || 'None'}</p>
+      </div>}
     </aside>
   </div>
 }
