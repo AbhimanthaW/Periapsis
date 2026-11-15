@@ -126,6 +126,8 @@ def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, de
     ``accepted_amber_count`` is the number of AMBER options already accepted this EVA
     (``audit.accepted_count``). Nothing here mutates the plan or the snapshot.
     """
+    if marswalk_plan.baseline.support.classification != "synthetic":
+        refuse(CODE, "trade-off rehearsal requires synthetic terrain")
     now = utc(now_utc, "now_utc", CODE)
     crew = crew if isinstance(crew, Crew) else load_crew(crew)
     policy = policy if isinstance(policy, Policy) else load_policy(policy)
@@ -185,6 +187,7 @@ def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, de
 
     inputs = {
         "assessed_utc": utc_text(now),
+        "terrain_classification": marswalk_plan.baseline.support.classification,
         "authority": authority,
         "snapshot": {"mission_id": snapshot.mission_id, "revision": snapshot.revision},
         "telemetry_age_s": _r(telemetry_age), "weather_bundle": None, "weather_state": weather_state,

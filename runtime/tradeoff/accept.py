@@ -69,6 +69,9 @@ def accept(assessment, envelope, *, now_utc, signatures, crew_responses, decisio
         refuse(CODE, "prior_accepted_count must be a non-negative integer")
     no = lambda reason: _refused(assessment, envelope, now_utc, reason)   # noqa: E731
 
+    inputs = assessment.get("inputs")
+    if not isinstance(inputs, dict) or inputs.get("terrain_classification") != "synthetic":
+        return no("acceptance is available only for a synthetic terrain rehearsal")
     if assessment["class"] == RED:
         return no("RED is never executable")
     if assessment["class"] == GREEN:
@@ -178,6 +181,9 @@ def is_executable(assessment, acceptance=None, *, now_utc):
     """GREEN: yes. RED: never. AMBER: only with a matching, unexpired, accepted record."""
     now = utc(now_utc, "now_utc", CODE)
     if not isinstance(assessment, dict) or assessment.get("schema") != "tradeoff-assessment-v1":
+        return False
+    inputs = assessment.get("inputs")
+    if not isinstance(inputs, dict) or inputs.get("terrain_classification") != "synthetic":
         return False
     if assessment.get("class") == GREEN:
         return True

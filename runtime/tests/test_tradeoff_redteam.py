@@ -1,5 +1,6 @@
 """Red-team tests: every case must end in GREEN-only or a refusal (plan section 10)."""
 import copy
+from dataclasses import replace
 import json
 
 import pytest
@@ -32,6 +33,22 @@ def test_baseline_acceptance_works_so_the_refusals_below_mean_something():
     assert [s["role"] for s in record["signatures"]] == ["flight_director", "crew_surgeon"]
     assert record["risk_budget"] == {"unit": "accepted AMBER options", "used_after": 1, "cap": 2}
     assert record["tripwires"] is None
+
+
+def test_tradeoff_refuses_source_backed_terrain():
+    from runtime.tradeoff import assess
+
+    plan = marswalk_plan()
+    terrain = replace(plan.baseline.support, classification="elevation_preview")
+    plan = replace(plan, baseline=replace(plan.baseline, support=terrain))
+    _, envelope = _amber()
+    with pytest.raises(MarswalkError, match="requires synthetic terrain"):
+        assess(plan, crew_data(), policy_data(), envelope, now_utc=NOW)
+
+    amber, envelope = _amber()
+    del amber["inputs"]["terrain_classification"]
+    assert accept(amber, envelope, **OK)["status"] == "refused"
+    assert not is_executable(amber, now_utc=NOW)
 
 
 def test_envelope_that_relaxes_l0_is_refused():
