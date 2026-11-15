@@ -5,8 +5,10 @@ from dataclasses import replace
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+from mimetypes import guess_type
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import unquote, urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -17,6 +19,7 @@ from runtime.marswalk.environment import parse_utc
 from runtime.marswalk.profiles import load_profile
 from runtime.marswalk.weather import feed_from_dict
 from runtime.mission import load_pack, simulate
+from runtime.region_evidence import RegionEvidence
 from ranking.service import RankRequest, RankingService
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,12 +57,13 @@ class PlanRequest(BaseModel):
 
 
 class PlanningService:
-    def __init__(self, pack, evidence_result, ranking=None, *, engine="mission", hazard_replay=None):
+    def __init__(self, pack, evidence_result, ranking=None, *, engine="mission", hazard_replay=None, regions=None):
         if engine not in ENGINES:
             raise ValueError(f"engine must be one of {', '.join(ENGINES)}")
         self.pack = pack
         self.evidence_result = evidence_result
         self.ranking = ranking
+        self.regions = regions
         self.engine = engine
         self.hazard_replay = hazard_replay
         self.baseline = baseline_from_pack(pack) if engine == "marswalk" else None
@@ -163,8 +167,9 @@ class PlanningService:
 
 
 class PlanningHandler(BaseHTTPRequestHandler):
-    def __init__(self, *args, service, **kwargs):
+    def __init__(self, *args, service, static_root, **kwargs):
         self.service = service
+        self.static_root = static_root
         super().__init__(*args, **kwargs)
 
     def setup(self):
@@ -197,6 +202,12 @@ class PlanningHandler(BaseHTTPRequestHandler):
                 self.send_json(200, self.service.evidence())
             except PackError as error:
                 self.reject(503, error.code, str(error))
+        elif self.path.startswith("/api/v1/regions/"):
+            region = self.service.regions.get(self.path.removeprefix("/api/v1/regions/"), self.service.ranking)
+            if region is None:
+                self.reject(404, "REGION_NOT_FOUND", "Atlas region ID was not found")
+            else:
+                self.send_json(200, region)
         elif self.path.startswith("/api/v1/cell/"):
             if self.service.ranking is None:
                 self.reject(503, "RANKING_NOT_CONFIGURED", "Configure a cell ranking pack")
@@ -206,8 +217,40 @@ class PlanningHandler(BaseHTTPRequestHandler):
                 self.reject(404, "CELL_NOT_FOUND", "Cell ID was not found")
             else:
                 self.send_json(200, result)
-        else:
+        elif not self.serve_release_file():
             self.reject(404, "NOT_FOUND", "Unknown endpoint")
+
+    def serve_release_file(self):
+        if self.static_root is None:
+            return False
+        request_path = unquote(urlsplit(self.path).path)
+        if request_path.startswith("/api/") or request_path == "/healthz":
+            return False
+        if request_path in {"/", "/atlas", "/atlas/", "/mission", "/mission/", "/architecture", "/architecture/"}:
+            directory, name = "app", "index.html"
+        elif request_path == "/demo":
+            self.send_response(308)
+            self.send_header("Location", "/demo/")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return True
+        elif request_path == "/demo/":
+            directory, name = "demo", "index.html"
+        elif request_path.startswith("/demo/"):
+            directory, name = "demo", request_path.removeprefix("/demo/")
+        else:
+            directory, name = "app", request_path.lstrip("/")
+        base = self.static_root / directory
+        artifact = (base / name).resolve()
+        if not artifact.is_relative_to(base) or not artifact.is_file():
+            return False
+        raw = artifact.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", guess_type(artifact)[0] or "application/octet-stream")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+        return True
 
     def hazard_frame(self, step):
         replay = self.service.hazard_replay
@@ -260,7 +303,7 @@ class PlanningHandler(BaseHTTPRequestHandler):
 
 
 def create_server(port=8000, *, evidence_package=None, evidence_query=None,
-                  ranking_pack=None, engine="mission", hazard_model=None):
+                  ranking_pack=None, engine="mission", hazard_model=None, static_root=None):
     if (evidence_package is None) != (evidence_query is None):
         raise ValueError("Supply the evidence package and query together")
     result = None
@@ -274,8 +317,8 @@ def create_server(port=8000, *, evidence_package=None, evidence_query=None,
         replay = HazardReplay(hazard_model)
     service = PlanningService(load_pack(FIXTURE, simulation=True), result,
                               RankingService(ranking_pack) if ranking_pack else None,
-                              engine=engine, hazard_replay=replay)
-    return ThreadingHTTPServer(("127.0.0.1", port), partial(PlanningHandler, service=service))
+                              engine=engine, hazard_replay=replay, regions=RegionEvidence(ROOT))
+    return ThreadingHTTPServer(("127.0.0.1", port), partial(PlanningHandler, service=service, static_root=static_root))
 
 
 def main():

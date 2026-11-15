@@ -3,27 +3,42 @@ import { getHealth } from './api'
 import type { Health } from './api'
 import { SiteInvestigation } from './SiteInvestigation'
 import { Simulation } from './Simulation'
+import { byRegion, profiles } from '../atlas/data'
+import type { Profile } from '../atlas/data'
+import { primaryRegion } from './site'
 import './mission.css'
 
 type View = 'site' | 'simulation'
-const readView = (): View => new URLSearchParams(location.search).get('view') === 'simulation' ? 'simulation' : 'site'
+type Selection = { regionId: string; profile: Profile; view: View }
 
-function useView() {
-  const [view, setViewState] = useState<View>(readView)
+function readSelection(): Selection {
+  const params = new URLSearchParams(location.search)
+  const profile = params.get('profile') as Profile | null
+  return {
+    regionId: params.get('region') ?? primaryRegion,
+    profile: profile && profiles.includes(profile) ? profile : 'human',
+    view: params.get('view') === 'simulation' ? 'simulation' : 'site',
+  }
+}
+
+function useSelection() {
+  const [selection, setSelection] = useState(readSelection)
   useEffect(() => {
-    const sync = () => setViewState(readView())
+    const sync = () => setSelection(readSelection())
     window.addEventListener('popstate', sync)
     return () => window.removeEventListener('popstate', sync)
   }, [])
-  const setView = useCallback((next: View) => {
+  const update = useCallback((next: Selection) => {
     const url = new URL(location.href)
-    if (next === 'simulation') url.searchParams.set('view', 'simulation')
+    url.searchParams.set('region', next.regionId)
+    url.searchParams.set('profile', next.profile)
+    if (next.view === 'simulation') url.searchParams.set('view', next.view)
     else url.searchParams.delete('view')
     history.pushState(null, '', url)
-    setViewState(next)
+    setSelection(next)
     window.scrollTo(0, 0)
   }, [])
-  return [view, setView] as const
+  return [selection, update] as const
 }
 
 function ServiceStatus() {
@@ -43,15 +58,19 @@ function ServiceStatus() {
 }
 
 export default function Mission() {
-  const [view, setView] = useView()
+  const [selection, update] = useSelection()
+  const { view, regionId, profile } = selection
+  const region = byRegion.get(regionId)
   const simulation = view === 'simulation'
+  const atlasHref = '/atlas?' + new URLSearchParams({ region: region?.id ?? 'none', profile })
+  const setView = (view: View) => update({ ...selection, view })
   useEffect(() => {
     document.title = `${simulation ? 'Simulated Marswalk' : 'Site investigation'} · Return Window`
   }, [simulation])
   return (
     <main className="mission-app" data-view={view}>
       <header className="mission-masthead">
-        <a className="mission-brand" href="/mission">Return Window</a>
+        <a className="mission-brand" href={atlasHref}>Return Window</a>
         <div className="mission-crumbs">
           {simulation ? (
             <>
@@ -64,7 +83,7 @@ export default function Mission() {
         </div>
         <nav className="mission-nav" aria-label="Workspaces">
           <ServiceStatus/>
-          <a href="/atlas">Mars Atlas</a>
+          <a href={atlasHref}>Mars Atlas</a>
           <a href="/">Architecture</a>
         </nav>
       </header>
@@ -73,7 +92,13 @@ export default function Mission() {
           <strong>Simulation.</strong> Synthetic fixture with test travel values on its own grid. Not real-site routing, not a safety or navigation prediction.
         </p>
       )}
-      {simulation ? <Simulation/> : <SiteInvestigation onEnterSimulation={() => setView('simulation')}/>}
+      {simulation ? <Simulation/> : region
+        ? <SiteInvestigation key={region.id} region={region} profile={profile}
+          onChange={regionId => update({ ...selection, regionId })} onEnterSimulation={() => setView('simulation')}/>
+        : <section className="mission-card" role="alert">
+          <h1>Unknown Atlas region</h1>
+          <p>Choose a valid region in the <a href={atlasHref}>Mars Atlas</a>.</p>
+        </section>}
     </main>
   )
 }

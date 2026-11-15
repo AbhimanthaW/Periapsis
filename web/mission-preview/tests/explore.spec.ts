@@ -22,7 +22,7 @@ test('captures the three reference states through the normal flow', async ({ pag
   await expect(page.getByRole('button', { name: 'Jezero Crater', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await capture(page, '01-planetary-explore')
 
-  await page.getByRole('link', { name: 'All 56 ranked' }).click()
+  await page.getByRole('link', { name: 'Sample ranking' }).click()
   await expect(page.getByRole('main', { name: 'Region Ranking' })).toBeFocused()
   await expect(page.getByRole('row', { name: /Jezero Crater/ })).toHaveClass('selected')
   await expect(page.getByRole('row').nth(1)).toContainText('Jezero Crater')
@@ -71,7 +71,7 @@ test('edits the objective and targets, filters and sorts, and preserves state ac
   await expect(marker).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('heading', { name: 'Planum Boreum' })).toBeVisible()
 
-  await page.getByRole('link', { name: 'All 56 ranked' }).click()
+  await page.getByRole('link', { name: 'Sample ranking' }).click()
   await expect(page.getByRole('heading', { name: 'Water ice and glacial deposits' })).toBeVisible()
   await expect(page.getByText('Exclude volcanic')).toBeVisible()
   await expect(page.getByRole('row', { name: /Syrtis Major Planum/ })).toContainText('Excluded · volcanic')

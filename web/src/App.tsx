@@ -353,7 +353,7 @@ function Workspace() {
         <div><h1>{doc.title}</h1><p>SYSTEM ARCHITECTURE <span>·</span> NASA SPACE APPS 2026</p></div>
       </div>
       <div className="mast-actions">
-        <a className="button atlas-entry" href="/atlas">Mars Atlas <ArrowUpRight size={13}/></a>
+        <a className="button atlas-entry" href={atlasSelectionHref()}>Mars Atlas <ArrowUpRight size={13}/></a>
         <div className="history">
           <IconButton label="Undo" disabled={!history.past.length} onClick={undo}><Undo2 size={16}/></IconButton>
           <IconButton label="Redo" disabled={!history.future.length} onClick={redo}><Redo2 size={16}/></IconButton>
@@ -502,6 +502,13 @@ function Workspace() {
       </div>
     </Dialog>}
   </div>
+}
+
+function atlasSelectionHref() {
+  const selection = new URLSearchParams(location.search)
+  const region = selection.get('region')
+  const profile = selection.get('profile')
+  return region && profile ? '/atlas?' + new URLSearchParams({ region, profile }) : '/atlas'
 }
 
 export default function App() {

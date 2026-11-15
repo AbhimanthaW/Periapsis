@@ -300,3 +300,61 @@ def test_hazard_routes_with_model_artifact_missing(call):
     assert frame["forecast"]["status"] == "unavailable"
     assert call("/api/v1/hazard-replay/6")[0] == 404
     assert call("/api/v1/hazard-replay/missing")[0] == 404
+
+
+def test_regional_evidence_uses_the_atlas_identity_and_capability_gates(call):
+    from runtime.planning_api import ROOT
+
+    atlas = json.loads((ROOT / "web/src/atlas/regions.json").read_bytes())
+    registry = json.loads((ROOT / "evidence/sites.v1.json").read_bytes())
+    for region in atlas["regions"]:
+        region_id = region["id"]
+        status, response = call(f"/api/v1/regions/{region_id}")
+        assert status == 200
+        assert response["schema_version"] == 1
+        assert response["region_id"] == region_id
+        assert 0 <= int(response["anchor_cell_id"].removeprefix("HPX128:")) < 196_608
+        assert response["cell_context"] is None
+        assert response["tactical_routing"] == "withheld_no_qualified_pack"
+        assert response["live_hazards"] == "unavailable_no_qualified_feed"
+        if region_id in registry["sites"]:
+            site = registry["sites"][region_id]
+            evidence = response["local_evidence"]
+            assert evidence["query_sha256"] == site["query_sha256"]
+            assert evidence["package_sha256"] == site["package_sha256"]
+            assert evidence["result"]["package_id"] == site["package_id"]
+            assert evidence["result"]["requested"]["eligible"] is False
+            assert evidence["result"]["supported_fallback_ids"]
+        else:
+            assert response["local_evidence"] is None
+
+    status, response = call("/api/v1/regions/unknown")
+    assert (status, response["error"]) == (404, "REGION_NOT_FOUND")
+
+
+@pytest.mark.parametrize("region_id", ["03", "43"])
+@pytest.mark.parametrize("field", ["query", "package"])
+def test_regional_evidence_rejects_same_version_changed_bytes(tmp_path, region_id, field):
+    from shutil import copyfile
+
+    from runtime.planning_api import ROOT
+    from runtime.region_evidence import RegionEvidence
+
+    registry_path = "evidence/sites.v1.json"
+    registry = json.loads((ROOT / registry_path).read_bytes())
+    paths = [registry_path, "web/src/atlas/regions.json"]
+    paths.extend(site[key] for site in registry["sites"].values() for key in ("package", "query"))
+    for name in paths:
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        copyfile(ROOT / name, target)
+
+    target = tmp_path / registry["sites"][region_id][field]
+    data = json.loads(target.read_bytes())
+    if field == "query":
+        data["requested"]["requirements"][0]["max_native_spacing_m"] = 1234
+    else:
+        data["products"][0]["native_spacing_m"] = 1234
+    target.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="Pinned regional evidence changed"):
+        RegionEvidence(tmp_path)

@@ -112,8 +112,8 @@
     {
       "id": "api",
       "name": "Planning API",
-      "summary": "FastAPI · same-origin JSON",
-      "description": "One local Python service. Validate a full request, load one pack at startup and serialize deterministic responses. Serve the built browser app and files from the same origin.",
+      "summary": "Loopback · versioned JSON",
+      "description": "The local Python service serves both built applications, regional evidence, ranking and simulated planning. Regional evidence binds an Atlas ID to the selected HEALPix anchor and a reviewed package/query pair where available.",
       "tone": "neutral",
       "phase": "runtime"
     },
@@ -2604,8 +2604,8 @@
       "groupId": "api",
       "category": "API",
       "classification": "Architecture",
-      "purpose": "Return configured site information and local asset references used to initialize the map and planner.",
-      "description": "Return configured site information and local asset references used to initialize the map and planner. The report leaves exact response fields beyond the pack contract TBD.",
+      "purpose": "Return the synthetic simulation fixture identity, fixed inputs and local grid.",
+      "description": "Return the synthetic simulation fixture identity, fixed inputs and local grid. GET /api/v1/regions/{id} returns regional context, capability gates and pinned local evidence where available.",
       "technology": [
         "GET /api/v1/site"
       ],
@@ -4624,8 +4624,8 @@
       "groupId": "deploy",
       "category": "Infrastructure",
       "classification": "Architecture",
-      "purpose": "Serve the built browser UI, local files and API from one local process or pinned image.",
-      "description": "Serve the built browser UI, local files and API from one local process or pinned image. Preload the immutable pack and initial fixture; apply closure and replan live. Use relative same-origin URLs, no network fonts, tiles or external services.",
+      "purpose": "Serve the built Atlas, Mission and demo, plus the local APIs, from one loopback Python process.",
+      "description": "Serve the built Atlas, Mission and demo, plus the local APIs, from one loopback Python process. Verify hashes for the manifest assets and matching checkout before startup. Keep sourced evidence and calculations separate from the simulated replanning and hazard fixtures.",
       "technology": [
         "One local process",
         "Wi-Fi off"

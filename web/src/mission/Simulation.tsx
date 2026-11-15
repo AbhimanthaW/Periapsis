@@ -46,6 +46,7 @@ function mismatch(site: FixtureSite, request: PlanRequest, response: PlanRespons
   if (response.request_id !== request.request_id) return 'request ID'
   if (response.pack_id !== site.pack_id || response.pack_version !== site.pack_version) return 'pack identity'
   if (response.scenario_id !== site.scenario_id) return 'scenario'
+  if (response.reserve_s !== request.reserve_s || !sameList(response.completed_task_ids, request.completed_task_ids)) return 'mission state'
   if (!sameList([...response.closure_ids].sort(), [...request.closure_ids].sort()) || response.remaining_s !== request.remaining_s) return 'inputs'
   return null
 }
