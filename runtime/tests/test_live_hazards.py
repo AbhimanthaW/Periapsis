@@ -164,6 +164,16 @@ def test_route_avoids_a_storm_where_the_crew_will_be_not_where_it_is(demo):
     assert live.total_s >= route[-1][1]
 
 
+def test_hazard_routing_refuses_source_backed_terrain_and_measured_feed(demo):
+    baseline, snapshot = demo
+    sourced = replace(baseline, support=replace(baseline.support, classification="elevation_preview"))
+    with pytest.raises(MarswalkError, match="synthetic terrain"):
+        plan_live(sourced, snapshot, feed(), T0)
+    measured = replace(storm(0, baseline.support.center_xy(80, 80)), provenance="measured")
+    with pytest.raises(MarswalkError, match="simulated and historical replay"):
+        plan_live(baseline, snapshot, feed(measured), T0)
+
+
 def test_live_closures_never_touch_the_terrain_baseline(demo):
     baseline, snapshot = demo
     before = baseline.routable.copy()

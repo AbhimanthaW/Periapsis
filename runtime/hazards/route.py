@@ -27,7 +27,7 @@ import math
 import numpy as np
 
 from runtime.marswalk import plan_marswalk
-from runtime.marswalk.errors import OK
+from runtime.marswalk.errors import MarswalkError, OK
 
 from .live import HazardTimeline, LivePolicy
 
@@ -156,7 +156,13 @@ def _hold(baseline, result, snapshot, timeline, closed, kwargs):
 
 
 def plan_live(baseline, snapshot, feed, now_utc, policy=LivePolicy(), *, max_iterations=8, **plan_kwargs):
-    """Plan on terrain + live hazards with arrival-time checks. Deterministic."""
+    """Rehearse arrival-time hazard checks on synthetic terrain."""
+    if baseline.support.classification != "synthetic":
+        raise MarswalkError("HAZARD_REHEARSAL_ONLY", "hazard routing requires synthetic terrain")
+    if feed.provenance == "measured" or any(
+        reading.provenance == "measured" for reading in (*feed.storms, *feed.layers, *feed.alerts)
+    ):
+        raise MarswalkError("HAZARD_REHEARSAL_ONLY", "hazard routing accepts simulated and historical replay feeds")
     return _plan_live(baseline, snapshot, feed, now_utc, policy, max_iterations, plan_kwargs, None)
 
 

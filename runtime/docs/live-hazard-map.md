@@ -1,6 +1,6 @@
-# Live hazard map (builds on #30)
+# Live hazard map rehearsal
 
-This adds the parts the scripted replay in `runtime/hazards/replay.py` does not cover yet:
+The monitor tests how proposed hazard rules would affect a route on synthetic terrain. Routing refuses source-backed terrain and measured live inputs. Simulated and historical replay inputs can exercise the proposed thresholds.
 
 1. A **per-square live hazard map** on the same grid as the terrain baseline.
 2. **Wind and dust on the map**, from moving storms or from full raster layers.
@@ -10,7 +10,7 @@ This adds the parts the scripted replay in `runtime/hazards/replay.py` does not 
 6. An **emergency mode** for when no safe route home exists: hold on the nearest square that stays clear.
 7. **Live data input** as a JSON feed. All example feeds are **simulated**.
 
-Nothing in `replay.py`, `forecast.py` or `tradeoff/` changes. The terrain baseline is never edited: live closures are applied to a copy.
+The rehearsal applies each closure to a copy of the terrain baseline.
 
 ## Files
 
@@ -20,14 +20,14 @@ Nothing in `replay.py`, `forecast.py` or `tradeoff/` changes. The terrain baseli
 | `runtime/hazards/route.py` | `plan_live`: arrival-time checked plan, radiation return, emergency hold square |
 | `runtime/hazards/monitor.py` | `Monitor`, `simulate`, and the CLI |
 | `runtime/examples/live-hazards-*.json` | Four simulated feeds: dust devil, SEP, trapped, stale |
-| `runtime/tests/test_live_hazards.py` | 25 tests |
+| `runtime/tests/test_live_hazards.py` | Regression tests for the synthetic rehearsals |
 
 ## Grid and dimensions
 
 - The live map uses the **exact grid of the terrain baseline**: same shape, same affine.
 - A raster layer with a different shape or affine is refused with `HAZARD_GRID_MISMATCH`. It is never resampled silently.
 - Storms are given in **map metres** (`centre_m`), or in squares (`centre_cell`), which is converted with `support.center_xy`.
-- Demo map: 160 × 160 squares at 5 m. Jezero: 1024 × 1024 at 20 m. Both work because the code reads the grid from the baseline.
+- The 160 × 160 demo grid uses synthetic 5 m cells. Arcadia Planitia is the separate evidence demo and has no qualified hazard routing pack.
 
 ## Hazard rules (`LivePolicy` defaults; thresholds are placeholders for Isath to source)
 
