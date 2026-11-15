@@ -209,27 +209,11 @@ def evaluate(crew, policy, phases):
     crew, policy = _inputs(crew, policy)
     phases = _phases(phases, [p.id for p in crew.astronauts if p.id != crew.reference_id])
     payload = prepare(crew, policy)
-    context_rows = []
-    ambient_dose_total = 0.0
-    ambient_dose_complete = True
-    for phase, environment, observations in phases:
-        dose_rate = None if environment is None else environment.get("radiation_dose_rate_mgy_day")
-        dose = None if dose_rate is None else dose_rate * phase.time_s / 86400
-        if dose is not None and not math.isfinite(dose):
-            _invalid(f"{phase.name}: ambient dose proxy is non-finite")
-        if dose is None:
-            ambient_dose_complete = False
-        else:
-            ambient_dose_total += dose
-            if not math.isfinite(ambient_dose_total):
-                _invalid("cumulative ambient dose proxy is non-finite")
-        context_rows.append({
-            "phase": phase.name, "environment": environment, "observations": observations,
-            "ambient_absorbed_dose_proxy_mgy": dose,
-            "not_in_consumables_model": sorted(set(environment or {}) - {"data_status", "radiation_dose_rate_mgy_day"}),
-        })
-    payload["phase_context"] = context_rows
-    payload["ambient_absorbed_dose_proxy_mgy"] = ambient_dose_total if ambient_dose_complete else None
+    payload["phase_context"] = [
+        {"phase": phase.name, "time_s": phase.time_s, "gain_m": phase.gain_m,
+         "environment": environment}
+        for phase, environment, _ in phases
+    ]
     people = {p.id: p for p in crew.astronauts}
     for item in payload["astronauts"]:
         person = people[item["id"]]
@@ -238,28 +222,22 @@ def evaluate(crew, policy, phases):
         cumulative = dict.fromkeys(RESOURCES, 0.0)
         rows = {r: [] for r in RESOURCES}
         first_breach = None
-        energy_j = co2_g = co2_excess_g = elapsed_s = 0.0
-        co2_over_capacity = False
+        energy_j = co2_excess_g = elapsed_s = 0.0
         phase_metrics = []
         for phase, _, observations in phases:
-            use, energy, _, heat, co2 = _use(person, policy, phase.time_s, phase.gain_m)
+            use, energy, _, _, co2 = _use(person, policy, phase.time_s, phase.gain_m)
             energy_j += energy
-            co2_g += co2
             excess = max(0.0, co2 - person.co2_removal_g_s * phase.time_s)
             co2_excess_g += excess
-            co2_over_capacity |= excess > 0
             elapsed_s += phase.time_s
-            if not all(math.isfinite(x) for x in (energy_j, co2_g, co2_excess_g, elapsed_s)):
+            if not all(math.isfinite(x) for x in (energy_j, co2_excess_g, elapsed_s)):
                 _invalid(f"{person.id}: cumulative phase quantities are non-finite")
             phase_metrics.append({
                 "phase": phase.name,
                 "metabolic_power_w": energy / phase.time_s if phase.time_s else None,
-                "cooling_demand_w": heat / phase.time_s if phase.time_s else None,
-                "suit_mobility_resistance_w": person.suit_joint_power_w,
                 "walking_speed_m_s": (phase.distance_m / phase.time_s
                                        if phase.distance_m is not None and phase.time_s else None),
                 "max_slope_deg": phase.max_slope_deg,
-                "co2_produced_g": co2,
                 "co2_excess_load_g": excess,
                 "observations": observations.get(person.id),
             })
@@ -285,19 +263,12 @@ def evaluate(crew, policy, phases):
              "utilisation": cumulative[r] / (initial[r] - reserves[r]), "rows": rows[r]}
             for r in RESOURCES
         ]
-        item["metabolic_energy_kj"] = energy_j / 1000
-        item["co2_produced_g"] = co2_g
         item["co2_excess_load_g"] = co2_excess_g
         item["phase_metrics"] = phase_metrics
         item["remaining_resources"] = {r: initial[r] - cumulative[r] for r in RESOURCES}
-        flat_use = item["rates_flat_per_h"]
-        item["estimated_remaining_eva_s"] = max(0, math.floor(min(
-            (initial[r] - cumulative[r] - reserves[r]) * 3600 / flat_use[r]
-            for r in RESOURCES
-        )))
         if elapsed_s and energy_j / elapsed_s > person.sustainable_metabolic_w:
             item["flags"].append("workload_above_sustainable")
-        if co2_over_capacity:
+        if co2_excess_g > 0:
             item["flags"].append("co2_production_above_declared_removal")
         if first_breach:
             if first_breach["resource"] == "terrain_slope":
