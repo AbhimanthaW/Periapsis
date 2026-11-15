@@ -51,12 +51,6 @@ def build(out: Path, ranking_inputs: Path, ranking_pack: Path | None):
         work = Path(scratch)
         bundle = work / "bundle"
         bundle.mkdir()
-        run(npm, "run", "build", cwd=ROOT / "web", env={**os.environ, "VITE_PACKAGED_RELEASE": "1"})
-        run(npm, "run", "build", cwd=ROOT / "web/mission-preview", env={
-            **os.environ, "VITE_RELEASE_BASE": "/demo/", "VITE_HAZARD_RUNTIME": "1",
-        })
-        shutil.copytree(ROOT / "web/dist", bundle / "app")
-        shutil.copytree(ROOT / "web/mission-preview/dist/client", bundle / "demo")
         destination = bundle / "ranking"
         if ranking_pack is None:
             run(sys.executable, "-m", "ranking.build", "--release",
@@ -75,6 +69,20 @@ def build(out: Path, ranking_inputs: Path, ranking_pack: Path | None):
         run(*forecast, "train", str(station),
             "--station", "pipeline/examples/weather/synthetic-station.json",
             "--artifact", str(bundle / "forecast.json"), env=forecast_env)
+
+        # Bake the fallback from the same model and router that the release serves.
+        # A replay checked in from another machine may have a different trained model ID.
+        replay = work / "replay.json"
+        run(sys.executable, "-m", "runtime.hazards.replay",
+            "--model", str(bundle / "forecast.json"), "--out", str(replay))
+
+        run(npm, "run", "build", cwd=ROOT / "web", env={**os.environ, "VITE_PACKAGED_RELEASE": "1"})
+        run(npm, "run", "build", cwd=ROOT / "web/mission-preview", env={
+            **os.environ, "VITE_RELEASE_BASE": "/demo/", "VITE_HAZARD_RUNTIME": "1",
+            "RW_HAZARD_REPLAY_FILE": str(replay),
+        })
+        shutil.copytree(ROOT / "web/dist", bundle / "app")
+        shutil.copytree(ROOT / "web/mission-preview/dist/client", bundle / "demo")
 
         manifest = {
             "schema_version": 1,
