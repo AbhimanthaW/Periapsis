@@ -32,7 +32,7 @@ from runtime.marswalk.environment import parse_utc
 from runtime.marswalk.errors import MarswalkError
 
 from .live import LivePolicy, load_feed
-from .route import EMERGENCY, RETURN_NOW, plan_live
+from .route import EMERGENCY, RETURN_NOW, plan_live, route_hazards
 
 CONTINUE, CAUTION, SUGGEST, REROUTE = "continue", "caution", "suggest", "reroute"
 LINK_LOST, ARRIVED, START = "link_lost", "arrived", "start"
@@ -73,7 +73,9 @@ class Monitor:
         self.route = []                 # [(cell, seconds_since_adopted, event)]
         self.adopted_s = 0.0            # mission time at which the route was adopted
         self.plan_id = None
-        self.completed = set()
+        self.completed = set(self.snapshot.completed_task_ids)
+        self.crew_cell = self.snapshot.current_cell
+        self.revision = self.snapshot.revision
         self.mode = "go"
         self.hold_cell = None
 
@@ -81,7 +83,7 @@ class Monitor:
     def _position(self, elapsed_s):
         """Last square of the current route reached by mission time `elapsed_s`."""
         local = elapsed_s - self.adopted_s
-        cell = self.route[0][0]
+        cell = self.route[0][0] if self.route else self.crew_cell
         for c, t, event in self.route:
             if t > local:
                 break
@@ -94,7 +96,7 @@ class Monitor:
         """The rest of the current route, re-timed from now."""
         local = elapsed_s - self.adopted_s
         rest = [(c, t - local, e) for c, t, e in self.route if t >= local]
-        if not rest or rest[0][0] != crew_cell:
+        if not rest or rest[0][1] > 0:
             rest = [(crew_cell, 0.0, None)] + rest
         return rest
 
@@ -104,13 +106,16 @@ class Monitor:
     def _snapshot(self, crew_cell, elapsed_s, *, science=True):
         tasks = tuple(t for t in self.snapshot.tasks if t.id not in self.completed) if science else ()
         return replace(self.snapshot, current_cell=tuple(crew_cell), remaining_s=max(0, int(self.snapshot.remaining_s - elapsed_s)),
-                       tasks=tasks, completed_task_ids=(), revision=self.snapshot.revision + 1)
+                       tasks=tasks, completed_task_ids=(), revision=self.revision)
 
     def _tick(self, when, elapsed_s, crew_cell, action, message, live):
         state = live.timeline.current
         rest = self._remaining(crew_cell, elapsed_s) if self.route else []
+        remaining_route_s = rest[-1][1] if rest else None
+        margin_s = (self.snapshot.remaining_s - elapsed_s - self.snapshot.reserve_s - remaining_route_s
+                    if self.plan_id is not None and remaining_route_s is not None else None)
         return Tick(_iso(when), elapsed_s, tuple(crew_cell), action, message, self.plan_id,
-                    rest[-1][1] if rest else None, live.margin_s, int(state.blocked.sum()), int(state.caution.sum()))
+                    remaining_route_s, margin_s, int(state.blocked.sum()), int(state.caution.sum()))
 
     # -- the loop
     def start(self, start_utc):
@@ -118,29 +123,38 @@ class Monitor:
         live = plan_live(self.baseline, self.snapshot, self.feed, start_utc, self.policy, **self.plan_kwargs)
         if live.status == EMERGENCY:
             self.mode, self.hold_cell = "emergency", live.hold_cell
+            self._adopt(live, 0.0)
             return self._tick(self.start_time, 0.0, self.snapshot.current_cell, ACTION_EMERGENCY,
                               "; ".join(live.messages[-2:]), live)
         self._adopt(live, 0.0)
         if live.status == RETURN_NOW:
             self.mode = "return"
+            action = LINK_LOST if live.return_reason == "link_lost" else ACTION_RETURN_NOW
+            return self._tick(self.start_time, 0.0, self.snapshot.current_cell, action,
+                              "WARNING: " + live.messages[-1], live)
         return self._tick(self.start_time, 0.0, self.snapshot.current_cell, START,
                           f"GO: {live.plan_id}, {live.total_s / 60:.1f} min, margin {live.margin_s / 60:.1f} min"
                           + ("" if not live.messages else " | " + "; ".join(live.messages)), live)
 
     def tick(self, elapsed_s):
+        self.revision += 1
         when = self.start_time + timedelta(seconds=elapsed_s)
         now = _iso(when)
+        crew = self.crew_cell = self._position(elapsed_s)
         if self.mode == "emergency":
-            crew = self.hold_cell or self.snapshot.current_cell
             live = plan_live(self.baseline, self._snapshot(crew, elapsed_s, science=False), self.feed, now, self.policy,
                              **self.plan_kwargs)
             if live.status == EMERGENCY:
-                return self._tick(when, elapsed_s, crew, ACTION_EMERGENCY, "holding; no safe route home yet", live)
+                rest = self._remaining(crew, elapsed_s)
+                if not self.route or self.hold_cell != live.hold_cell or any(route_hazards(rest, live.timeline)):
+                    self.hold_cell = live.hold_cell
+                    self._adopt(live, elapsed_s)
+                message = "moving to the hold square" if self.hold_cell and crew != self.hold_cell else "holding"
+                return self._tick(when, elapsed_s, crew, ACTION_EMERGENCY, message + "; no verified route home", live)
             self.mode = "return"
             self._adopt(live, elapsed_s)
-            return self._tick(when, elapsed_s, crew, ACTION_RETURN_NOW, "a safe route home has opened: return now", live)
+            return self._tick(when, elapsed_s, crew, ACTION_RETURN_NOW, "a route home has opened: return now", live)
 
-        crew = self._position(elapsed_s)
         if crew == tuple(self.snapshot.return_cell) and self.route and \
                 elapsed_s - self.adopted_s >= self.route[-1][1]:
             live = plan_live(self.baseline, self._snapshot(crew, elapsed_s, science=False), self.feed, now,
@@ -152,14 +166,15 @@ class Monitor:
                          self.policy, **self.plan_kwargs)
         timeline = live.timeline
         rest = self._remaining(crew, elapsed_s)
-        unsafe = [(c, t) for c, t, _ in rest if timeline.hazardous(c, t)]
+        unsafe = list(route_hazards(rest, timeline))
         caution = [c for c, _, _ in rest if timeline.current.caution[c]]
 
         if live.status == EMERGENCY:
             self.mode, self.hold_cell = "emergency", live.hold_cell
+            self._adopt(live, elapsed_s)
             return self._tick(when, elapsed_s, crew, ACTION_EMERGENCY, "WARNING: " + "; ".join(live.messages[-2:]),
                               live)
-        if timeline.current.radiation_alert or any("radiation" in m for m in live.messages):
+        if live.return_reason == "radiation":
             switch = self.mode != "return"
             self.mode = "return"
             if switch or unsafe:
@@ -167,7 +182,7 @@ class Monitor:
                 return self._tick(when, elapsed_s, crew, ACTION_RETURN_NOW,
                                   f"WARNING: radiation alert. Return now via {live.plan_id}, "
                                   f"{live.total_s / 60:.1f} min", live)
-        if timeline.current.link_lost and self.mode == "go":
+        if live.return_reason == "link_lost" and self.mode == "go":
             self.mode = "return"
             self._adopt(live, elapsed_s)
             return self._tick(when, elapsed_s, crew, LINK_LOST,
@@ -193,8 +208,6 @@ def simulate(baseline, snapshot, feed, start_utc, *, policy=LivePolicy(), tick_s
     """Offline rehearsal: move the crew tick by tick and record every decision."""
     monitor = Monitor(baseline, snapshot, feed, policy, plan_kwargs)
     ticks = [monitor.start(start_utc)]
-    if ticks[0].action == ACTION_EMERGENCY and monitor.hold_cell is None:
-        return ticks
     for i in range(1, max_ticks + 1):
         tick = monitor.tick(i * tick_s)
         ticks.append(tick)

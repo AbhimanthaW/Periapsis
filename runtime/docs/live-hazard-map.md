@@ -38,19 +38,19 @@ Nothing in `replay.py`, `forecast.py` or `tradeoff/` changes. The terrain baseli
 | Radiation alert | — | whole map: return now, science off |
 | Data older than 10 min | `link_lost`: the last footprint stays in force, science off | — |
 
-- **Forecasts are advisory.** A storm with `kind: "forecast"` only gives caution, unless `forecast_blocks=True`. This follows the repo rule that ML output does not make safety decisions. Whether to change this is Abhimantha's call.
+- **Forecasts are advisory.** A storm with `kind: "forecast"` only gives caution. Radiation forecasts remain advisory as well. Expired forecasts are dropped, and observed rasters replace older rasters for the same variable.
 - **Moving storms**: centre = observed centre + velocity × time. Extrapolation stops after 30 min, so it never runs away. The newest observation of each storm wins.
 - **No looking into the future**: an observation is only used once its `observed_utc` has passed.
 
 ## Arrival-time check (how `plan_live` works)
 
-1. Close every square that is blocked now (never the crew's own square or the shelter).
+1. Apply current closures to the graph. The current cell may be used to depart. The arrival check rejects a hazardous shelter.
 2. Plan with the normal Marswalk planner (Dijkstra out + Dijkstra home, Tobler pace).
 3. Walk the chosen route and get the arrival time at each square.
 4. For each square, check whether a storm will be on it at that time, plus or minus a buffer of `max(60 s, 0.2 × arrival time)`. The buffer grows the further ahead we look, because predictions get less certain.
 5. If there is a conflict, close the storm's footprint around that time and plan again (up to 8 times).
 6. If it still conflicts, close everything that will be blocked in the next 2 hours (the safe fallback).
-7. If there is no route at all: **EMERGENCY**. Pick the nearest reachable square that stays clear and hold there.
+7. If there is no route at all: **EMERGENCY**. Find a timed path to a reachable square that stays clear. The rehearsal advances along that path before holding.
 
 Results: `GO`, `RETURN_NOW` (radiation or stale data), or `EMERGENCY`.
 
@@ -106,6 +106,5 @@ Expected results on the demo map:
 
 ## Open questions for review
 
-- Should a forecast ever close squares (`forecast_blocks`)?
 - Threshold values (wind 15/20 m/s, τ 1/2): who sources them?
 - Should `replay.py` be moved onto this feed format, or should both stay?

@@ -20,7 +20,7 @@ Inputs (all JSON, see runtime/examples/live-hazards-*.json):
 Rules:
   * A layer whose shape or affine differs from the terrain grid is refused.
   * Measured values at or above the block limit block squares; caution limits flag.
-  * kind="forecast" inputs never block unless policy.forecast_blocks is True; they
+  * kind="forecast" inputs never block; they
     flag caution (forecasts stay advisory, as in runtime.marswalk.weather).
   * Extrapolated motion only ever ADDS closures; nothing here unblocks terrain.
   * An input older than max_age_s is stale: its last footprint is held in force
@@ -87,7 +87,6 @@ class LivePolicy:
     slot_s: float = 60.0               # time resolution of the hazard timeline
     lookahead_s: float = 7200.0        # how far ahead the timeline is evaluated
     reroute_saving_s: float = 300.0    # suggest a safe alternative only if it saves this much
-    forecast_blocks: bool = False      # forecasts are advisory unless the team authorizes this
     provenance: str = "assumed"
 
     def __post_init__(self):
@@ -198,7 +197,7 @@ class LiveFeed:
             layer.validate(support)
         for alert in self.alerts:
             alert.validate()
-        keys = [(s.storm_id, s.observed_utc) for s in self.storms]
+        keys = [(s.storm_id, s.kind, parse_utc(s.observed_utc)) for s in self.storms]
         if len(set(keys)) != len(keys):
             raise MarswalkError("INVALID_HAZARD", "duplicate storm observation")
         return self
@@ -297,12 +296,15 @@ def hazard_state(feed, support, when_utc, policy=LivePolicy(), *, now_utc=None):
 
     latest = {}
     for obs in seen.storms:
-        if obs.storm_id not in latest or parse_utc(obs.observed_utc) > parse_utc(latest[obs.storm_id].observed_utc):
-            latest[obs.storm_id] = obs
-    for storm_id in sorted(latest):
-        obs = latest[storm_id]
+        key = (obs.storm_id, obs.kind)
+        if key not in latest or parse_utc(obs.observed_utc) > parse_utc(latest[key].observed_utc):
+            latest[key] = obs
+    for storm_id, kind in sorted(latest):
+        obs = latest[storm_id, kind]
         age = (now - parse_utc(obs.observed_utc)).total_seconds()
         if age > policy.max_age_s:
+            if kind == "forecast":
+                continue
             stale.append(storm_id)
             cx, cy = obs.centre_m           # hold the last observed footprint in force
             moving = False
@@ -316,7 +318,7 @@ def hazard_state(feed, support, when_utc, policy=LivePolicy(), *, now_utc=None):
         dust = np.where(inside, np.fmax(dust, obs.dust_tau), dust)
         hard = obs.wind_mps >= policy.wind_block_mps or obs.dust_tau >= policy.dust_block_tau
         soft = obs.wind_mps >= policy.wind_caution_mps or obs.dust_tau >= policy.dust_caution_tau
-        if hard and (obs.kind == "observed" or policy.forecast_blocks):
+        if hard and obs.kind == "observed":
             block |= inside
             reasons.append(f"storm {storm_id} ({obs.kind}, wind {obs.wind_mps:g} m/s, dust {obs.dust_tau:g}) blocks "
                            f"{int(inside.sum())} squares" + ("" if moving else " (stale, held in force)"))
@@ -324,10 +326,18 @@ def hazard_state(feed, support, when_utc, policy=LivePolicy(), *, now_utc=None):
             caution |= inside
             reasons.append(f"storm {storm_id} ({obs.kind}) caution on {int(inside.sum())} squares")
 
+    latest_layers = {}
     for layer in seen.layers:
+        key = (layer.variable, layer.kind)
+        if key not in latest_layers or parse_utc(layer.observed_utc) > parse_utc(latest_layers[key].observed_utc):
+            latest_layers[key] = layer
+    for key in sorted(latest_layers):
+        layer = latest_layers[key]
         age = (now - parse_utc(layer.observed_utc)).total_seconds()
         values = np.asarray(layer.values, float)
         if age > policy.max_age_s:
+            if layer.kind == "forecast":
+                continue
             stale.append(f"layer:{layer.variable}@{layer.observed_utc}")
         limit = (policy.wind_block_mps, policy.wind_caution_mps) if layer.variable == "wind_speed" else \
             (policy.dust_block_tau, policy.dust_caution_tau)
@@ -336,7 +346,7 @@ def hazard_state(feed, support, when_utc, policy=LivePolicy(), *, now_utc=None):
         near = known & (values >= limit[1]) & ~over
         target = wind if layer.variable == "wind_speed" else dust
         target[:] = np.where(known, np.fmax(target, values), target)
-        if layer.kind == "observed" or policy.forecast_blocks:
+        if layer.kind == "observed":
             block |= over
         else:
             near |= over
@@ -345,11 +355,11 @@ def hazard_state(feed, support, when_utc, policy=LivePolicy(), *, now_utc=None):
             reasons.append(f"{layer.variable} layer ({layer.kind}): {int(over.sum())} over block limit, "
                            f"{int(near.sum())} at caution")
 
-    radiation = any(a.active(when) and (a.kind == "observed" or policy.forecast_blocks) for a in seen.alerts)
+    radiation = any(a.active(when) and a.kind == "observed" for a in seen.alerts)
     for a in seen.alerts:
         if a.active(when):
             reasons.append(f"radiation alert {a.alert_id} ({a.kind}) active: "
-                           + ("return now" if radiation else "advisory"))
+                           + ("return now" if a.kind == "observed" else "advisory"))
     return HazardState(when.isoformat().replace("+00:00", "Z"), block, caution & ~block, wind, dust, radiation,
                        tuple(stale), tuple(reasons))
 
@@ -386,11 +396,12 @@ class HazardTimeline:
         """Arrival-time uncertainty: max(eta_buffer_s, eta_buffer_fraction x arrival time)."""
         return max(self.policy.eta_buffer_s, self.policy.eta_buffer_fraction * max(t_s, 0.0))
 
-    def hazardous(self, cell, t_s):
-        """Is `cell` blocked at any slot within t_s +/- buffer (seconds from now)?"""
+    def hazardous(self, cell, t_s, until_s=None):
+        """Check an arrival or occupancy interval with arrival-time uncertainty."""
         r, c = cell
-        b = self.buffer_s(t_s)
-        return any(self.blocked[i, r, c] for i in self.slots(t_s - b, t_s + b))
+        end = t_s if until_s is None else until_s
+        return any(self.blocked[i, r, c] for i in
+                   self.slots(t_s - self.buffer_s(t_s), end + self.buffer_s(end)))
 
     def footprint_around(self, t_s):
         """Union of blocked squares within t_s +/- buffer."""
@@ -399,4 +410,8 @@ class HazardTimeline:
         return self.blocked[idx].any(axis=0) if idx else np.zeros(self.support.shape, bool)
 
     def radiation_alert_within(self, t0_s, t1_s):
-        return any(self.states[i].radiation_alert for i in self.slots(t0_s, t1_s))
+        start = self.now + timedelta(seconds=t0_s)
+        end = self.now + timedelta(seconds=t1_s)
+        alerts = self.feed.received_by(self.now).alerts
+        return any(a.kind == "observed" and parse_utc(a.start_utc) <= end
+                   and (a.end_utc is None or parse_utc(a.end_utc) > start) for a in alerts)

@@ -68,9 +68,6 @@ def test_caution_and_forecast_do_not_block(demo):
     assert not caution.blocked.any() and caution.caution.any()
     forecast = hazard_state(feed(storm(0, centre, kind="forecast")), baseline.support, T0)
     assert not forecast.blocked.any() and forecast.caution.any()
-    authorized = hazard_state(feed(storm(0, centre, kind="forecast")), baseline.support, T0,
-                              LivePolicy(forecast_blocks=True))
-    assert authorized.blocked.any()
 
 
 def test_a_live_feed_cannot_see_the_future(demo):
@@ -103,6 +100,22 @@ def test_raster_layers_must_match_the_grid(demo):
     shifted = tuple(support.affine[:2]) + (support.affine[2] + 5.0,) + tuple(support.affine[3:])
     with pytest.raises(MarswalkError, match="affine"):
         feed(layers=(HazardLayer("wind_speed", wind, support.shape, shifted, T0),)).validate(support)
+
+
+def test_latest_observation_reopens_raster_and_forecast_cannot_displace_observation(demo):
+    baseline, _ = demo
+    support = baseline.support
+    old = HazardLayer("wind_speed", np.full(support.shape, 24.0), support.shape, support.affine, T0)
+    fresh = replace(old, values=np.full(support.shape, 8.0), observed_utc=at(601))
+    raster = hazard_state(feed(layers=(old, fresh)), support, at(601))
+    assert not raster.blocked.any() and not raster.link_lost
+    point = support.center_xy(80, 80)
+    observed = storm(601, point)
+    forecast = storm(602, point, wind=9, dust=0, kind="forecast")
+    state = hazard_state(feed(observed, forecast), support, at(602))
+    assert state.blocked[80, 80] and not state.link_lost
+    expired_forecast = hazard_state(feed(forecast), support, at(1300))
+    assert not expired_forecast.link_lost and not expired_forecast.blocked.any()
 
 
 def test_radiation_alert_is_whole_map(demo):
@@ -168,6 +181,33 @@ def test_radiation_alert_forces_return(demo):
     assert live.status == RETURN_NOW and live.plan_id == "direct_return"
 
 
+def test_forecast_sep_is_advisory_even_in_monitor():
+    baseline, snapshot = demo_inputs(remaining_s=3600)
+    advisory = RadiationAlert("sep", at(60), None, at(60), kind="forecast")
+    monitor = Monitor(baseline, snapshot, feed(alerts=(advisory,)))
+    assert monitor.start(T0).plan_id == "science:transect"
+    result = monitor.tick(60)
+    assert result.action != ACTION_RETURN_NOW and result.plan_id == "science:transect"
+
+
+def test_short_observed_sep_between_slots_forces_return():
+    baseline, snapshot = demo_inputs(remaining_s=3600)
+    short = RadiationAlert("sep", at(1), at(5), T0)
+    live = plan_live(baseline, snapshot, feed(alerts=(short,)), T0)
+    assert live.status == RETURN_NOW and live.plan_id == "direct_return"
+
+
+def test_one_blocked_shelter_cell_refuses_the_direct_return(demo):
+    baseline, snapshot = demo
+    support = baseline.support
+    values = np.full(support.shape, 8.0)
+    values[snapshot.return_cell] = 24.0
+    layer = HazardLayer("wind_speed", values, support.shape, support.affine, T0)
+    live = plan_live(baseline, snapshot, feed(layers=(layer,)), T0)
+    assert live.status == EMERGENCY and live.plan_id is None
+    assert live.hold_cell == snapshot.current_cell
+
+
 def test_storm_on_the_shelter_is_an_emergency_with_a_hold_square(demo):
     baseline, snapshot = demo
     shelter = baseline.support.center_xy(*snapshot.return_cell)
@@ -214,6 +254,34 @@ def test_monitor_holds_in_an_emergency_then_returns(demo):
     opened = next(t for t in ticks if t.action == ACTION_RETURN_NOW)
     assert all(t.crew_cell == START_CELL for t in ticks if t.elapsed_s < opened.elapsed_s)
     assert ticks[-1].action == ARRIVED
+
+
+def test_emergency_does_not_jump_to_the_hold_cell(demo):
+    baseline, snapshot = demo
+    support = baseline.support
+    values = np.full(support.shape, 8.0)
+    values[snapshot.return_cell] = 24.0
+    values[snapshot.current_cell] = 24.0
+    layer = HazardLayer("wind_speed", values, support.shape, support.affine, T0)
+    monitor = Monitor(baseline, snapshot, feed(layers=(layer,)))
+    start = monitor.start(T0)
+    assert start.action == ACTION_EMERGENCY
+    assert monitor.hold_cell is not None and monitor.hold_cell != START_CELL
+    eta = start.remaining_route_s
+    assert eta > 0
+    assert monitor.tick(eta / 2).crew_cell == START_CELL
+    assert monitor.tick(eta + 1).crew_cell == monitor.hold_cell
+
+
+def test_monitor_preserves_preexisting_completed_tasks():
+    baseline, snapshot = demo_inputs(remaining_s=3600)
+    completed = tuple(task.id for task in snapshot.tasks)
+    monitor = Monitor(baseline, replace(snapshot, completed_task_ids=completed), feed())
+    result = monitor.start(T0)
+    assert result.plan_id == "direct_return"
+    result = monitor.tick(60)
+    assert result.plan_id == "direct_return"
+    assert monitor._snapshot(result.crew_cell, 60).tasks == ()
 
 
 def test_monitor_rover_mode(demo):
