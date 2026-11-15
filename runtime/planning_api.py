@@ -296,7 +296,8 @@ class PlanningHandler(BaseHTTPRequestHandler):
 
 
 def create_server(port=8000, *, evidence_package=None, evidence_query=None,
-                  ranking_pack=None, engine="mission", hazard_model=None, final_routing_model=None):
+                  ranking_pack=None, engine="mission", hazard_model=None, final_routing_model=None,
+                  final_rover_profile=None, final_human_policy=None):
     if (evidence_package is None) != (evidence_query is None):
         raise ValueError("Supply the evidence package and query together")
     result = None
@@ -308,7 +309,11 @@ def create_server(port=8000, *, evidence_package=None, evidence_query=None,
     if hazard_model is not None:
         from runtime.hazards.replay import HazardReplay
         replay = HazardReplay(hazard_model)
-    final_routing = None if final_routing_model is None else FinalRoutingSession(ForecastModel.load(final_routing_model))
+    if final_routing_model is None and (final_rover_profile is not None or final_human_policy is not None):
+        raise ValueError("an integrated profile requires --final-routing-model")
+    final_routing = None if final_routing_model is None else FinalRoutingSession(
+        ForecastModel.load(final_routing_model), rover_profile=final_rover_profile, human_policy=final_human_policy,
+    )
     service = PlanningService(load_pack(FIXTURE, simulation=True), result,
                               RankingService(ranking_pack) if ranking_pack else None,
                               engine=engine, hazard_replay=replay, final_routing=final_routing)
@@ -325,11 +330,14 @@ def main():
     parser.add_argument("--ranking-pack", type=Path)
     parser.add_argument("--hazard-model", type=Path, help="enable the local hazard replay with this synthetic station artifact")
     parser.add_argument("--final-routing-model", type=Path, help="enable integrated routing with this synthetic station artifact")
+    parser.add_argument("--final-rover-profile", type=Path, help="rover profile for integrated routing")
+    parser.add_argument("--final-human-policy", type=Path, help="human cost policy for integrated routing")
     args = parser.parse_args()
     try:
         server = create_server(args.port, evidence_package=args.evidence_package,
                                evidence_query=args.evidence_query, ranking_pack=args.ranking_pack,
-                               engine=args.engine, hazard_model=args.hazard_model, final_routing_model=args.final_routing_model)
+                               engine=args.engine, hazard_model=args.hazard_model, final_routing_model=args.final_routing_model,
+                               final_rover_profile=args.final_rover_profile, final_human_policy=args.final_human_policy)
     except (OSError, ValueError, KeyError, PackError, MarswalkError) as error:
         parser.exit(2, f"Unable to initialize planning service: {error}\n")
     with server:

@@ -22,7 +22,8 @@ from .environment import (ACTIVE, activate_environment, comms_and_forecast_asses
                           parse_utc, terrain_illumination)
 from .mobility import pace_for
 from .optimization import (EXCLUDED_FROM_CORE, compare_pareto, compose_candidate_plans,
-                           enforce_hard_constraints, reevaluate_science_tasks, select_energy_feasible_legs,
+                           enforce_hard_constraints, reevaluate_science_tasks, select_constrained_legs,
+                           select_energy_feasible_legs,
                            select_next_action)
 from .resources import MARGIN_NO_ROUTE, MARGIN_OVER_RESERVE, return_time_margin
 from .routing import Router, TerrainGraph, diverse_routes
@@ -156,7 +157,8 @@ MarswalkPlan._environment_dict = _environment_dict
 
 def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposure_slope_deg=10.0,
                   alternatives_k=0, expected_revision=None, evidence=None, walkback=WalkbackPolicy(),
-                  search_horizon="auto", walkback_resources=None):
+                  search_horizon="auto", walkback_resources=None, search_cache=None, candidate_rule=None,
+                  alternative_preference=None, constrained_search=False):
     """Plan human (Mode A) or rover (Mode B) routes for one immutable snapshot.
 
     Phase 0 refuses grids that cannot support a Marswalk before routing.
@@ -190,15 +192,24 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
     cells = support.shape[0] * support.shape[1]
     use_horizon = search_horizon is True or (search_horizon == "auto" and cells >= SEARCH_HORIZON_MIN_CELLS)
     horizon_s = float(max(0, snapshot.remaining_s - snapshot.reserve_s)) if use_horizon else None
-    graph = TerrainGraph(baseline, pace_for(profile), scenario=getattr(profile, "pace_scenario", "nominal"),
-                         neighbours=profile.neighbours)
     closures = snapshot.closure_cells + blocked
-    router = Router(graph, closures, backend=backend, outbound_limit_s=horizon_s)
-    walk_router = walkback_router(baseline, closures, policy=walkback, backend=backend) \
-        if rover and walkback is not None else None
+    if search_cache is None:
+        graph = TerrainGraph(baseline, pace_for(profile), scenario=getattr(profile, "pace_scenario", "nominal"),
+                             neighbours=profile.neighbours)
+        router = Router(graph, closures, backend=backend, outbound_limit_s=horizon_s)
+    else:
+        if search_cache.baseline is not baseline:
+            raise MarswalkError("MIXED_PACK", "the search cache belongs to a different terrain baseline")
+        router = search_cache.router(profile, closures, backend=backend, outbound_limit_s=horizon_s)
+    walk_router = None
+    if rover and walkback is not None:
+        walk_router = (walkback_router(baseline, closures, policy=walkback, backend=backend) if search_cache is None
+                       else search_cache.router(walkback.walking_profile(), closures, backend=backend))
 
     def extra_rules(plan):
         rules = []
+        if candidate_rule is not None:
+            rules.append(("hazard_timing", *candidate_rule(plan, router)))
         if weather is not None:
             rules.append(("weather", *weather.rule(plan.kind)))
         if walk_router is not None:
@@ -209,15 +220,21 @@ def plan_marswalk(baseline, snapshot, *, backend="auto", multistop=False, exposu
         return rules
 
     checks = dict(activations=activations, extra_rules=extra_rules)
+    if constrained_search:
+        checks_for_search = checks | {"preference": alternative_preference}
+        choose_legs = select_constrained_legs
+    else:
+        checks_for_search = checks
+        choose_legs = select_energy_feasible_legs
     plans = compose_candidate_plans(snapshot, router, multistop=multistop)
     reevaluate_science_tasks(plans, snapshot, router)
     direct_plan = enforce_hard_constraints(plans[0], snapshot, router, **checks)
-    plans[0] = direct_plan = select_energy_feasible_legs(direct_plan, snapshot, router, **checks)
+    plans[0] = direct_plan = choose_legs(direct_plan, snapshot, router, **checks_for_search)
     direct = direct_plan.legs[0][1]
     gate = return_time_margin(snapshot.remaining_s, snapshot.reserve_s, direct)
     for index, plan in enumerate(plans[1:], start=1):
         enforce_hard_constraints(plan, snapshot, router, direct_plan=direct_plan, **checks)
-        plans[index] = select_energy_feasible_legs(plan, snapshot, router, direct_plan=direct_plan, **checks)
+        plans[index] = choose_legs(plan, snapshot, router, direct_plan=direct_plan, **checks_for_search)
     front, used = compare_pareto(plans, router, exposure_slope_deg=exposure_slope_deg)
     recommendation = select_next_action(plans, front, snapshot)
 

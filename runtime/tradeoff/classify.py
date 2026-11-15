@@ -24,10 +24,10 @@ produce any combined score.
 """
 from dataclasses import asdict
 
-from runtime.humancost import load_crew, load_policy, prepare
+from runtime.humancost import evaluate, load_crew, load_policy, prepare
 from runtime.humancost.calculator import RESOURCES, UNITS, _initial
 from runtime.humancost.factors import Crew, Policy
-from runtime.marswalk.errors import PASS
+from runtime.marswalk.errors import PASS, MarswalkError
 from runtime.marswalk.weather import WARNING
 
 from ._common import canonical, digest, model_version, number, obj, refuse, utc, utc_text
@@ -35,7 +35,7 @@ from .accept import AMBER, GREEN, NONE, RED, route_authority
 from .burn_rate import oxygen_belief
 from .card import tradeoff_cards
 from .envelope import reserve_floors
-from .options import ROUTE_OK, build_options
+from .options import ROUTE_OK, build_options, phases_for
 from .telemetry import load_telemetry, telemetry_gate
 
 CODE = "INVALID_ASSESSMENT"
@@ -65,10 +65,10 @@ def _current_stores(raw, people):
     return stores
 
 
-def _ledger_view(option, floors, factor, exception_classes, people, current_stores, oxygen_factors):
+def _ledger_view(human_cost, floors, factor, exception_classes, people, current_stores, oxygen_factors):
     """Per astronaut and per resource: margins and the first phase that crosses each floor."""
     view, first_l1, first_l2, hard = [], None, None, None
-    for item in option.human_cost["astronauts"]:
+    for item in human_cost["astronauts"]:
         person, mine = people[item["id"]], floors[item["id"]]
         for metric in item["phase_metrics"]:
             if hard is not None:
@@ -121,6 +121,44 @@ def _ledger_view(option, floors, factor, exception_classes, people, current_stor
     return view, hard, first_l1, first_l2
 
 
+def _oxygen_adjustment(envelope, prepared, telemetry, telemetry_ok, prior_oxygen_factors):
+    if prior_oxygen_factors is None:
+        return {}, {}
+    factor = envelope.consumption_margin_factor
+    factors = {p["id"]: max(factor, number(prior_oxygen_factors.get(p["id"], factor), "oxygen multiplier", CODE,
+                                            minimum=1)) for p in prepared["astronauts"]}
+    beliefs = oxygen_belief(prepared, telemetry) if telemetry_ok else {}
+    for astronaut, belief in beliefs.items():
+        factors[astronaut] = max(factors[astronaut], belief["p90_factor"])
+    return beliefs, factors
+
+
+def walking_preference(crew, policy, envelope, stores, prior_factors, telemetry, now):
+    """Use the envelope's nominal feasibility rule during alternative search."""
+    prepared = prepare(crew, policy)
+    floors = reserve_floors(envelope, crew, policy, prepared)
+    people = {person.id: person for person in crew.astronauts}
+    balances = None if stores is None else _current_stores(
+        stores, [p for p in crew.astronauts if p.id != crew.reference_id])
+    telemetry = None if telemetry is None else load_telemetry(telemetry)
+    okay, _, _ = telemetry_gate(telemetry, envelope, crew, prepared, now)
+    _, factors = _oxygen_adjustment(envelope, prepared, telemetry, okay, prior_factors)
+
+    def preferred(candidate):
+        phases, _ = phases_for(candidate)
+        if phases is None:
+            return False
+        try:
+            payload = evaluate(crew, policy, list(phases))
+        except MarswalkError:
+            return False
+        _, hard, nominal_breach, _ = _ledger_view(payload, floors, envelope.consumption_margin_factor, (),
+                                                   people, balances, factors)
+        return hard is None and nominal_breach is None
+
+    return preferred
+
+
 def _weather_gate(marswalk_plan):
     weather = marswalk_plan.weather
     if weather is None:
@@ -156,15 +194,7 @@ def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, de
         current_stores = _current_stores(current_stores, [p for p in crew.astronauts if p.id != crew.reference_id])
     factor = envelope.consumption_margin_factor
     telemetry_ok, telemetry_reason, telemetry_age = telemetry_gate(telemetry, envelope, crew, prepared, now)
-    beliefs, oxygen_factors = {}, {}
-    if prior_oxygen_factors is not None:
-        oxygen_factors = {p["id"]: max(factor, number(prior_oxygen_factors.get(p["id"], factor),
-                                                    "oxygen multiplier", CODE, minimum=1))
-                          for p in prepared["astronauts"]}
-        if telemetry_ok:
-            beliefs = oxygen_belief(prepared, telemetry)
-            for astronaut, belief in beliefs.items():
-                oxygen_factors[astronaut] = max(oxygen_factors[astronaut], belief["p90_factor"])
+    beliefs, oxygen_factors = _oxygen_adjustment(envelope, prepared, telemetry, telemetry_ok, prior_oxygen_factors)
     options = build_options(marswalk_plan, crew, policy)
     snapshot = marswalk_plan.snapshot
 
@@ -185,7 +215,7 @@ def assess(marswalk_plan, crew, policy, envelope, *, now_utc, telemetry=None, de
         else:
             row["classes"] = exception_classes(option)
             row["view"], hard_cost, row["l1"], row["l2"] = _ledger_view(
-                option, floors, factor, row["classes"], people, current_stores, oxygen_factors)
+                option.human_cost, floors, factor, row["classes"], people, current_stores, oxygen_factors)
             if hard_constraint is not None or not option.plan.constraints:
                 row["rule"] = ("hard_constraint:not_evaluated" if hard_constraint is None
                                else f"hard_constraint:{hard_constraint[0]}:{hard_constraint[1]}")

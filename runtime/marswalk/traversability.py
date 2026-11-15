@@ -81,13 +81,19 @@ def kernel_support(valid):
 # 5 ---------------------------------------------------------------- slope
 def horn_slope_deg(z, valid, dx, dy):
     """Horn (1981) 3x3 slope in degrees. NaN where kernel support is incomplete."""
+    east, north = horn_gradient(z, valid, dx, dy)
+    return np.degrees(np.arctan(np.hypot(east, north)))
+
+
+def horn_gradient(z, valid, dx, dy):
+    """Dimensionless east/north components on the north-up analytical grid."""
     p = np.pad(np.where(valid, z, np.nan).astype(float), 1, constant_values=np.nan)
     a, b, c = p[:-2, :-2], p[:-2, 1:-1], p[:-2, 2:]
     d, f = p[1:-1, :-2], p[1:-1, 2:]
     g, h, i = p[2:, :-2], p[2:, 1:-1], p[2:, 2:]
     dzdx = ((c + 2 * f + i) - (a + 2 * d + g)) / (8 * dx)
     dzdy = ((g + 2 * h + i) - (a + 2 * b + c)) / (8 * dy)
-    return np.degrees(np.arctan(np.hypot(dzdx, dzdy)))
+    return dzdx, -dzdy
 
 
 # 3 ---------------------------------------------------------------- roughness (P1)

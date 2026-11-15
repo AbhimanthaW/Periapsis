@@ -149,6 +149,8 @@ class RoverProfile:
     provenance: str = "assumed"
     max_charge_w: float | None = None
     max_discharge_w: float | None = None
+    max_cross_slope_deg: float | None = None
+    drive_slip_fraction: float = 0.0
 
     def __post_init__(self):
         if self.platform != "rover":
@@ -172,6 +174,13 @@ class RoverProfile:
         _positive("max_incline_deg", self.max_incline_deg)
         if self.max_incline_deg >= 90:
             raise MarswalkError("INVALID_PROFILE", "max_incline_deg must be below 90")
+        if self.max_cross_slope_deg is not None:
+            _positive("max_cross_slope_deg", self.max_cross_slope_deg)
+            if self.max_cross_slope_deg >= 90:
+                raise MarswalkError("INVALID_PROFILE", "max_cross_slope_deg must be below 90")
+        _positive("drive_slip_fraction", self.drive_slip_fraction, allow_zero=True)
+        if self.drive_slip_fraction >= 1:
+            raise MarswalkError("INVALID_PROFILE", "drive_slip_fraction must be below 1")
         _positive("drivetrain_efficiency", self.drivetrain_efficiency)
         if self.drivetrain_efficiency > 1:
             raise MarswalkError("INVALID_PROFILE", "drivetrain_efficiency must be at most 1")

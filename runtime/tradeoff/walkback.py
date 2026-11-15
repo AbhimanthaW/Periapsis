@@ -8,7 +8,7 @@ from .classify import _current_stores
 from .envelope import reserve_floors
 
 
-def crew_walkback_check(crew, policy, envelope, stores, oxygen_factors):
+def crew_walkback_check(crew, policy, envelope, stores, oxygen_factors, timing=None):
     prepared = prepare(crew, policy)
     floors = reserve_floors(envelope, crew, policy, prepared)
     walkers = [person for person in crew.astronauts if person.id != crew.reference_id]
@@ -23,6 +23,8 @@ def crew_walkback_check(crew, policy, envelope, stores, oxygen_factors):
             leg = legs[cell]
             if not leg.ok:
                 return UNKNOWN, f"walkback consumables unavailable from {list(cell)}"
+            if timing is not None and not timing.clear_leg(leg, walk_router, elapsed_s):
+                return FAIL, f"a storm overlaps the walkback from {list(cell)}"
             for person in walkers:
                 # The prototype uses the human model's flat rate during occupied rover
                 # travel and science dwell, plus directed walking cost after breakdown.

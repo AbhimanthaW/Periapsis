@@ -36,8 +36,9 @@ def test_replay_sends_reports_and_weather_expiry_and_resumes(routing_url, tmp_pa
     storm, expired_weather, expired_hazard, recovered = map(json.loads, capsys.readouterr().out.splitlines())
     assert [storm["revision"], expired_weather["revision"], expired_hazard["revision"], recovered["revision"]] == [2, 3, 4, 5]
     for platform in ("human", "rover"):
-        assert storm[platform]["return_m"] > initial[platform]["return_m"]
-        assert recovered[platform]["return_m"] < storm[platform]["return_m"]
+        assert storm[platform]["return_m"] == initial[platform]["return_m"]
+        assert expired_hazard[platform]["return_m"] > storm[platform]["return_m"]
+        assert recovered[platform]["return_m"] < expired_hazard[platform]["return_m"]
     assert expired_weather["update"] == expired_hazard["update"] == "weather_recheck"
     assert expired_weather["weather_link_lost"]
     assert recovered["position"] == [36, 108] and not recovered["weather_link_lost"]

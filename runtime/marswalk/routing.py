@@ -17,8 +17,9 @@ otherwise an equivalent pure-Python Dijkstra over the same CSR arrays.
 Times are identical; with exact ties the two may pick different but equally
 fast cells. The backend in use is reported with every plan.
 """
-from collections import deque
-from dataclasses import dataclass
+from collections import OrderedDict, deque
+from copy import copy
+from dataclasses import dataclass, replace
 from heapq import heappop, heappush
 from math import inf
 
@@ -26,7 +27,7 @@ import numpy as np
 
 from .errors import (LEG_ENDPOINT_EXCLUDED, LEG_NO_EVIDENCE, LEG_SEARCH_LIMIT, LEG_NO_PATH, LEG_OK, LEG_OUT_OF_BOUNDS,
                      MarswalkError)
-from .mobility import TAG_UNSUPPORTED, EdgeTimes, human_traversal_time
+from .mobility import TAG_UNSUPPORTED, EdgeTimes, human_traversal_time, pace_for
 
 try:  # optional accelerator
     from scipy.sparse import csr_matrix as _scipy_csr
@@ -58,6 +59,13 @@ class CSR:
 
     def with_data(self, data):
         return CSR(self.indptr, self.indices, data, self.edge_ids, self.n)
+
+    def without_closed_edges(self, blocked):
+        keep = ~blocked[self.edge_ids]
+        offsets = np.empty(len(keep) + 1, dtype=np.int64)
+        offsets[0] = 0
+        np.cumsum(keep, out=offsets[1:])
+        return CSR(offsets[self.indptr], self.indices[keep], self.data[keep], self.edge_ids[keep], self.n)
 
 
 def csr_from_edges(src, dst, data, edge_ids, n):
@@ -202,7 +210,7 @@ class Leg:
 class Router:
     """One request: baseline graph minus closures. Caches Dijkstra fields."""
 
-    def __init__(self, graph, closure_cells=(), *, backend="auto", limit_s=inf, outbound_limit_s=None):
+    def __init__(self, graph, closure_cells=(), *, backend="auto", limit_s=inf, outbound_limit_s=None, indexed=None):
         self.graph = graph
         self.baseline = graph.baseline
         shape = self.baseline.support.shape
@@ -217,22 +225,40 @@ class Router:
         bad = cf[graph.src] | cf[graph.dst]
         diag = graph.side_a >= 0
         bad[diag] |= cf[graph.side_a[diag]] | cf[graph.side_b[diag]]
-        keep = np.isfinite(graph.times.seconds) & ~bad
-        self.edge_ids = np.flatnonzero(keep)
-        self._unknown_edges = np.flatnonzero(~bad & (graph.times.tag == TAG_UNSUPPORTED))
-        self.csr = csr_from_edges(graph.src[keep], graph.dst[keep], graph.times.seconds[keep],
-                                  self.edge_ids, graph.n)
-        self.csr_t = self.csr.transposed()
-        self._key = graph.src[self.edge_ids] * graph.n + graph.dst[self.edge_ids]
-        order = np.argsort(self._key)
-        self._key, self._key_edges = self._key[order], self.edge_ids[order]
+        if indexed is None:
+            keep = np.isfinite(graph.times.seconds) & ~bad
+            self.edge_ids = np.flatnonzero(keep)
+            self._unknown_edges = np.flatnonzero(~bad & (graph.times.tag == TAG_UNSUPPORTED))
+            self.csr = csr_from_edges(graph.src[keep], graph.dst[keep], graph.times.seconds[keep],
+                                      self.edge_ids, graph.n)
+            self.csr_t = self.csr.transposed()
+            self._key = graph.src[self.edge_ids] * graph.n + graph.dst[self.edge_ids]
+            order = np.argsort(self._key)
+            self._key, self._key_edges = self._key[order], self.edge_ids[order]
+        else:
+            self.edge_ids = indexed.edge_ids[~bad[indexed.edge_ids]]
+            self._unknown_edges = indexed._unknown_edges[~bad[indexed._unknown_edges]]
+            self.csr = indexed.csr.without_closed_edges(bad)
+            self.csr_t = indexed.csr_t.without_closed_edges(bad)
+            open_keys = ~bad[indexed._key_edges]
+            self._key, self._key_edges = indexed._key[open_keys], indexed._key_edges[open_keys]
         self.backend = backend if backend != "auto" else ("scipy" if "scipy" in available_backends() else "python")
         self.limit_s = limit_s
         # Search horizon for outbound fields only. The home field stays exact so
         # the direct-return gate can tell "over reserve" from "no route".
         self.outbound_limit_s = limit_s if outbound_limit_s is None else min(limit_s, outbound_limit_s)
         self._fwd, self._bwd, self._energy_fields = {}, {}, {}
+        self._distance_fields = {}
+        self._last_forward_field = {}
         self.dijkstra_runs = 0
+
+    def for_request(self, outbound_limit_s=None):
+        """Share topology and bounded shelter fields, with fresh request diagnostics."""
+        router = copy(self)
+        router._fwd, router._energy_fields = {}, {}
+        router.outbound_limit_s = self.limit_s if outbound_limit_s is None else min(self.limit_s, outbound_limit_s)
+        router.dijkstra_runs = 0
+        return router
 
     # -- helpers
     def node(self, cell):
@@ -252,13 +278,18 @@ class Router:
     def outbound_field(self, start):
         s = self.node(start)
         if s not in self._fwd:
-            self._fwd[s] = dijkstra(self.csr, s, limit=self.outbound_limit_s, backend=self.backend)
-            self.dijkstra_runs += 1
+            key = (s, self.outbound_limit_s)
+            if key not in self._last_forward_field:
+                self._last_forward_field.clear()
+                self._last_forward_field[key] = dijkstra(self.csr, s, limit=self.outbound_limit_s, backend=self.backend)
+                self.dijkstra_runs += 1
+            self._fwd[s] = self._last_forward_field[key]
         return self._fwd[s]
 
     def return_field(self, home):
         h = self.node(home)
         if h not in self._bwd:
+            self._bwd.clear()
             self._bwd[h] = dijkstra(self.csr_t, h, limit=self.limit_s, backend=self.backend)
             self.dijkstra_runs += 1
         return self._bwd[h]
@@ -303,15 +334,18 @@ class Router:
         if refused:
             return refused
         s, g = self.node(start), self.node(goal)
-        weights = self.csr.with_data(self.graph.length_m[self.csr.edge_ids])
-        distance, parent = dijkstra(weights, s, backend=self.backend)
-        self.dijkstra_runs += 1
-        if not np.isfinite(distance[g]):
+        if g not in self._distance_fields:
+            self._distance_fields.clear()
+            weights = self.csr_t.with_data(self.graph.length_m[self.csr_t.edge_ids])
+            self._distance_fields[g] = dijkstra(weights, g, backend=self.backend)
+            self.dijkstra_runs += 1
+        distance, parent = self._distance_fields[g]
+        if not np.isfinite(distance[s]):
             return self._diagnose(start, goal)
-        nodes = [g]
-        while nodes[-1] != s:
+        nodes = [s]
+        while nodes[-1] != g:
             nodes.append(int(parent[nodes[-1]]))
-        return self._leg(start, goal, nodes[::-1])
+        return self._leg(start, goal, nodes)
 
     def energy_alternatives(self, leg, max_discharge_w):
         """Fastest power-admissible, minimum energy and two mixed-weight paths."""
@@ -338,6 +372,30 @@ class Router:
                 nodes = [goal]
                 while nodes[-1] != start:
                     nodes.append(int(pred[nodes[-1]]))
+                candidate = self._leg(leg.start, leg.goal, nodes[::-1])
+                if candidate.edge_ids not in seen:
+                    seen.add(candidate.edge_ids)
+                    alternatives.append(candidate)
+        return tuple(alternatives)
+
+    def climb_alternatives(self, leg):
+        """Generate candidates from shared, dimensioned climb penalties [s/m]."""
+        if not leg.ok or not leg.edge_ids:
+            return ()
+        ascent = np.maximum(self.graph.dz_m[self.csr.edge_ids], 0)
+        seen, alternatives = {leg.edge_ids}, []
+        start, goal = self.node(leg.start), self.node(leg.goal)
+        for climb_s_per_m in (10.0, 60.0):
+            key = (start, "climb", climb_s_per_m)
+            if key not in self._energy_fields:
+                weights = self.csr.data + climb_s_per_m * ascent
+                self._energy_fields[key] = dijkstra(self.csr.with_data(weights), start, backend=self.backend)
+                self.dijkstra_runs += 1
+            dist, parent = self._energy_fields[key]
+            if np.isfinite(dist[goal]):
+                nodes = [goal]
+                while nodes[-1] != start:
+                    nodes.append(int(parent[nodes[-1]]))
                 candidate = self._leg(leg.start, leg.goal, nodes[::-1])
                 if candidate.edge_ids not in seen:
                     seen.add(candidate.edge_ids)
@@ -408,6 +466,41 @@ class Router:
                    energy_j=None if g.times.energy_j is None else float(g.times.energy_j[eids].sum()))
 
 
+class SearchCache:
+    """Bounded caches owned by one serial planning session and terrain baseline."""
+
+    def __init__(self, baseline):
+        self.baseline = baseline
+        self.graphs, self.topologies = OrderedDict(), OrderedDict()
+        self.capacity = 6 if baseline.z_m.size < 250_000 else 2
+
+    def router(self, profile, closures, *, backend="auto", outbound_limit_s=None):
+        if backend == "auto":
+            backend = available_backends()[0]
+        # Live charge affects the ledger, while edge time and gross use depend
+        # on the otherwise identical operating profile.
+        if profile.platform == "rover":
+            profile = replace(profile, initial_charge_j=profile.battery_capacity_j)
+        if profile not in self.graphs:
+            if len(self.graphs) >= 3:
+                old, _ = self.graphs.popitem(last=False)
+                self.topologies = OrderedDict((key, item) for key, item in self.topologies.items() if key[0] != old)
+            graph = TerrainGraph(self.baseline, pace_for(profile), scenario=getattr(profile, "pace_scenario", "nominal"),
+                                 neighbours=profile.neighbours)
+            self.graphs[profile] = Router(graph, backend=backend)
+        self.graphs.move_to_end(profile)
+        key = profile, frozenset(closures), backend
+        indexed = self.graphs[profile]
+        if not key[1] and backend == indexed.backend:
+            return indexed.for_request(outbound_limit_s)
+        if key not in self.topologies:
+            if len(self.topologies) >= self.capacity:
+                self.topologies.popitem(last=False)
+            self.topologies[key] = Router(indexed.graph, key[1], backend=backend, indexed=indexed)
+        self.topologies.move_to_end(key)
+        return self.topologies[key].for_request(outbound_limit_s)
+
+
 # ------------------------------------------------------------------ diverse candidates
 @dataclass(frozen=True)
 class RouteAlternative:
@@ -458,6 +551,7 @@ def diverse_routes(router, start, goal, *, k=3, max_stretch=1.25, max_overlap=0.
             break
         dist, pred = dijkstra(router.csr.with_data(router.csr.data * mult[router.csr.edge_ids]), s,
                               limit=inf, backend=router.backend)
+        router.dijkstra_runs += 1
         if not np.isfinite(dist[g]):
             break
         nodes = [g]

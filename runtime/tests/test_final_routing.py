@@ -263,8 +263,11 @@ def test_three_predictive_models_and_three_deterministic_models_share_a_plan(rou
         assert old.isdisjoint(immediate)
         assert not old.isdisjoint(possible)
         assert guarded[platform]["direct_return"]["status"] == "ok"
-        assert possible.isdisjoint(map(tuple, guarded[platform]["direct_return"]["cells"]))
-        assert guarded[platform]["direct_return"]["cells"] != learned[platform]["direct_return"]["cells"]
+        assert guarded[platform]["hazard_routing"] == "arrival_time"
+        assert guarded[platform]["direct_return"]["cells"] == learned[platform]["direct_return"]["cells"]
+        direct_checks = {item["rule"]: item["outcome"] for item in guarded[platform]["candidates"][0]["constraints"]}
+        assert direct_checks["hazard_timing"] == "pass"
+        assert guarded[platform]["recommendation"] == "direct_return"
     assert guarded["rover"]["environment"]["power"]["atmospheric_transmittance"] == 0
     checks = {item["rule"]: item["outcome"] for item in guarded["rover"]["candidates"][0]["constraints"]}
     assert checks["energy_budget"] == checks["walkback_resources"] == "pass"

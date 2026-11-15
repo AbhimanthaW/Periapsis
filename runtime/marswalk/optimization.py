@@ -23,6 +23,7 @@ import numpy as np
 from .errors import FAIL, LEG_NO_EVIDENCE, LEG_SEARCH_LIMIT, LEG_OK, PASS, UNKNOWN
 from .environment import ACTIVE, UNVERIFIED, supply_energy_j
 from .resources import EnergyPhase, Phase, ResourceLedger, energy_ledger, route_resource_ledger
+from .routing import diverse_routes
 
 EXCLUDED_FROM_CORE = (
     "AI/ML decision making", "live telemetry", "suit or life-support forecasts",
@@ -45,6 +46,7 @@ class CandidatePlan:
     failure_reasons: list = field(default_factory=list)
     deferred_artifacts: list = field(default_factory=list)
     energy_ledger: object = None      # rover plans only
+    alternative_search: dict | None = None
 
     @property
     def passed(self):
@@ -55,7 +57,7 @@ class CandidatePlan:
         return None if self.ledger is None else self.ledger.margin
 
     def to_dict(self):
-        return {
+        data = {
             "id": self.id, "kind": self.kind, "task_ids": list(self.task_ids),
             "legs": [{"name": name, **leg.to_dict()} for name, leg in self.legs],
             "dwell": [{"task_id": t, "seconds": s} for t, s in self.dwell],
@@ -67,6 +69,9 @@ class CandidatePlan:
             "deferred_artifacts": self.deferred_artifacts,
             "energy_ledger": None if self.energy_ledger is None else self.energy_ledger.to_dict(),
         }
+        if self.alternative_search is not None:
+            data["alternative_search"] = self.alternative_search
+        return data
 
 
 # ------------------------------------------------------------------ compose
@@ -161,6 +166,48 @@ def select_energy_feasible_legs(plan, snapshot, router, *, direct_plan=None, act
         if candidate.passed:
             return candidate
     plan.failure_reasons.append("bounded route search found no energy-feasible alternative")
+    return plan
+
+
+def select_constrained_legs(plan, snapshot, router, *, direct_plan=None, activations=(), extra_rules=None,
+                            preference=None, limit=16):
+    """Try physical alternatives and re-evaluate every constraint on each option."""
+    failed = {rule for rule, outcome, _ in plan.constraints if outcome != PASS}
+    searchable = {"energy_budget", "walkback", "walkback_resources", "hazard_timing"}
+    if failed - searchable or (not failed and (preference is None or preference(plan))):
+        return plan
+    choices = []
+    for name, leg in plan.legs:
+        alternatives = {leg.edge_ids: leg}
+        for candidate in router.climb_alternatives(leg):
+            alternatives[candidate.edge_ids] = candidate
+        power = getattr(snapshot.profile, "max_discharge_w", None)
+        if power is not None:
+            for candidate in router.energy_alternatives(leg, power):
+                alternatives[candidate.edge_ids] = candidate
+        for candidate in diverse_routes(router, leg.start, leg.goal, k=3, max_stretch=4.0, max_iter=6,
+                                        max_overlap=0.85):
+            if candidate.leg.ok:
+                alternatives[candidate.leg.edge_ids] = candidate.leg
+        choices.append([(name, candidate) for candidate in alternatives.values()])
+
+    ranked = sorted(product(*choices), key=lambda legs: sum(leg.seconds for _, leg in legs))
+    checked = 0
+    for legs in ranked:
+        if list(legs) == plan.legs:
+            continue
+        if checked >= limit:
+            break
+        candidate = replace(plan, legs=list(legs), failure_reasons=[], deferred_artifacts=[])
+        reevaluate_science_tasks([candidate], snapshot, router)
+        enforce_hard_constraints(candidate, snapshot, router, direct_plan=direct_plan, activations=activations,
+                                 extra_rules=extra_rules)
+        checked += 1
+        if candidate.passed and (preference is None or preference(candidate)):
+            candidate.alternative_search = {"status": "found", "checked": checked}
+            return candidate
+    plan.alternative_search = {"status": "candidate_limit" if checked == limit and len(ranked) - 1 > limit
+                               else "bounded_candidates_exhausted", "checked": checked}
     return plan
 
 

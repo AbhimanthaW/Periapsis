@@ -12,7 +12,7 @@ Marswalk site. Dijkstra searches the directed terrain graph after spatial closur
 | Trade-offs | The existing deterministic acceptance envelope plus a Bayesian oxygen burn-rate update from one fresh qualified telemetry window per astronaut. The upper estimate can increase the oxygen multiplier used in resource checks. A missing reading retains any multiplier already applied. Priors and observation noise are illustrative. |
 | Human cost | The personalized pace and slope limits constrain routing. Route phases price the consumables. Reported current stores supply balances, and initial stores define the reserve floors. |
 | Rover cost | Directed travel time, gross electrical energy, battery state and supply through the route and dwell. The crewed rover also requires a walkback at every breakdown point under the human pace, slope and consumables limits. |
-| Spatial hazard mapping | The team's `LiveFeed` validates storm positions and raster alignment and publishes the current map. During planning an observed storm's moving footprint is swept over the remaining window and rasterized conservatively, including the cell half-diagonal. Observed radiation and stale spatial inputs stop science. |
+| Spatial hazard mapping | The team's `LiveFeed` validates storm positions and raster alignment and publishes the current map. For a fresh moving storm, the planner checks continuous traversal, science dwell, and rover walkback against the projected crossing times. Stale and uncertain motion uses the swept footprint. Observed radiation and stale spatial inputs stop science. |
 
 The objective classifier and Bayesian update were added for this drill. The published team
 objective and trade-off implementations were deterministic. This comparison tests software
@@ -121,8 +121,9 @@ one `feed_id`. Send only observations issued by the current report time. Storm c
 are in local metres, velocity in m/s, wind in m/s and optical depth dimensionless. Rasters use the
 site's exact shape and affine. Spatial observations and forecasts are tracked separately.
 `spatial_hazards.blocked_now` is the current display mask. `blocked_for_plan` contains the larger
-swept mask used by both planners and their walkback routes. This window-wide mask can exclude an
-otherwise usable crossing during a brief clear interval. Caution exposure is reported in metres.
+swept envelope used for fallback. `blocked_static` is the spatial mask applied to the graph
+for arrival-time checks. Each platform reports `hazard_routing` as `static`, `arrival_time`, `swept`
+or `swept_fallback`. Caution exposure is reported in metres.
 Pressure history in adjacent Mars-hour bins exercises learned inference, as shown in
 `runtime/tests/test_final_routing.py`.
 
@@ -135,6 +136,52 @@ direct return, or a rover option that passes its energy and walkback checks. Ope
 and control of the crew or rover are outside the drill API. During the rover leg, the model
 uses the flat walking burn rate as a proxy for seated travel and science dwell. From every
 breakdown point it uses the directed walking leg's duration and ascent.
+
+### Candidate costs and calibration
+
+Rules and units stay consistent across the grid. For an allowed edge the planner can accumulate
+seconds, metres, gross electrical joules, or a dimensioned surrogate such as
+`seconds + climb_s_per_m × uphill_m`. Climb penalties of 10 and 60 s/m generate alternative
+candidates. The final resource ledgers use their physical units. Closing a cell removes its
+moves, and a resource excess excludes the candidate from recommendation. A longer, flatter path
+can improve oxygen margin even when it increases travel time. A separate per-edge slope or
+power limit controls local peaks.
+
+The integrated planner tries alternate corridors after a hazard-timing, energy, walkback, or
+nominal suit-resource failure. Each candidate gets the same checks as the original. Search
+generation is bounded, and at most 16 combinations are evaluated per mission candidate.
+`alternative_search` reports whether it found a passing candidate, ran out of generated
+candidates, or reached that combination cap.
+
+The session caches graph topology and shelter searches by terrain, mobility profile and
+closed cells. A closure change invalidates that topology's result. Mission-time, energy and
+suit checks still use the current revision. Set `include_shortest_distance: false` to skip the
+geometric reference. The automatic feeder skips it by default.
+
+The rover profile accepts a declared `max_cross_slope_deg` and `drive_slip_fraction`.
+Cross-slope uses the elevation gradient perpendicular to each directed edge. Uniform slip
+reduces the effective ground speed and increases gross driving energy in the approximation.
+The drill accepts a profile via `--final-rover-profile` and a human policy via
+`--final-human-policy`. Rover-scale clearance remains unverified when terrain posting and
+vertical accuracy cannot resolve the obstacle.
+
+`python -m runtime.marswalk.calibration measurements.json` fits nominal Tobler pace or uniform
+drive slip and reports bias and mean absolute error on held-out traverse groups. The
+measurement object contains `source`, `classification`, a normal `profile`, and `segments`.
+Each row has `group`, `split` (`fit` or `holdout`), `horizontal_m`, `dz_m` and `elapsed_s`.
+Rover rows also have `wheel_speed_mps` and held-out rows have `drive_energy_j`. For held-out
+oxygen scoring, supply `--crew` and `--human-policy`, and include `astronaut_id` and `oxygen_g`
+on each human holdout row. Set cross-slope limits from vehicle tests or operating limits.
+The supplied software tests use synthetic controls. Matched rover trials and held-out suited
+traverse measurements are still needed to establish accuracy.
+
+```powershell
+uv run --project documentation --locked python -m runtime.marswalk.benchmark --size 1000 --iterations 8 --backend python
+```
+
+Repeat with `--backend scipy` in an environment that includes SciPy. The benchmark measures
+the walking terrain planner, including graph creation, forward and return searches, against
+uncached updates, updates with a moving start, and sparse closure edits.
 
 ```powershell
 uv run --project documentation --locked python -m pytest -q runtime/tests/test_final_routing.py

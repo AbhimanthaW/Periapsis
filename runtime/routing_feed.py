@@ -99,6 +99,7 @@ class RoutingClient:
             "pack_version": self.site["pack_version"],
             "expected_revision": self.revision,
         }
+        body.setdefault("include_shortest_distance", False)
         self.plan = self.request("plan", body)
         self.revision = self.plan["revision"]
         return self.plan

@@ -13,19 +13,22 @@ import numpy as np
 
 from ranking.lexicon import Parser, tokenize
 from runtime.hazards.planning import POLICY as SPATIAL_POLICY, planning_mask, update_feed
+from runtime.hazards.timing import timed_hazards
 from runtime.humancost import load_crew, load_policy, prepare
 from runtime.marswalk import EnvironmentalVariable, MarswalkError, WalkbackPolicy, plan_marswalk
 from runtime.marswalk.config import _cell
 from runtime.marswalk.demo import DEMO_TIME_UTC, NORTH_RAMP_CLOSURE, demo_inputs
-from runtime.marswalk.environment import SOL_S, parse_utc
+from runtime.marswalk.environment import SOL_S, PowerScenario, parse_utc
 from runtime.marswalk.forecast import ForecastModel, Observation, issue_forecast
 from runtime.marswalk.mobility import SCENARIO_SPEED_FACTOR
 from runtime.marswalk.optimization import compare_pareto, select_next_action
 from runtime.marswalk.profiles import load_profile
+from runtime.marswalk.routing import SearchCache
 from runtime.marswalk.weather import DEFAULT_LIMITS, WeatherFeed, WeatherMessage, WeatherStation, without_solar
 from runtime.objective_model import ObjectiveModel
 from runtime.tradeoff import assess, load_envelope
 from runtime.tradeoff.accept import GREEN
+from runtime.tradeoff.classify import walking_preference
 from runtime.tradeoff.walkback import crew_walkback_check
 
 EXAMPLES = Path(__file__).with_name("examples")
@@ -103,6 +106,7 @@ class RoutingRequest(Input):
     telemetry: dict | None = None  # Validated by the trade-off model's versioned loader.
     decision_window_s: DecisionSeconds | None = None
     one_way_light_time_s: DecisionSeconds | None = None
+    include_shortest_distance: bool = True
 
 
 def _update_hazards(previous, events, now, shape):
@@ -183,7 +187,7 @@ def _objective_tasks(parser, model, catalogue, request):
              "confirmed_task_ids": sorted(confirmed), "requires_confirmation": sorted(eligible - included)})
 
 
-def _plan_result(plan, cautions, tradeoff=None):
+def _plan_result(plan, cautions, tradeoff=None, *, include_shortest_distance=True, hazard_mode="static"):
     status = plan.status
     recommendation = plan.recommendation
     candidates = plan.plans
@@ -198,9 +202,11 @@ def _plan_result(plan, cautions, tradeoff=None):
             recommendation = None
             if status == "OK":
                 status = "RETURN_RESOURCE_LIMIT"
-    reference = plan.router.shortest_distance(plan.snapshot.current_cell, plan.snapshot.return_cell)
+    reference = (plan.router.shortest_distance(plan.snapshot.current_cell, plan.snapshot.return_cell)
+                 if include_shortest_distance else None)
     output = plan.to_dict()
-    output["shortest_distance_return"] = reference.to_dict()
+    output["shortest_distance_return"] = None if reference is None else reference.to_dict()
+    output["hazard_routing"] = hazard_mode
     # Publish one recommendation and Pareto set after the full resource gate.
     output["recommendation"] = recommendation
     output["recommended_task_ids"] = [] if recommendation is None else list(plan.plan(recommendation).task_ids)
@@ -230,15 +236,16 @@ def _plan_result(plan, cautions, tradeoff=None):
 class FinalRoutingSession:
     """One loopback drill. Updates and plan publication commit in revision order."""
 
-    def __init__(self, forecast_model: ForecastModel):
+    def __init__(self, forecast_model: ForecastModel, *, rover_profile=None, human_policy=None):
         station = forecast_model.station
         if station["provenance"] != "simulated" or station["station_id"] != "synthetic-north-48":
             raise ValueError("the routing drill requires the synthetic-north-48 station model")
         self._model = forecast_model
         self._baseline, human = demo_inputs(closed=True, remaining_s=BUDGET_S)
+        self._search_cache = SearchCache(self._baseline)
         _, rover = demo_inputs(platform="rover", remaining_s=BUDGET_S)
         self._crew = load_crew(EXAMPLES / "crew-human-factors.json")
-        self._policy = load_policy(EXAMPLES / "human-cost-policy.json")
+        self._policy = load_policy(human_policy or EXAMPLES / "human-cost-policy.json")
         human_inputs = prepare(self._crew, self._policy)["routing_inputs"]
         self._envelope = load_envelope(EXAMPLES / "tradeoff-envelope-simulated.json", now_utc=DEMO_TIME_UTC)
         self._parser = Parser()
@@ -249,7 +256,10 @@ class FinalRoutingSession:
                                  profile=load_profile(human_inputs["profile"]), reserve_s=human_inputs["reserve_s"],
                                  site_lat_deg=station["lat_deg"], site_lon_east_deg=station["lon_east_deg"])
         self._north_ramp_cells = tuple(dict(human.closures)[NORTH_RAMP_CLOSURE])
-        self._rover_profile, self._rover_power = rover.profile, rover.power
+        self._rover_profile = rover.profile if rover_profile is None else load_profile(rover_profile)
+        if self._rover_profile.platform != "rover":
+            raise ValueError("the integrated rover profile must describe a rover")
+        self._rover_power = rover.power if self._rover_profile.power_source == "solar" else PowerScenario("none")
         self._lock = Lock()
         self._revision = 0
         self._start = self._time = parse_utc(DEMO_TIME_UTC)
@@ -258,7 +268,7 @@ class FinalRoutingSession:
         self._oxygen_factors = {}
         self._completed = set()
         self._crew_stores = None
-        self._rover_charge_j = rover.profile.initial_charge_j
+        self._rover_charge_j = self._rover_profile.initial_charge_j
         self._last_request = self._last_result = None
 
     def site(self):
@@ -283,6 +293,24 @@ class FinalRoutingSession:
     def latest(self):
         with self._lock:
             return {"revision": self._revision, "plan": deepcopy(self._last_result)}
+
+    def _solve(self, snapshot, timing, swept, *, preference=None, walkback=None, walkback_cost=None):
+        options = {"search_cache": self._search_cache, "constrained_search": True,
+                   "alternative_preference": preference, "walkback": walkback}
+
+        def solve(snap, hazard_check):
+            return plan_marswalk(self._baseline, snap, **options,
+                                 candidate_rule=None if hazard_check is None else hazard_check.rule,
+                                 walkback_resources=None if walkback_cost is None else walkback_cost(hazard_check))
+
+        plan = solve(snapshot, timing)
+        if timing is None:
+            return plan, "swept" if swept else "static"
+        if plan.plans[0].passed:
+            return plan, "arrival_time"
+        closures = tuple((cid, cells) for cid, cells in snapshot.closures if cid != SPATIAL_CLOSURE_ID)
+        closed = replace(snapshot, closures=closures + ((SPATIAL_CLOSURE_ID, swept),))
+        return solve(closed, None), "swept_fallback"
 
     def _update(self, request):
         support = self._baseline.support
@@ -315,9 +343,12 @@ class FinalRoutingSession:
         remaining_s = max(0, BUDGET_S - ceil((now - self._start).total_seconds()))
         spatial = update_feed(self._spatial, request.live_hazards, support, now)
         spatial_output, environment, power = None, (), self._rover_power
+        timing, swept = None, ()
         if spatial is not None:
             state, blocked, caution, radiation, no_solar = planning_mask(spatial, support, now, remaining_s)
-            cells = tuple(map(tuple, np.argwhere(blocked).tolist()))
+            swept = tuple(map(tuple, np.argwhere(blocked).tolist()))
+            timing, static = timed_hazards(spatial, support, now, remaining_s, state)
+            cells = swept if timing is None else tuple(map(tuple, np.argwhere(static).tolist()))
             if cells:
                 closures += ((SPATIAL_CLOSURE_ID, cells),)
             cautions.update(map(tuple, np.argwhere(caution).tolist()))
@@ -333,13 +364,16 @@ class FinalRoutingSession:
             if no_solar:
                 power = without_solar(power)
             spatial_output = {"feed_id": spatial.feed_id, "blocked_now": np.argwhere(state.blocked).tolist(),
-                              "blocked_for_plan": cells, "caution_cells": np.argwhere(caution).tolist(),
+                              "blocked_for_plan": swept, "blocked_static": cells,
+                              "caution_cells": np.argwhere(caution).tolist(),
                               "window_s": remaining_s, "stale": list(state.stale), "radiation_in_window": radiation,
                               "no_solar_credit": no_solar, "return_reason": reason}
         snapshot = replace(self._template, revision=revision, current_cell=current, tasks=tasks, objective=request.objective,
                            completed_task_ids=tuple(sorted(completed)), time_utc=request.time_utc, weather=feed,
                            remaining_s=remaining_s, closures=closures, environment=environment)
-        human = plan_marswalk(self._baseline, snapshot)
+        preference = walking_preference(self._crew, self._policy, self._envelope, stores,
+                                        self._oxygen_factors, request.telemetry, now)
+        human, human_mode = self._solve(snapshot, timing, swept, preference=preference)
         review = assess(human, self._crew, self._policy, self._envelope, now_utc=request.time_utc, current_stores=stores,
                         telemetry=request.telemetry, decision_window_s=request.decision_window_s,
                         one_way_light_time_s=request.one_way_light_time_s, prior_oxygen_factors=self._oxygen_factors)
@@ -348,9 +382,10 @@ class FinalRoutingSession:
                                   SCENARIO_SPEED_FACTOR[snapshot.profile.pace_scenario],
                                   slope_limit_deg=snapshot.profile.max_slope_deg,
                                   source="simulated human-cost operating profile")
-        rover = plan_marswalk(
-            self._baseline, replace(snapshot, profile=rover_profile, power=power), walkback=walkback,
-            walkback_resources=crew_walkback_check(self._crew, self._policy, self._envelope, stores, factors),
+        rover, rover_mode = self._solve(
+            replace(snapshot, profile=rover_profile, power=power), timing, swept, walkback=walkback,
+            walkback_cost=lambda hazard: crew_walkback_check(
+                self._crew, self._policy, self._envelope, stores, factors, hazard),
         )
         freshness = [parse_utc(item.time_utc) + timedelta(seconds=feed.max_age_s, microseconds=1)
                      for item in feed.messages if (now - parse_utc(item.time_utc)).total_seconds() <= feed.max_age_s]
@@ -373,7 +408,10 @@ class FinalRoutingSession:
                   "observed_weather": human.weather.to_dict(),
                   "forecast": outlook | {"advisory_only": True, "station_cell": self._station.cell,
                                          "planning_window_advisories": advisories},
-                  "human": _plan_result(human, cautions, review), "rover": _plan_result(rover, cautions),
+                  "human": _plan_result(human, cautions, review, hazard_mode=human_mode,
+                                        include_shortest_distance=request.include_shortest_distance),
+                  "rover": _plan_result(rover, cautions, hazard_mode=rover_mode,
+                                        include_shortest_distance=request.include_shortest_distance),
                   "tradeoff": review, "rover_charge_wh": charge / 3600,
                   "human_stores_source": "simulated_start" if stores is None else "simulated_report"}
         self._revision, self._time, self._completed = revision, now, completed
