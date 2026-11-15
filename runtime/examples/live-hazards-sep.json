@@ -1,0 +1,20 @@
+{
+  "feed_id": "sep-during-science-v1",
+  "provenance": "simulated",
+  "note": "SIMULATED live hazard feed on the synthetic Marswalk demo map (160 x 160 squares, 5 m). Centres are map metres (easting, northing) on the terrain grid. Not Mars data. Radiation is whole-map.",
+  "start_utc": "2021-02-18T20:43:49Z",
+  "scenario": {
+    "remaining_s": 3600
+  },
+  "alerts": [
+    {
+      "alert_id": "sep-1",
+      "start_utc": "2021-02-18T20:48:49Z",
+      "end_utc": null,
+      "observed_utc": "2021-02-18T20:47:49Z",
+      "kind": "observed",
+      "provenance": "simulated",
+      "note": "simulated solar particle event alert; background dose 0.21 mGy/day (MSL RAD, Gale) for context"
+    }
+  ]
+}
