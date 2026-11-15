@@ -137,7 +137,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
   const [selectedId, setSelectedId] = useState<string>()
   const [playing, setPlaying] = useState(false)
   const [step, setStep] = useState(0)
-  const [view, setView] = useState<'terrain' | 'mars'>('terrain')
+  const [view, setView] = useState<'terrain' | 'mars'>(initialStage === 'Monitor' ? 'terrain' : 'mars')
   const [fault, setFault] = useState('')
   const [pending, setPending] = useState(true)
   const revision = useRef(0)
@@ -232,11 +232,22 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
   }, [playing, stage, step, lastStep])
 
   function selectCandidate(id: string) {
+    if (stage === 'Analysis') setView('terrain')
     setSelectedId(id)
     setPlaying(false)
     setStep(0)
   }
 
+  function switchStage(next: Stage) {
+    if (next === stage) return
+    setPlaying(false)
+    setView(next === 'Monitor' ? 'terrain' : 'mars')
+    setStage(next)
+  }
+
+  const marsMap = <ScienceCorridor marsPoint={marsPoint} target={scienceResult.destination?.point} initialLayer={science.initialLayer}/>
+  const destination = <ScienceDestination {...scienceResult} marsPoint={marsPoint}/>
+  const context = <>Mars context <code>{cellId}</code> · Saved Mars base {formatPoint(marsPoint, 4).replace(' ', ', ')}</>
   const map = <section className="sortie-map" aria-label="Computed route map">
     <div className="sortie-map-tools">
       <span className="mission-badge">Synthetic terrain</span>
@@ -258,23 +269,54 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
       <span>{approved && lastStep > 0 ? 'Step ' + (step + 1) + ' / ' + (lastStep + 1) : 'Approve a route with movement to play it'}</span>
     </div>}
   </section>
+  const mapChooser = <div className="cell-toolbar sortie-map-chooser" aria-label="Map view">
+    <button className="mission-button" aria-pressed={view === 'terrain'} onClick={() => setView('terrain')}>Computed route</button>
+    <button className="mission-button" aria-pressed={view === 'mars'} onClick={() => setView('mars')}>Mars context</button>
+  </div>
+  const monitorActions = <section className="sortie-operations" aria-label="Operator actions">
+    <p role="status">{pending ? 'Computing on the local API' : approved ? 'Operator approved · local API' : approvedId ? 'Active route: ' + approvedId + ' · previewing another candidate' : 'Awaiting a current operator-approved route'}</p>
+    {result?.status === 'OK' && route?.passed && routeCells && <button className="mission-button mission-button-primary" onClick={() => setApproved(route.id)} disabled={approved}>Approve route</button>}
+    {approved && !departed && routeCells?.some(cell => !same(cell, current)) && <button className="mission-button mission-button-primary" onClick={() => setDeparted(true)}>Record departure</button>}
+  </section>
   return <div className="mission-site sortie-shell" data-stage={stage.toLowerCase()} aria-label="Simulated Marswalk workspace">
-    <div className="mission-site-main">
+    <header className="sortie-workbench">
       <nav className="cell-toolbar sortie-tabs" aria-label="Marswalk stages">
-        {tabs.map(tab => <button className="mission-button" key={tab} aria-pressed={stage === tab} onClick={() => { setPlaying(false); setView('terrain'); setStage(tab) }}>{tab}</button>)}
+        {tabs.map(tab => <button className="mission-button" key={tab} aria-pressed={stage === tab} onClick={() => switchStage(tab)}>{tab}</button>)}
       </nav>
-      <section className="sortie-content">
-        <header className="sortie-title">
-          <span className="mission-badge">SIMULATION</span>
-          <h1>{stage} · Synthetic Marswalk</h1>
-          <p>Mars context <code>{cellId}</code> · Saved Mars base {Math.abs(marsPoint[1]).toFixed(4)}°{marsPoint[1] < 0 ? 'S' : 'N'}, {Math.abs(marsPoint[0]).toFixed(4)}°{marsPoint[0] < 0 ? 'W' : 'E'}</p>
-
+      {stage !== 'Route' && <span className="sortie-workbench-context">{context}</span>}
+      {stage === 'Monitor' && <a className="mission-button sortie-hazard-link" href={'/demo/?' + new URLSearchParams({ cell: cellId, base: marsPoint.join(',') }) + '#monitor/rover/43/hazards'}>Hazard drill</a>}
+    </header>
+    {stage === 'Route' && <section className="sortie-content" aria-label="Route workspace">
+      <header className="sortie-title">
+        <span className="mission-badge">Simulation</span>
+        <h1>Route · Synthetic Marswalk</h1>
+        <p>{context}</p>
+      </header>
+      {marsMap}
+      <details className="sortie-computed-details">
+        <summary>Computed route · routing algorithm</summary>
+        {map}
+      </details>
+    </section>}
+    {stage === 'Analysis' && <>
+      <nav className="sortie-analysis-nav" aria-label="Analysis sections">
+        <a href="#route-comparison">Overview</a>
+        {result && <a href="#sortie-candidates">Route ranking</a>}
+        {route && <a href="#sortie-checks">Constraint checks</a>}
+        <a href="#sortie-inputs">Inputs and provenance</a>
+      </nav>
+      <section className="sortie-analysis-main" aria-label="Analysis workspace">
+        <header className="sortie-title sortie-analysis-title">
+          <div><span className="mission-badge">Simulation · Analysis</span>
+            <h1>{recommended ? (recommended.id === 'direct_return' ? 'Direct return recommended' : 'Science stop recommended') : 'Sortie analysis'}</h1>
+          </div>
+          {recommended && <span className="sortie-analysis-margin">{signedSeconds(recommended.margin_s)} reserve margin</span>}
         </header>
-        {stage === 'Analysis' && <section aria-labelledby="route-comparison" className="sortie-analysis">
+        <section aria-labelledby="route-comparison" className="sortie-analysis">
           <h2 id="route-comparison">Route comparison</h2>
           <p>Backend constraints and reserve checks for this sortie. Select a candidate to inspect its checks and path.</p>
           {result ? <>
-            <div className="sortie-table"><table>
+            <div className="sortie-table" id="sortie-candidates"><table>
               <thead><tr><th scope="col">Candidate</th><th scope="col">Decision</th><th scope="col">Total time</th><th scope="col">Margin</th></tr></thead>
               <tbody>{candidates.map(candidate => <tr key={candidate.id}>
                 <th scope="row"><button className="mission-button" aria-pressed={candidate === route}
@@ -284,31 +326,46 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
                 <td>{signedSeconds(candidate.margin_s)}</td>
               </tr>)}</tbody>
             </table></div>
-            {route && <div className="sortie-table"><table>
+            {route && <div className="sortie-table" id="sortie-checks"><table>
               <caption>Checks for {route.id}</caption>
               <thead><tr><th scope="col">Constraint</th><th scope="col">Decision</th><th scope="col">Reason</th></tr></thead>
               <tbody>{route.constraints.map(({rule, outcome, reason}) =>
                 <tr key={rule}><th scope="row">{rule.replaceAll('_', ' ')}</th><td>{outcome}</td><td>{reason}</td></tr>)}</tbody>
             </table></div>}
           </> : <p>{pending ? 'Calculating route candidates…' : 'Calculate a sortie to compare candidates.'}</p>}
-        </section>}
-        <div className="cell-toolbar" aria-label="Map view">
-          <button className="mission-button" aria-pressed={view === 'terrain'} onClick={() => setView('terrain')}>Computed route</button>
-          <button className="mission-button" aria-pressed={view === 'mars'} onClick={() => setView('mars')}>Mars context</button>
-        </div>
-        <div hidden={view !== 'terrain'}>{map}</div>
-        <div hidden={view !== 'mars'}><ScienceCorridor marsPoint={marsPoint} target={scienceResult.destination?.point} initialLayer={science.initialLayer}/></div>
-        {stage === 'Monitor' && <>
-          <p role="status">{pending ? 'Computing on the local API' : approved ? 'Operator approved · local API' : approvedId ? 'Active route: ' + approvedId + ' · previewing another candidate' : 'Awaiting a current operator-approved route'}</p>
-          {result?.status === 'OK' && route?.passed && routeCells && <button className="mission-button mission-button-primary" onClick={() => setApproved(route.id)} disabled={approved}>Approve route</button>}
-          {approved && !departed && routeCells?.some(cell => !same(cell, current)) && <button className="mission-button mission-button-primary" onClick={() => setDeparted(true)}>Record departure</button>}
-          <a href={'/demo/?' + new URLSearchParams({ cell: cellId, base: marsPoint.join(',') }) + '#monitor/rover/43/hazards'}>
-            Open the separate hazard replay
-          </a>
-        </>}
+        </section>
       </section>
-    </div>
-    <aside className="sortie-sidebar">
+      <aside className="sortie-analysis-preview" aria-label="Analysis maps and provenance">
+        {view === 'mars' ? marsMap : map}
+        {mapChooser}
+        <section aria-labelledby="sortie-inputs">
+          <h2 id="sortie-inputs">Inputs and provenance</h2>
+          <dl className="sortie-metrics">
+            <div><dt>Routing pack</dt><dd>{site.pack_id} · {site.pack_version}</dd></div>
+            <div><dt>Terrain</dt><dd>Synthetic rehearsal grid</dd></div>
+            <div><dt>Scenario</dt><dd>{site.scenario_id}</dd></div>
+            <div><dt>Route calculation</dt><dd>{result ? 'Revision ' + result.revision : 'Awaiting result'}</dd></div>
+          </dl>
+        </section>
+        {destination}
+      </aside>
+    </>}
+    {stage === 'Monitor' && <section className="sortie-monitor" aria-label="Monitor workspace">
+      <header className="sortie-title sortie-monitor-title">
+        <div><span className="mission-badge">Simulated playback</span><h1>Mission monitor</h1></div>
+        {mapChooser}
+      </header>
+      {monitorActions}
+      {view === 'mars' ? marsMap : map}
+      <section className="sortie-telemetry" aria-label="Simulated sortie status">
+        <div><span>Return reserve</span><strong>{signedSeconds(route?.margin_s ?? null)}</strong><small>Margin for the selected route</small></div>
+        <div><span>Playback</span><strong>{approved && lastStep > 0 ? Math.round(100 * step / lastStep) + '%' : 'Standby'}</strong><small>{lastStep > 0 ? lastStep + ' path segments' : 'No path movement'}</small></div>
+        <div><span>Crew position</span><strong>Row {current[0]} · Col {current[1]}</strong><small>{departed ? 'Departure recorded' : 'At shelter'}</small></div>
+        <div><span>Active route</span><strong>{approvedId ?? 'Pending approval'}</strong><small>{closures.length ? closures.join(', ') + ' closed' : 'Corridors open'}</small></div>
+      </section>
+    </section>}
+    {stage !== 'Analysis' && <aside className="sortie-sidebar">
+      {stage === 'Route' && destination}
       <section className="sortie-controls">
       <header className="sortie-panel-heading">
         <span className="mission-badge">Synthetic terrain</span>
@@ -323,7 +380,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
             <p>Return margin {signedSeconds(result.return_margin_s)} · {approved ? 'Operator approved' : 'Not approved'}</p>
           </div>
           {stage === 'Route' && result.status === 'OK' && route?.passed && routeCells &&
-            <button className="mission-button mission-button-primary" onClick={() => { setView('terrain'); setStage('Monitor') }}>Review route in Monitor</button>}
+            <button className="mission-button mission-button-primary" onClick={() => switchStage('Monitor')}>Review route in Monitor</button>}
         </section>}
       {route && <dl className="sortie-metrics">
         <div><dt>Distance</dt><dd>{distance === null ? 'Unavailable' : distance.toFixed(1) + ' m'}</dd></div>
@@ -359,7 +416,6 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
         <p>Completed work: {result.completed_task_ids.join(', ') || 'None'}</p>
       </div>}
       </section>
-      <ScienceDestination {...scienceResult} marsPoint={marsPoint}/>
-    </aside>
+    </aside>}
   </div>
 }

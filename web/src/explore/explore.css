@@ -39,8 +39,6 @@
 .sortie-map .mission-cell-closed { fill: #582e29; }
 .sortie-map .mission-cell-label { fill: #eadacd; }
 .sortie-map .mission-route-inspect { stroke: #f1a172; }
-.sortie-shell[data-stage='analysis'] .sortie-map { order: 3; }
-.sortie-shell[data-stage='analysis'] svg { max-height: 250px; }
 .sortie-table { overflow-x: auto; }
 .sortie-table table { border-collapse: collapse; width: 100%; }
 .sortie-table :is(th, td) { padding: .75rem; text-align: left; border-bottom: 1px solid #46382c; }
@@ -99,3 +97,61 @@
 .sortie-metrics div { display: flex; justify-content: space-between; padding: .4rem 0; border-bottom: 1px solid #46382c; }
 .sortie-metrics dt { color: #cabbad; }
 .sortie-metrics dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+/* The planning, comparison, and playback screens share the same run and navigation. */
+.sortie-shell { row-gap: 1.15rem; }
+.sortie-workbench { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: .6rem 1.2rem; min-width: 0; }
+.sortie-workbench-context { color: #bcafa3; font-size: .85rem; }
+.sortie-hazard-link { margin-inline-start: auto; text-decoration: none; }
+.sortie-shell .sortie-sidebar { position: static; margin: 0; }
+.sortie-computed-details > summary { padding: .45rem 0; cursor: pointer; width: fit-content; }
+.sortie-computed-details[open] > summary { margin-bottom: .4rem; }
+.sortie-shell[data-stage='route'] .science-corridor { min-height: clamp(350px, 66vh, 900px); }
+
+.sortie-shell[data-stage='analysis'] { grid-template-columns: minmax(9rem, .58fr) minmax(0, 3fr) minmax(17rem, 1.55fr); background: radial-gradient(ellipse at 10% 0%, #1e1710, #0d0b0a 52%); }
+.sortie-analysis-nav, .sortie-analysis-main, .sortie-analysis-preview, .sortie-monitor { min-width: 0; display: grid; align-content: start; gap: 1rem; }
+.sortie-analysis-nav { position: sticky; top: 1rem; gap: .2rem; }
+.sortie-analysis-nav a { text-decoration: none; color: #c7b9ab; padding: .65rem .75rem; border-radius: .45rem; }
+.sortie-analysis-nav a:is(:first-child, :hover, :focus-visible) { background: #29221b; color: #f8efe6; }
+.sortie-analysis-title, .sortie-monitor-title { display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.sortie-analysis-title h1, .sortie-monitor-title h1 { margin-bottom: 0; }
+.sortie-analysis-margin { color: #ee9b68; font-family: monospace; font-size: 1rem; }
+.sortie-analysis > p { color: #bfb2a6; }
+.sortie-analysis .sortie-table + .sortie-table { margin-top: .75rem; }
+.sortie-table th button { font-size: .85rem; }
+.sortie-analysis-preview h2 { font-size: 1rem; margin: 0 0 .5rem; }
+.sortie-analysis-preview dd { text-align: right; overflow-wrap: anywhere; }
+.sortie-analysis-preview .science-corridor { min-height: clamp(15rem, 22vw, 22rem); gap: 2rem; }
+.sortie-analysis-preview .corridor-target { width: 100%; }
+.sortie-analysis-preview .sortie-map .mission-grid svg { min-height: 0; max-height: 17rem; }
+.sortie-map-chooser { margin: 0; flex-wrap: wrap; }
+.sortie-map-chooser .mission-button { font-size: .8rem; }
+
+.sortie-monitor { grid-column: 1 / -1; }
+.sortie-shell[data-stage='monitor'] > .sortie-sidebar { grid-column: 1 / -1; }
+.sortie-shell[data-stage='monitor'] .sortie-map .mission-grid svg { min-height: min(36vh, 20rem); max-height: 53vh; }
+.sortie-monitor .sortie-playback { background: #19130f; border-top: 1px solid #48382b; }
+.sortie-monitor .science-corridor { min-height: clamp(320px, 56vh, 640px); }
+.sortie-telemetry { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: #181410; border: 1px solid #40362d; border-radius: .8rem; }
+.sortie-telemetry > div { display: grid; align-content: start; gap: .35rem; padding: clamp(.75rem, 1.3vw, 1.2rem); min-width: 0; }
+.sortie-telemetry > div + div { border-inline-start: 1px solid #40362d; }
+.sortie-telemetry span { color: #bdada0; font-size: .74rem; letter-spacing: .09em; text-transform: uppercase; }
+.sortie-telemetry strong { font-size: clamp(.92rem, 1.7vw, 1.45rem); overflow-wrap: anywhere; }
+.sortie-telemetry small { color: #bcaea2; }
+.sortie-operations { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
+.sortie-operations p { margin: 0 auto 0 0; color: #c7b8ab; }
+.sortie-shell[data-stage='monitor'] .sortie-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.sortie-shell[data-stage='monitor'] .sortie-settings { grid-column: 1 / -1; }
+.sortie-shell[data-stage='monitor'] .sortie-settings > div { display: flex; flex-wrap: wrap; align-items: center; }
+.sortie-shell[data-stage='monitor'] .sortie-settings .mission-button-primary { width: auto; }
+
+@media (max-width: 1080px) {
+  .sortie-shell[data-stage='analysis'] { grid-template-columns: minmax(0, 1.7fr) minmax(15rem, 1fr); }
+  .sortie-analysis-nav { grid-column: 1 / -1; display: flex; flex-wrap: wrap; position: static; }
+}
+@media (max-width: 720px) {
+  .sortie-shell[data-stage='analysis'], .sortie-shell[data-stage='monitor'] .sortie-controls { grid-template-columns: minmax(0, 1fr); }
+  .sortie-telemetry { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sortie-telemetry > div:nth-child(odd) { border-inline-start: 0; }
+  .sortie-telemetry > div:nth-child(n+3) { border-block-start: 1px solid #40362d; }
+}
