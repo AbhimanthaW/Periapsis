@@ -1,0 +1,27 @@
+{
+  "provenance": "simulated",
+  "required": true,
+  "max_age_s": 600,
+  "stations": [
+    {
+      "id": "base-1",
+      "cell": [
+        80,
+        40
+      ],
+      "provenance": "simulated"
+    }
+  ],
+  "messages": [
+    {
+      "station_id": "base-1",
+      "variable": "wind_speed",
+      "value": 6.0,
+      "unit": "m/s",
+      "kind": "observed",
+      "time_utc": "2021-02-18T19:50:00Z",
+      "provenance": "simulated",
+      "note": "last message 54 min old"
+    }
+  ]
+}

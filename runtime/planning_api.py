@@ -1,18 +1,23 @@
 """Loopback HTTP adapter for the fixture and an explicitly configured evidence query."""
 
 import argparse
+from dataclasses import replace
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from contracts.pack import PackError, decode
 from marsdoc import CapabilityQuery, DocumentationEngine, Package
 from runtime.marswalk import HumanProfile, MarswalkError, baseline_from_pack, plan_marswalk, snapshot_from_pack
+from runtime.marswalk.environment import parse_utc
+from runtime.marswalk.profiles import load_profile
+from runtime.marswalk.weather import feed_from_dict
 from runtime.mission import load_pack, simulate
+from ranking.service import RankRequest, RankingService
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "contracts/fixtures/synthetic-v1"
@@ -39,14 +44,22 @@ class PlanRequest(BaseModel):
     completed_task_ids: Annotated[list[Identifier], Field(max_length=64)]
     remaining_s: Seconds
     reserve_s: Seconds
+    # Optional operating profile fed as data (runtime/examples/profile-*.json). Marswalk engine only;
+    # absent means the fixture control profile, so the v1 response is unchanged.
+    profile: dict[str, Any] | None = None
+    # Optional base-station weather feed (runtime/examples/weather-*.json shape) with a required
+    # "now_utc" that sets the plan time. Marswalk engine only. Forecasts are advisory; an observed
+    # return-now warning blocks science; a lost link on a required feed leaves science unknown.
+    weather: Any = None  # Validated at the service boundary for the weather-specific error code.
 
 
 class PlanningService:
-    def __init__(self, pack, evidence_result, *, engine="mission"):
+    def __init__(self, pack, evidence_result, ranking=None, *, engine="mission"):
         if engine not in ENGINES:
             raise ValueError(f"engine must be one of {', '.join(ENGINES)}")
         self.pack = pack
         self.evidence_result = evidence_result
+        self.ranking = ranking
         self.engine = engine
         self.baseline = baseline_from_pack(pack) if engine == "marswalk" else None
         scenario = pack.scenario
@@ -81,6 +94,10 @@ class PlanningService:
                 raise PackError("SCENARIO_MISMATCH", f"{key} differs from the configured fixture")
         if self.engine == "marswalk":
             result = self._marswalk(request)
+        elif request.profile is not None:
+            raise PackError("PROFILE_UNSUPPORTED", "operating profiles need the marswalk engine")
+        elif request.weather is not None:
+            raise PackError("WEATHER_UNSUPPORTED", "weather feeds need the marswalk engine")
         else:
             result = simulate(self.pack, closures=request.closure_ids, remaining_s=request.remaining_s)
         return {"schema_version": 1, "request_id": request.request_id, "route_index_order": "row_col", **result}
@@ -94,8 +111,17 @@ class PlanningService:
         if len(set(closures)) != len(closures) or set(closures) - named:
             raise PackError("INVALID_SCENARIO", "unknown or duplicate closure")
         try:
+            profile = FIXTURE_CONTROL if request.profile is None else load_profile(request.profile)
             snapshot = snapshot_from_pack(self.pack, closure_ids=tuple(closures), remaining_s=request.remaining_s,
-                                          profile=FIXTURE_CONTROL, mission_id=request.request_id)
+                                          profile=profile, mission_id=request.request_id)
+            if request.weather is not None:
+                feed = feed_from_dict(request.weather)
+                now_utc = request.weather.get("now_utc")
+                try:
+                    parse_utc(now_utc)
+                except MarswalkError as error:
+                    raise MarswalkError("INVALID_WEATHER", "weather needs a valid now_utc timestamp in UTC") from error
+                snapshot = replace(snapshot, weather=feed, time_utc=now_utc)
             result = plan_marswalk(self.baseline, snapshot)
         except MarswalkError as error:
             raise PackError(error.code, str(error)) from error
@@ -168,11 +194,20 @@ class PlanningHandler(BaseHTTPRequestHandler):
                 self.send_json(200, self.service.evidence())
             except PackError as error:
                 self.reject(503, error.code, str(error))
+        elif self.path.startswith("/api/v1/cell/"):
+            if self.service.ranking is None:
+                self.reject(503, "RANKING_NOT_CONFIGURED", "Configure a cell ranking pack")
+                return
+            result = self.service.ranking.detail(self.path.removeprefix("/api/v1/cell/"))
+            if result is None:
+                self.reject(404, "CELL_NOT_FOUND", "Cell ID was not found")
+            else:
+                self.send_json(200, result)
         else:
             self.reject(404, "NOT_FOUND", "Unknown endpoint")
 
     def do_POST(self):
-        if self.path != "/api/v1/plan":
+        if self.path not in ("/api/v1/plan", "/api/v1/rank"):
             self.reject(404, "NOT_FOUND", "Unknown endpoint")
             return
         if self.headers.get_content_type() != "application/json":
@@ -188,20 +223,27 @@ class PlanningHandler(BaseHTTPRequestHandler):
         payload = None
         try:
             payload = decode(self.rfile.read(length))
-            request = PlanRequest.model_validate(payload)
+            request = (RankRequest if self.path == "/api/v1/rank" else PlanRequest).model_validate(payload)
         except (PackError, ValidationError, TimeoutError):
             request_id = payload.get("request_id") if isinstance(payload, dict) else None
-            self.reject(400, "INVALID_REQUEST", "Expected a valid v1 planning request",
+            self.reject(400, "INVALID_REQUEST", "Expected a valid v1 request",
                         request_id if isinstance(request_id, str) and 0 < len(request_id) <= 128 else None)
             return
         try:
-            self.send_json(200, self.service.plan(request))
+            if self.path == "/api/v1/rank":
+                if self.service.ranking is None:
+                    self.reject(503, "RANKING_NOT_CONFIGURED", "Configure a cell ranking pack", request.request_id)
+                else:
+                    self.send_json(200, self.service.ranking.rank(request))
+            else:
+                self.send_json(200, self.service.plan(request))
         except PackError as error:
             self.reject(409 if error.code == "SCENARIO_MISMATCH" else 400,
                         error.code, str(error), request.request_id)
 
 
-def create_server(port=8000, *, evidence_package=None, evidence_query=None, engine="mission"):
+def create_server(port=8000, *, evidence_package=None, evidence_query=None,
+                  ranking_pack=None, engine="mission"):
     if (evidence_package is None) != (evidence_query is None):
         raise ValueError("Supply the evidence package and query together")
     result = None
@@ -209,7 +251,9 @@ def create_server(port=8000, *, evidence_package=None, evidence_query=None, engi
         package = Package.model_validate_json(evidence_package.read_bytes())
         query = CapabilityQuery.model_validate_json(evidence_query.read_bytes())
         result = DocumentationEngine(package).resolve(query).model_dump(mode="json")
-    service = PlanningService(load_pack(FIXTURE, simulation=True), result, engine=engine)
+    service = PlanningService(load_pack(FIXTURE, simulation=True), result,
+                              RankingService(ranking_pack) if ranking_pack else None,
+                              engine=engine)
     return ThreadingHTTPServer(("127.0.0.1", port), partial(PlanningHandler, service=service))
 
 
@@ -220,9 +264,11 @@ def main():
     parser.add_argument("--evidence-query", type=Path)
     parser.add_argument("--engine", choices=ENGINES, default="mission",
                         help="planner behind POST /api/v1/plan (default: mission)")
+    parser.add_argument("--ranking-pack", type=Path)
     args = parser.parse_args()
     try:
-        server = create_server(args.port, evidence_package=args.evidence_package, evidence_query=args.evidence_query,
+        server = create_server(args.port, evidence_package=args.evidence_package,
+                               evidence_query=args.evidence_query, ranking_pack=args.ranking_pack,
                                engine=args.engine)
     except (OSError, ValueError, PackError) as error:
         parser.exit(2, f"Unable to initialize planning service: {error}\n")

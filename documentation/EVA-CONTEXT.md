@@ -59,7 +59,7 @@ uv run --project documentation --locked marsdoc evidence/jezero/jezero-evidence.
   --point 77.45 18.44 --eva-context synthetic --eva-elapsed-s 1200
 ```
 
-Python callers use `DocumentationEngine.eva_context(cell_id, case=..., elapsed_s=...)`. The CLI attaches the result as a sibling of `documentation`. It can also return the earlier `synthetic_science_context` in the same response. The existing application endpoints and offline cell map do not request the EVA example.
+Python callers use `DocumentationEngine.eva_context(cell_id, case=..., elapsed_s=...)`. The CLI attaches the result as a sibling of `documentation`. It can also return the earlier `synthetic_science_context` in the same response. The mission application endpoints do not request the EVA example.
 
 [The historical snapshot](marsdoc/eva/historical-v1.json) ships with the engine. To regenerate it, save the pinned MEDA files and NAIF kernels by original basename and the Horizons response as `horizons.txt` in one directory. Obtain the verified [Jezero elevation window](../evidence/jezero/README.md). Then run:
 
@@ -80,3 +80,5 @@ The builder verifies digests, joins the four sensor/geometry records by exact sp
 | Early Gale traverse | `HPX128:163685` | 0.210 ± 0.040 mGy/day published tissue-like GCR absorbed dose rate |
 
 The checked Jezero source-window verification reproduced the committed evidence record. Rebuilding the EVA snapshot produced identical bytes. The documentation, contracts and runtime suites passed 295 tests with the verified Jezero Float32 window available.
+
+The offline synthetic science preview also includes an **EVA context · 28 fields** panel. It shows the synthetic, Jezero sol 36 and Gale radiation cases with per-field data status. **Locate example** selects the corresponding cell. Build it with the synthetic preview command in [Synthetic science](SYNTHETIC-SCIENCE.md).
