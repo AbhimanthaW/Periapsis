@@ -85,10 +85,10 @@ function useScienceDestination({ scienceObjective, methodInput, exclusionsInput 
   return { objective, destination, status, retry: () => setAttempt(n => n + 1) }
 }
 
-function ScienceCorridor({ marsPoint, target, initialLayer = 'viking' }: { marsPoint: Point; target?: Point; initialLayer?: Layer }) {
+function ScienceCorridor({ marsPoint, target, initialLayer = 'viking', showSeparation = false }: { marsPoint: Point; target?: Point; initialLayer?: Layer; showSeparation?: boolean }) {
   const [layer, setLayer] = useState(initialLayer)
   return <section className="science-corridor" aria-label="Mars surface context">
-    <RouteMap base={marsPoint} target={target} layer={layer}/>
+    <RouteMap base={marsPoint} target={target} layer={layer} showSeparation={showSeparation}/>
     <div className="corridor-tools">
       <label>Basemap <select value={layer} onChange={event => setLayer(event.target.value as Layer)}>
         <option value="viking">Viking colour</option>
@@ -97,7 +97,7 @@ function ScienceCorridor({ marsPoint, target, initialLayer = 'viking' }: { marsP
     </div>
     <div className="corridor-caption">
       <span>{layer === 'viking' ? 'Viking colour mosaic' : 'MOLA shaded relief'} · Mars context</span>
-      <strong>{target ? 'Base and science destination only' : 'Map centered on saved base'} · Tactical routing withheld</strong>
+      <strong>{target ? (showSeparation ? 'Dashed line shows location only' : 'Base and science destination only') : 'Map centered on saved base'} · Tactical routing withheld</strong>
     </div>
   </section>
 }
@@ -137,7 +137,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
   const [selectedId, setSelectedId] = useState<string>()
   const [playing, setPlaying] = useState(false)
   const [step, setStep] = useState(0)
-  const [view, setView] = useState<'terrain' | 'mars'>(initialStage === 'Monitor' ? 'terrain' : 'mars')
+  const [view, setView] = useState<'terrain' | 'mars'>('mars')
   const [fault, setFault] = useState('')
   const [pending, setPending] = useState(true)
   const revision = useRef(0)
@@ -241,7 +241,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
   function switchStage(next: Stage) {
     if (next === stage) return
     setPlaying(false)
-    setView(next === 'Monitor' ? 'terrain' : 'mars')
+    setView('mars')
     setStage(next)
   }
 
@@ -283,7 +283,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
       <nav className="cell-toolbar sortie-tabs" aria-label="Marswalk stages">
         {tabs.map(tab => <button className="mission-button" key={tab} aria-pressed={stage === tab} onClick={() => switchStage(tab)}>{tab}</button>)}
       </nav>
-      {stage !== 'Route' && <span className="sortie-workbench-context">{context}</span>}
+      {stage === 'Analysis' && <span className="sortie-workbench-context">{context}</span>}
       {stage === 'Monitor' && <a className="mission-button sortie-hazard-link" href={'/demo/?' + new URLSearchParams({ cell: cellId, base: marsPoint.join(',') }) + '#monitor/rover/43/hazards'}>Hazard drill</a>}
     </header>
     {stage === 'Route' && <section className="sortie-content" aria-label="Route workspace">
@@ -351,12 +351,16 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
       </aside>
     </>}
     {stage === 'Monitor' && <section className="sortie-monitor" aria-label="Monitor workspace">
-      <header className="sortie-title sortie-monitor-title">
-        <div><span className="mission-badge">Simulated playback</span><h1>Mission monitor</h1></div>
-        {mapChooser}
+      <header className="sortie-title">
+        <span className="mission-badge">Simulation</span>
+        <h1>Mission monitor</h1>
+        <p>{context}</p>
       </header>
-      {monitorActions}
-      {view === 'mars' ? marsMap : map}
+      <ScienceCorridor marsPoint={marsPoint} target={scienceResult.destination?.point} showSeparation/>
+      <details className="sortie-computed-details">
+        <summary>Simulated route · playback and routing algorithm</summary>
+        {map}
+      </details>
       <section className="sortie-telemetry" aria-label="Simulated sortie status">
         <div><span>Return reserve</span><strong>{signedSeconds(route?.margin_s ?? null)}</strong><small>Margin for the selected route</small></div>
         <div><span>Playback</span><strong>{approved && lastStep > 0 ? Math.round(100 * step / lastStep) + '%' : 'Standby'}</strong><small>{lastStep > 0 ? lastStep + ' path segments' : 'No path movement'}</small></div>
@@ -365,7 +369,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
       </section>
     </section>}
     {stage !== 'Analysis' && <aside className="sortie-sidebar">
-      {stage === 'Route' && destination}
+      {destination}
       <section className="sortie-controls">
       <header className="sortie-panel-heading">
         <span className="mission-badge">Synthetic terrain</span>
@@ -382,7 +386,8 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
           {stage === 'Route' && result.status === 'OK' && route?.passed && routeCells &&
             <button className="mission-button mission-button-primary" onClick={() => switchStage('Monitor')}>Review route in Monitor</button>}
         </section>}
-      {route && <dl className="sortie-metrics">
+      {stage === 'Monitor' && monitorActions}
+      {stage === 'Route' && route && <dl className="sortie-metrics">
         <div><dt>Distance</dt><dd>{distance === null ? 'Unavailable' : distance.toFixed(1) + ' m'}</dd></div>
         <div><dt>Time incl. stops</dt><dd>{route.ledger?.total_use == null ? 'Unavailable' : Math.round(route.ledger.total_use) + ' s'}</dd></div>
         <div><dt>Max slope</dt><dd>{slope === null ? 'Unavailable' : slope.toFixed(1) + '°'}</dd></div>

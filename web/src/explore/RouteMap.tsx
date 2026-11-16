@@ -4,7 +4,7 @@ import type { Layer, Point } from './Globe'
 const wrap = (longitude: number) => ((longitude + 180) % 360 + 360) % 360 - 180
 const modulo = (value: number, period: number) => ((value % period) + period) % period
 
-export function RouteMap({ base, target, layer }: { base: Point; target?: Point; layer: Layer }) {
+export function RouteMap({ base, target, layer, showSeparation = false }: { base: Point; target?: Point; layer: Layer; showSeparation?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState([840, 520])
   const [failedLayers, setFailedLayers] = useState<Layer[]>([])
@@ -51,6 +51,8 @@ export function RouteMap({ base, target, layer }: { base: Point; target?: Point;
     <svg viewBox={`0 0 ${size[0]} ${size[1]}`} role="img" aria-label="Mars map of the saved base and science destination">
       {tiles}
       <rect width={size[0]} height={size[1]} fill="#1d140c" opacity=".16"/>
+      {showSeparation && target && !same &&
+        <line className="corridor-separation" x1={x(start)} y1={y(base[1])} x2={x(end)} y2={y(endLat)}/>}
       {marker(same ? 'Base / nearby target' : 'Base', start, base[1])}
       {target && !same && marker('Science target', end, endLat)}
     </svg>
