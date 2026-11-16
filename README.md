@@ -112,7 +112,7 @@ The NESTED HEALPix grid has $N_{\mathrm{side}}=128$, so $N=12N_{\mathrm{side}}^2
 The Planetary Documentation Engine scores seven terrain and science/environment modalities. For a modality with posting limits, a source at native spacing $s$ has utility
 
 $$
-u(s)=\operatorname{clip}_{[0,1]}\left(\frac{\ln(s_{\mathrm{poor}}/s)}{\ln(s_{\mathrm{poor}}/s_{\mathrm{good}})}\right).
+u(s)=\min\left(1,\max\left(0,\frac{\ln(s_{\mathrm{poor}}/s)}{\ln(s_{\mathrm{poor}}/s_{\mathrm{good}})}\right)\right).
 $$
 
 It integrates the highest applicable utility over the query area, so overlapping products receive credit once. Lower and upper bounds reflect known support, inventory completeness and unlocated or unverified coverage. Weighted axes combine modalities. When the two bounds cross a tier boundary, the tier remains unclassified. An inventory can establish a negative result only within its stated catalogue universe, geometry and revision. [Resolver](documentation/marsdoc/engine.py) · [Documentation validation](documentation/VALIDATION.md)
