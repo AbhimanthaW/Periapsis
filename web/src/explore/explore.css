@@ -23,7 +23,6 @@
 .sortie-result { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; padding: .85rem 1rem; margin: .5rem 0; border: 1px solid #514134; border-radius: .6rem; background: #241e19; }
 .sortie-result h2, .sortie-controls h2 { font-size: 1rem; margin: 0; }
 .sortie-result p { margin: .2rem 0 0; }
-.sortie-map .mission-grid svg { max-height: 280px; }
 .sortie-controls label { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .sortie-controls select, .sortie-controls input[type='number'] { padding: .35rem .5rem; }
 
@@ -31,14 +30,6 @@
 .sortie-content, .sortie-controls { display: grid; align-content: start; min-width: 0; gap: 1rem; }
 .sortie-controls { margin-top: 3rem; background: #211912; border: 1px solid #46382c; padding: 1.25rem; border-radius: .9rem; }
 .sortie-controls .mission-button-primary { width: 100%; }
-.sortie-map .mission-grid { background: radial-gradient(ellipse at 42% 45%, #4d3929, #231910 75%); border-color: #5e4735; border-radius: .9rem; padding: 1rem; }
-.sortie-map .mission-grid svg { max-height: 55vh; }
-.sortie-map .mission-grid figcaption { color: #ded0c2; }
-.sortie-map .mission-cell { fill: #3c2b20; stroke: #886b52; }
-.sortie-map .mission-cell-closable { fill: #514034; }
-.sortie-map .mission-cell-closed { fill: #582e29; }
-.sortie-map .mission-cell-label { fill: #eadacd; }
-.sortie-map .mission-route-inspect { stroke: #f1a172; }
 .sortie-table { overflow-x: auto; }
 .sortie-table table { border-collapse: collapse; width: 100%; }
 .sortie-table :is(th, td) { padding: .75rem; text-align: left; border-bottom: 1px solid #46382c; }
@@ -60,7 +51,7 @@
 .corridor-caption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem 1rem; padding: .45rem .65rem; font-size: .78rem; }
 .corridor-imagery-warning { position: absolute; top: 3.5rem; left: 1rem; padding: .4rem; }
 .sortie-controls { position: sticky; top: 75px; margin-top: 3.2rem; }
-.sortie-settings summary, .sortie-map summary { cursor: pointer; padding: .6rem 0; }
+.sortie-settings summary, .sortie-route-summary summary { cursor: pointer; padding: .6rem 0; }
 .sortie-settings > div { display: grid; gap: .8rem; padding-top: .6rem; }
 @media (max-width: 820px) {
   .sortie-shell { grid-template-columns: 1fr; }
@@ -74,18 +65,10 @@
 .sortie-sidebar .corridor-target { width: 100%; }
 @media (max-width: 820px) { .sortie-sidebar { position: static; margin-top: 0; } }
 
-.sortie-map { position: relative; border: 1px solid #594737; border-radius: .9rem; background: #211812; overflow: hidden; }
-.sortie-map-tools, .sortie-playback { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; padding: .75rem 1rem; background: #211812; }
-.sortie-map-tools > :last-child { margin-inline-start: auto; color: #d2bda9; }
-.sortie-map .mission-grid { border: 0; border-radius: 0; }
-.sortie-map .mission-grid svg { min-height: min(34vw, 310px); max-height: 54vh; }
-.sortie-map .mission-cell { stroke-width: .24; fill: #574131; }
-.sortie-map .mission-cell-closable { fill: #6d503c; }
-.sortie-map .mission-cell-closed { fill: #582e29; }
-.sortie-map .mission-route, .sortie-map .mission-route-alt { stroke-width: .82; }
-.sortie-map .mission-route-alt { fill: none; stroke: #fff0dd; stroke-dasharray: 1.45 .85; }
-.sortie-map .mission-playback-marker { fill: #ffe8c2; stroke: #e38a57; stroke-width: .8; }
-.sortie-map > p { padding: 0 1rem; }
+.sortie-route-summary { position: relative; border: 1px solid #594737; border-radius: .9rem; background: #211812; overflow: hidden; }
+.sortie-route-summary-heading, .sortie-playback { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; padding: .75rem 1rem; background: #211812; }
+.sortie-route-summary-heading > :last-child { margin-inline-start: auto; color: #d2bda9; }
+.sortie-route-summary > p { padding: 0 1rem; }
 .sortie-playback input { flex: 1 0 8rem; accent-color: #e38a57; }
 .sortie-playback > span { font-size: .8rem; color: #cfbba7; }
 .sortie-analysis { display: grid; gap: .7rem; }
@@ -123,11 +106,7 @@
 .sortie-analysis-preview dd { text-align: right; overflow-wrap: anywhere; }
 .sortie-analysis-preview .science-corridor { min-height: clamp(15rem, 22vw, 22rem); gap: 2rem; }
 .sortie-analysis-preview .corridor-target { width: 100%; }
-.sortie-analysis-preview .sortie-map .mission-grid svg { min-height: 0; max-height: 17rem; }
-.sortie-map-chooser { margin: 0; flex-wrap: wrap; }
-.sortie-map-chooser .mission-button { font-size: .8rem; }
 
-.sortie-shell[data-stage='monitor'] .sortie-map .mission-grid svg { min-height: min(36vh, 20rem); max-height: 53vh; }
 .sortie-monitor .sortie-playback { background: #19130f; border-top: 1px solid #48382b; }
 .sortie-monitor .science-corridor { min-height: clamp(350px, 66vh, 900px); }
 .sortie-telemetry { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: #181410; border: 1px solid #40362d; border-radius: .8rem; }

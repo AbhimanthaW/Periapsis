@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 import { describeFailure, getFixtureSite, postPlan } from './api'
 import type { FixtureSite, PlanRequest, PlanResponse } from './api'
-import { FixtureGrid } from './FixtureGrid'
 import { seconds, signedSeconds, statusText } from './format'
 
 type SiteState = { state: 'loading' } | { state: 'error'; reason: string } | { state: 'ready'; site: FixtureSite }
@@ -269,13 +268,10 @@ function Marswalk({ site }: { site: FixtureSite }) {
   const [scenario, setScenario] = useState<Scenario>(() => loadScenario(site))
   useEffect(() => { saveScenario(site, scenario) }, [site, scenario])
   const { plan, discarded } = usePlan(site, scenario)
-  const result = plan.state === 'result' ? plan.data : null
-  const route = result?.direct_return?.cells ?? null
   return (
     <div className="mission-sim">
       <div className="mission-sim-main">
         <Controls site={site} scenario={scenario} onChange={setScenario}/>
-        <FixtureGrid site={site} activeClosures={scenario.closure_ids} route={route} inspectOnly={result !== null && result.status !== 'OK'}/>
         {discarded > 0 && <p className="mission-muted mission-small" data-testid="discarded">Discarded {discarded} superseded response{discarded === 1 ? '' : 's'}.</p>}
       </div>
       <Results plan={plan}/>

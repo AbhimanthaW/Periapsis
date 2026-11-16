@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { describeFailure, getFixtureSite, postSortie } from '../mission/api'
 import type { Cell, FixtureSite, SortiePlan, SortieRequest } from '../mission/api'
-import { FixtureGrid } from '../mission/FixtureGrid'
 import { signedSeconds, statusText } from '../mission/format'
 import type { Layer, Point } from './Globe'
 import { RouteMap } from './RouteMap'
@@ -137,7 +136,6 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
   const [selectedId, setSelectedId] = useState<string>()
   const [playing, setPlaying] = useState(false)
   const [step, setStep] = useState(0)
-  const [view, setView] = useState<'terrain' | 'mars'>('mars')
   const [fault, setFault] = useState('')
   const [pending, setPending] = useState(true)
   const revision = useRef(0)
@@ -217,7 +215,6 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
   const cells = (candidate: (typeof candidates)[number]) => candidate.legs.flatMap(leg => leg.cells)
     .filter((cell, index, path) => index === 0 || !same(cell, path[index - 1]))
   const routeCells = route ? (route.legs.every(leg => leg.cells.length) ? cells(route) : null) : result?.direct_return?.cells ?? null
-  const alternatives = candidates.filter(candidate => candidate !== route && candidate.passed && candidate.legs.every(leg => leg.cells.length)).map(cells)
   const approved = Boolean(route && approvedId === route.id)
   const distance = route?.legs.length && route.legs.every(leg => leg.length_m !== null)
     ? route.legs.reduce((sum, leg) => sum + leg.length_m!, 0) : null
@@ -232,7 +229,6 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
   }, [playing, stage, step, lastStep])
 
   function selectCandidate(id: string) {
-    if (stage === 'Analysis') setView('terrain')
     setSelectedId(id)
     setPlaying(false)
     setStep(0)
@@ -241,23 +237,20 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
   function switchStage(next: Stage) {
     if (next === stage) return
     setPlaying(false)
-    setView('mars')
     setStage(next)
   }
 
   const marsMap = <ScienceCorridor marsPoint={marsPoint} target={scienceResult.destination?.point} initialLayer={science.initialLayer}/>
   const destination = <ScienceDestination {...scienceResult} marsPoint={marsPoint}/>
   const context = <>Mars context <code>{cellId}</code> · Saved Mars base {formatPoint(marsPoint, 4).replace(' ', ', ')}</>
-  const map = <section className="sortie-map" aria-label="Computed route map">
-    <div className="sortie-map-tools">
+  const playbackCell = approved ? routeCells?.[step] : undefined
+  const routeSummary = <section className="sortie-route-summary" aria-label="Computed route summary">
+    <div className="sortie-route-summary-heading">
       <span className="mission-badge">Synthetic terrain</span>
-      <strong>{route?.id ?? 'Rehearsal grid'}</strong>
+      <strong>{route?.id ?? 'Route pending'}</strong>
       <span>{closures.length ? closures.length + ' corridor(s) closed' : 'Corridors open'}</span>
     </div>
-    <FixtureGrid site={{ ...site, checkpoint_cell: current, shelter_cell: base }} activeClosures={closures}
-      route={routeCells} alternatives={alternatives} inspectOnly={result?.status !== 'OK' || route?.passed === false}
-      proposed={!approved && route?.passed === true}
-      playbackCell={stage === 'Monitor' && approved ? routeCells?.[step] : undefined}/>
+    {routeCells && routeCells.length > 1 && <p>{routeCells.length} computed waypoints</p>}
     {result && routeCells?.length === 1 && same(base, current) && <p>No movement required. The simulated crew is already at base.</p>}
     {stage === 'Monitor' && <div className="sortie-playback" aria-label="Simulated route playback">
       <button className="mission-button" disabled={!approved || lastStep < 1}
@@ -266,13 +259,12 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
       </button>
       <input aria-label="Route playback step" type="range" min={0} max={Math.max(1, lastStep)}
         value={step} disabled={!approved || lastStep < 1} onChange={event => { setPlaying(false); setStep(Number(event.target.value)) }}/>
+      {playbackCell && <output aria-label="Simulated playback position">
+        Row {playbackCell[0]} · Col {playbackCell[1]}
+      </output>}
       <span>{approved && lastStep > 0 ? 'Step ' + (step + 1) + ' / ' + (lastStep + 1) : 'Approve a route with movement to play it'}</span>
     </div>}
   </section>
-  const mapChooser = <div className="cell-toolbar sortie-map-chooser" aria-label="Map view">
-    <button className="mission-button" aria-pressed={view === 'terrain'} onClick={() => setView('terrain')}>Computed route</button>
-    <button className="mission-button" aria-pressed={view === 'mars'} onClick={() => setView('mars')}>Mars context</button>
-  </div>
   const monitorActions = <section className="sortie-operations" aria-label="Operator actions">
     <p role="status">{pending ? 'Computing on the local API' : approved ? 'Operator approved · local API' : approvedId ? 'Active route: ' + approvedId + ' · previewing another candidate' : 'Awaiting a current operator-approved route'}</p>
     {result?.status === 'OK' && route?.passed && routeCells && <button className="mission-button mission-button-primary" onClick={() => setApproved(route.id)} disabled={approved}>Approve route</button>}
@@ -295,7 +287,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
       {marsMap}
       <details className="sortie-computed-details">
         <summary>Computed route · routing algorithm</summary>
-        {map}
+        {routeSummary}
       </details>
     </section>}
     {stage === 'Analysis' && <>
@@ -336,8 +328,8 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
         </section>
       </section>
       <aside className="sortie-analysis-preview" aria-label="Analysis maps and provenance">
-        {view === 'mars' ? marsMap : map}
-        {mapChooser}
+        {marsMap}
+        {routeSummary}
         <section aria-labelledby="sortie-inputs">
           <h2 id="sortie-inputs">Inputs and provenance</h2>
           <dl className="sortie-metrics">
@@ -359,7 +351,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
       <ScienceCorridor marsPoint={marsPoint} target={scienceResult.destination?.point} showSeparation/>
       <details className="sortie-computed-details">
         <summary>Simulated route · playback and routing algorithm</summary>
-        {map}
+        {routeSummary}
       </details>
       <section className="sortie-telemetry" aria-label="Simulated sortie status">
         <div><span>Return reserve</span><strong>{signedSeconds(route?.margin_s ?? null)}</strong><small>Margin for the selected route</small></div>
