@@ -11,7 +11,7 @@ export default defineConfig({
   base: process.env.VITE_RELEASE_BASE || "/",
   resolve: {
     // The connected planner is shared with the Legacy Atlas package.
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['react', 'react-dom', 'zod'],
     alias: process.env.RW_HAZARD_REPLAY_FILE
       ? [{ find: /^\.\/replay\.json$/, replacement: process.env.RW_HAZARD_REPLAY_FILE }]
       : [],

@@ -4,6 +4,11 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/*": ["./node_modules/@types/react/*"],
+      "zod": ["./node_modules/zod/index.d.ts"]
+    },
     "jsx": "react-jsx",
     "strict": true,
     "isolatedModules": true,
