@@ -283,7 +283,7 @@ export default function App() {
           <a href={'/legacy/mission?' + new URLSearchParams({
             legacy: '1', region: sourceRegion, profile: source.get('profile') ?? 'human',
           })}>Legacy Atlas evidence</a>}
-        {packaged && hazardView && isCellId(sourceCell) && <a href={cellHref(sourceCell)}>Return to cell evidence</a>}
+        {packaged && hazardView && isCellId(sourceCell) && <a href={'/' + cellHref(sourceCell)}>Return to cell evidence</a>}
         {!advisoryScreen && screen !== 'site-withheld' && ['Route', 'Analysis', 'Monitor'].map(item => {
           if (browseSlice && walkHref && (packaged || item === 'Route')) return <a key={item} href={walkHref + '&walk=' + item.toLowerCase()}>{item}</a>
           if (browseSlice && !displayRegion && activeCell?.id !== JEZERO_ANCHOR) return <button key={item} aria-haspopup="dialog"

@@ -133,6 +133,7 @@ test('serves the offline Arcadia showcase and keeps operator control over simula
   await expect(page.getByRole('button', { name: 'Resume B' })).toBeDisabled()
   await page.getByRole('link', { name: 'Return to cell evidence' }).click()
   await expect(page).toHaveURL(/\/#cell\/HPX128:43896$/)
+  await expect(page.getByRole('heading', { name: 'HPX128:43896' })).toBeVisible()
 })
 
 test('unknown API paths and missing assets return explicit 404 responses', async ({ request }) => {
