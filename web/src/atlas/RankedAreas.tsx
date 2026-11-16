@@ -102,7 +102,7 @@ export default function RankedAreas({ back, openCell, initialObjective }: { back
         <h3>{area.rank}. {area.label ?? area.best_cell}</h3>
         <p>{area.tier} match · {area.best_cell}</p>
         {openCell ? <button className="button" onClick={() => openCell(area.best_cell)}>Investigate {area.best_cell}</button>
-          : <a className="button" href={'/explore?cell=' + encodeURIComponent(area.best_cell)}>Investigate {area.best_cell}</a>}
+          : <a className="button" href={import.meta.env.BASE_URL + 'explore?cell=' + encodeURIComponent(area.best_cell)}>Investigate {area.best_cell}</a>}
         <p><strong>Terrain screening score</strong> {risk?.score == null ? 'Not evaluated' : risk.score + '% of evaluated cells'}</p>
         {risk && <p>{risk.evaluated_cells} of {risk.total_cells} cells evaluated</p>}
         <details>

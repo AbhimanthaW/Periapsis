@@ -6,4 +6,9 @@ import App from './App'
 import './styles.css'
 import './mission.css'
 
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)
+const root = createRoot(document.getElementById('root')!)
+if (import.meta.env.VITE_PACKAGED_RELEASE === '1' && location.pathname.replace(/\/$/, '') === '/marswalk') {
+  void import('./Marswalk').then(({ Marswalk }) => root.render(<Marswalk />))
+} else {
+  root.render(<StrictMode><App /></StrictMode>)
+}

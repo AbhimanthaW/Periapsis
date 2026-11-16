@@ -1,44 +1,35 @@
 # Return Window offline launch
 
-The release serves Explore, Operations, region evidence, scoped ranking and both rehearsals from one loopback process. Source products and the synthetic scenarios retain independent identities. No internet service or external credentials are required at launch.
+The default URL opens the mission interface. One local process serves the UI, planetary imagery, ranking, region evidence, synthetic Marswalk planner and hazard replay.
 
-## Build once with network access
+## Prepare and launch
 
-Use Node 22, Python 3.12 and uv. From the repository root:
+Use Node.js 22.12 or later in the Node 22 series and uv. Clone the repository or extract the GitHub ZIP. From the repository root, run:
 
 ```sh
-uv sync --project documentation --locked --python 3.12
-npm ci --prefix web
-npm ci --prefix web/mission-preview
-
-gh release download mars-cell-map-v0.1.0 --repo AbhimanthaW/Periapsis \
-  --dir data/ranking-inputs --pattern cells-enriched.ndjson.gz
-gh release download mars-cell-map-v0.2.0 --repo AbhimanthaW/Periapsis \
-  --dir data/ranking-inputs --pattern cell-ranking.ndjson.gz \
-  --pattern ranking-features.json.gz --pattern cells-enriched-sourced.ndjson.gz \
-  --pattern sourced-catalogue-manifest.json
-
-uv run --project documentation --locked --offline python -m runtime.release build data/offline-release
+uv run --project documentation --locked --python 3.12 python -m runtime.release launch
 ```
 
-The builder checks the pinned input digests, compiles a sourced ranking pack, builds the two web clients, and trains the station model on the deterministic synthetic fixture. `--ranking-pack PATH` accepts an already verified sourced release pack when rebuilding the launcher. The output directory must be new. Its `manifest.json` records the source revision, checkout and bundle file hashes, ranking pack digest and station model ID. Keep the manifest with the bundle and distribute both from a trusted checkout. A passing push run also publishes the bundle as a GitHub Actions artifact for that commit.
+Open [Return Window](http://127.0.0.1:8000/). The first run downloads and verifies the pinned ranking inputs, builds the local frontend assets, and trains the station model on the synthetic fixture. Run the same command to reuse a bundle under `data/launch/` for these source files. Add `--port 8017` to use another loopback port.
 
-On the presentation machine, keep the matching checkout and provision its locked Python environment before disconnecting. A virtual environment contains machine-specific paths and binaries. Prepare it on each machine.
+Prepare the bundle and locked Python environment online on each presentation machine. For a network-disconnected launch, add `--offline` to the uv options before `python`. The server verifies the recorded source files and packaged hashes before binding to loopback. External source links are optional.
 
-## Start offline
+## Run a prebuilt bundle
+
+A successful GitHub Actions push run publishes an offline bundle for its commit. Extract it to `data/offline-release` alongside the matching source checkout, install the locked environment with `uv sync --project documentation --locked --python 3.12`, then run:
 
 ```sh
 uv run --project documentation --locked --offline python -m runtime.release serve data/offline-release
 ```
 
-Open [Explore](http://127.0.0.1:8000/explore) or [the Operations UI](http://127.0.0.1:8000/demo/). To use another loopback port, pass `--port`. Launch verifies the checkout and every packaged file before binding the port. Local API failures return JSON errors. External citations are optional links.
+Use `runtime.release build` with a new destination to create a standalone bundle from already installed frontend dependencies. Use `--ranking-inputs PATH` for the downloaded input files or `--ranking-pack PATH` for a previously built sourced release pack. Keep the source, manifest and bundle together.
 
 ## Release acceptance
 
 1. Use a fresh browser profile on a second machine with networking disconnected.
-2. Open the Operations UI and choose **Demo**. Inspect regional MOLA context and the refusal of 20 m stereo elevation. Enter the synthetic Marswalk, approve the proposed route in Monitor, record departure, report a crew position and close the middle corridor. Verify the recomputed return reaches the same synthetic base and awaits approval. Compare the Jezero control, HPX128:96848, with a sparse cell such as HPX128:0. Sparse cells should show regional evidence and uncertainty while withholding unsupported local calculations.
-3. Rank “ancient lakes with hydrothermal activity” in Ranked cells. Confirm that the result states which terms were evaluated and which were skipped.
-4. Open the fixed-fixture regression at `/mission?view=simulation`. Confirm baseline return and science times of 40 s and 75 s, then 60 s and 95 s after closing the middle corridor. With 70 s remaining, expect an over-reserve refusal. Close both corridors and expect no route. Completed work must remain visible.
+2. Open [Return Window](http://127.0.0.1:8000/) and choose **Demo**. Inspect regional MOLA context and the refusal of 20 m stereo elevation. Enter the synthetic Marswalk, approve the proposed route in Monitor, record departure, report a crew position and close the middle corridor. Verify the recomputed return reaches the same synthetic base and awaits approval. Compare the Jezero control, HPX128:96848, with a sparse cell such as HPX128:0. Sparse cells should show regional evidence and uncertainty while withholding unsupported local calculations.
+3. Rank “ancient lakes with hydrothermal activity” in Ranked areas. Confirm that the result states which terms were evaluated and which were skipped.
+4. Open the fixed-fixture regression at `/legacy/mission?view=simulation`. Confirm baseline return and science times of 40 s and 75 s, then 60 s and 95 s after closing the middle corridor. With 70 s remaining, expect an over-reserve refusal. Close both corridors and expect no route. Completed work must remain visible.
 5. Open the separate hazard drill. Advance to the closure and check that the active route only changes after explicit operator approval. Verify that stale readings prevent approval. The seasonal MDAD outlook and the synthetic station model do not grant terrain or hazard qualification.
 6. Record the tested commit, manifest digest, machine, results, and timing. Same-machine browser tests block external requests and cover the integration. The disconnected second-machine receipt is required for offline release acceptance.
 
@@ -53,23 +44,11 @@ Suggested narration: “I’ll open Arcadia with Demo. We can see the regional t
 
 The [Jezero Float32 producer/consumer check](../evidence/jezero/README.md) is an independent archive control. The [moving-storm, SEP and emergency-hold scenarios](../runtime/docs/live-hazard-map.md) are separate CLI rehearsals. Neither control qualifies tactical routing.
 
-## Cell-first Explore and selectable-base rehearsal
+## Direct links
 
-Open [Explore](http://127.0.0.1:8000/explore). Rotate the globe by dragging or
-with the arrow keys, then select a point or enter an HPX128 cell ID. Switch
-between Viking colour and MOLA relief without losing the selected cell or base.
-Use Ranked cells for the sourced ranking API. Named features are approximate
-orientation aids.
-
-Use **Demo** to fill the objective and select the Arcadia cell and its pinned
-local evidence review. Inspect the supported MOLA fallback and the withheld
-20 m calculation. Choose **Enter simulated Marswalk** to submit the preset
-synthetic sortie for operator review. The preset starts at local row 1, column 1 with
-130 seconds, and both inputs can be changed. Approve a route in Monitor,
-record departure, report a simulated crew position and apply a closure.
-Recalculate from that position to the same base. The separate hazard replay
-shows local compute or bundled playback and requires operator approval.
-
-The original four-answer regression remains available in the fixed-fixture
-Mission simulation. For a second-machine acceptance, run both workflows
-with networking disconnected.
+- `/` opens Planetary Explore with no cell selected.
+- `/#ranking` opens Ranked Areas. Select a result to investigate its HEALPix cell.
+- `/#demo/arcadia` opens the Arcadia evidence walkthrough. **Enter simulated Marswalk** loads the rehearsal with the preset base.
+- `/marswalk?demo=1&walk=monitor` opens the rehearsal directly at Monitor. Refreshing opens the same stage and starts a new simulation.
+- `/#monitor/rover/43/hazards` opens the dedicated hazard drill.
+- `/legacy/` opens the earlier Explore and Atlas UI.

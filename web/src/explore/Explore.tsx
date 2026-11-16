@@ -68,7 +68,7 @@ export default function Explore() {
     if (nextBase) params.set('base', nextBase.join(','))
     if (preset) params.set('demo', '1')
     const globeLink = location.pathname === '/' && location.hash === '#globe'
-    history.replaceState(null, '', globeLink ? '/?' + params + '#globe' : '/explore?' + params)
+    history.replaceState(null, '', globeLink ? '/?' + params + '#globe' : import.meta.env.BASE_URL + 'explore?' + params)
   }
 
   async function pick(point: Point, forBase: boolean, recenter = false, preset = false, namedFeature?: string) {
@@ -162,14 +162,14 @@ export default function Explore() {
 
   return <main className="mission-app cell-workspace">
     <header className="mission-masthead">
-      <a className="mission-brand cell-brand" href="/explore">
-        {import.meta.env.VITE_PACKAGED_RELEASE === '1' && <img src="/demo/brand/nasa-logo.svg" width="32" height="28" alt=""/>}
-        Return Window
+      <a className="mission-brand cell-brand" href={import.meta.env.BASE_URL + 'explore'}>
+        {import.meta.env.VITE_PACKAGED_RELEASE === '1' && <img src="/brand/nasa-logo.svg" width="32" height="28" alt=""/>}
+        Return Window · Legacy
       </a>
       <nav className="mission-nav" aria-label="Workspaces">
         <button className="mission-link" onClick={() => { setRank(false); setSimulation(false) }}>Explore</button>
         <button className="mission-link" onClick={() => { setRank(true); setSimulation(false) }}>Ranked cells</button>
-        {import.meta.env.VITE_PACKAGED_RELEASE === '1' && <a href="/demo/">Operations UI</a>}
+        {import.meta.env.VITE_PACKAGED_RELEASE === '1' && <a href="/">Mission interface</a>}
         <button className="mission-button mission-button-primary" onClick={demo}>Demo</button>
       </nav>
     </header>

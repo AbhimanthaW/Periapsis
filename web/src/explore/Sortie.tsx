@@ -17,7 +17,10 @@ const same = (left: Cell, right: Cell) => key(left) === key(right)
 type ScienceInputs = {
   scienceObjective?: string; methodInput?: string | null; exclusionsInput?: string[]; initialLayer?: Layer
 }
-type SortieProps = ScienceInputs & { cellId: string; marsPoint: Point; demo: boolean; initialStage?: Stage }
+type SortieProps = ScienceInputs & {
+  cellId: string; marsPoint: Point; demo: boolean; initialStage?: Stage; tileBase?: string
+  onStageChange?: (stage: Stage) => void
+}
 
 export function Sortie({ cellId, marsPoint, demo, initialStage = 'Route', ...science }: SortieProps) {
   const [site, setSite] = useState<FixtureSite | null>(null)
@@ -85,10 +88,12 @@ function useScienceDestination({ scienceObjective, methodInput, exclusionsInput 
   return { objective, destination, status, retry: () => setAttempt(n => n + 1) }
 }
 
-function ScienceCorridor({ marsPoint, target, initialLayer = 'viking' }: { marsPoint: Point; target?: Point; initialLayer?: Layer }) {
+function ScienceCorridor({ marsPoint, target, initialLayer = 'viking', tileBase }: {
+  marsPoint: Point; target?: Point; initialLayer?: Layer; tileBase?: string
+}) {
   const [layer, setLayer] = useState(initialLayer)
   return <section className="science-corridor" aria-label="Mars surface context">
-    <RouteMap base={marsPoint} target={target} layer={layer}/>
+    <RouteMap base={marsPoint} target={target} layer={layer} tileBase={tileBase}/>
     <div className="corridor-tools">
       <label>Basemap <select value={layer} onChange={event => setLayer(event.target.value as Layer)}>
         <option value="viking">Viking colour</option>
@@ -121,7 +126,7 @@ function ScienceDestination({ objective, destination, status, retry, marsPoint }
   </section>
 }
 
-function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...science }: SortieProps & { site: FixtureSite }) {
+function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', tileBase, onStageChange, ...science }: SortieProps & { site: FixtureSite }) {
   const scienceResult = useScienceDestination(science)
   const [stage, setStage] = useState<Stage>(initialStage)
   const [sortie, setSortie] = useState(() => crypto.randomUUID())
@@ -243,9 +248,10 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
     setPlaying(false)
     setView(next === 'Monitor' ? 'terrain' : 'mars')
     setStage(next)
+    onStageChange?.(next)
   }
 
-  const marsMap = <ScienceCorridor marsPoint={marsPoint} target={scienceResult.destination?.point} initialLayer={science.initialLayer}/>
+  const marsMap = <ScienceCorridor marsPoint={marsPoint} target={scienceResult.destination?.point} initialLayer={science.initialLayer} tileBase={tileBase}/>
   const destination = <ScienceDestination {...scienceResult} marsPoint={marsPoint}/>
   const context = <>Mars context <code>{cellId}</code> · Saved Mars base {formatPoint(marsPoint, 4).replace(' ', ', ')}</>
   const map = <section className="sortie-map" aria-label="Computed route map">
@@ -284,7 +290,7 @@ function Planner({ site, cellId, marsPoint, demo, initialStage = 'Route', ...sci
         {tabs.map(tab => <button className="mission-button" key={tab} aria-pressed={stage === tab} onClick={() => switchStage(tab)}>{tab}</button>)}
       </nav>
       {stage !== 'Route' && <span className="sortie-workbench-context">{context}</span>}
-      {stage === 'Monitor' && <a className="mission-button sortie-hazard-link" href={'/demo/?' + new URLSearchParams({ cell: cellId, base: marsPoint.join(',') }) + '#monitor/rover/43/hazards'}>Hazard drill</a>}
+      {stage === 'Monitor' && <a className="mission-button sortie-hazard-link" href={'/?' + new URLSearchParams({ cell: cellId, base: marsPoint.join(',') }) + '#monitor/rover/43/hazards'}>Hazard drill</a>}
     </header>
     {stage === 'Route' && <section className="sortie-content" aria-label="Route workspace">
       <header className="sortie-title">

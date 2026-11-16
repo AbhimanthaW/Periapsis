@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "cd .. && uv run --project documentation --locked --python 3.12 python -m runtime.release launch",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "check:atlas": "tsx scripts/check-atlas.ts"
+    "check:atlas": "tsx scripts/check-atlas.ts",
+    "dev:legacy": "vite --host 127.0.0.1"
   },
   "dependencies": {
     "lucide-react": "0.577.0",

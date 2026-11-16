@@ -8,7 +8,7 @@ The CODEOWNERS file records the intended mapping in comments. Replace the placeh
 
 ## Explore and Operations
 
-Use Node 22. From `web/` run `npm ci`, `npm run check:atlas`, and `npm run build`. Run `npm run dev -- --port 4175 --strictPort` and open [Explore Mars](http://127.0.0.1:4175/#globe). Follow the [web app setup](../web/README.md#connect-the-mission-backend) to enable evidence, ranking, planning and the hazard drill.
+Run the [repository-root launcher](../README.md#launch) to test both the mission interface and local services together. The earlier Explore and Atlas UI is available under `/legacy/`. [Frontend development commands](../web/README.md)
 
 ## Documentation engine
 

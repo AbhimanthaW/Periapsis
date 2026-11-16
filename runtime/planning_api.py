@@ -335,23 +335,29 @@ class PlanningHandler(BaseHTTPRequestHandler):
     def serve_release_file(self):
         if self.static_root is None:
             return False
-        request_path = unquote(urlsplit(self.path).path)
+        url = urlsplit(self.path)
+        request_path = unquote(url.path)
         if request_path.startswith("/api/") or request_path == "/healthz":
             return False
-        if request_path in {"/", "/atlas", "/atlas/", "/mission", "/mission/", "/explore", "/explore/"}:
-            directory, name = "app", "index.html"
-        elif request_path == "/demo":
+
+        path = request_path.rstrip("/")
+        redirects = {"/demo": "/", "/legacy": "/legacy/", "/atlas": "/legacy/explore",
+                     "/mission": "/legacy/mission", "/explore": "/legacy/explore" if url.query else "/"}
+        if path in redirects and request_path != "/legacy/":
+            location = redirects[path] + ("?" + url.query if url.query else "")
             self.send_response(308)
-            self.send_header("Location", "/demo/")
+            self.send_header("Location", location)
             self.send_header("Content-Length", "0")
             self.end_headers()
             return True
-        elif request_path == "/demo/":
-            directory, name = "demo", "index.html"
-        elif request_path.startswith("/demo/"):
-            directory, name = "demo", request_path.removeprefix("/demo/")
+
+        if request_path.startswith("/legacy/"):
+            directory, name = "legacy", request_path.removeprefix("/legacy/")
+            if name.rstrip("/") in {"", "atlas", "explore", "mission"}:
+                name = "index.html"
         else:
-            directory, name = "app", request_path.lstrip("/")
+            directory = "app"
+            name = "index.html" if path in {"", "/marswalk"} else request_path.lstrip("/")
         base = self.static_root / directory
         artifact = (base / name).resolve()
         if not artifact.is_relative_to(base) or not artifact.is_file():
@@ -362,7 +368,7 @@ class PlanningHandler(BaseHTTPRequestHandler):
     def hazard_frame(self, step):
         replay = self.service.hazard_replay
         if replay is None:
-            self.reject(503, "HAZARD_REPLAY_NOT_CONFIGURED", "The offline replay bundle is available in Mission Preview")
+            self.reject(503, "HAZARD_REPLAY_NOT_CONFIGURED", "Launch Return Window to enable the offline hazard replay")
             return
         try:
             if not step.isascii() or not step.isdecimal() or len(step) > 2:

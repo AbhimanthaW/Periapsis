@@ -205,7 +205,7 @@ export function SiteInvestigation({ region, profile, onChange, onEnterSimulation
         <h2>Simulated Marswalk</h2>
         <p className="mission-muted">Rehearse the return-window decision on an independent synthetic grid with a fixed crew profile.</p>
         <button className="mission-button mission-button-primary" onClick={onEnterSimulation}>Enter simulated Marswalk</button>
-        {import.meta.env.VITE_PACKAGED_RELEASE === '1' && <p><a href={'/demo/?' + new URLSearchParams({ region: region.id, profile }) + '#monitor/rover/43/hazards'}>Open separate simulated hazard drill</a></p>}
+        {import.meta.env.VITE_PACKAGED_RELEASE === '1' && <p><a href={'/?' + new URLSearchParams({ region: region.id, profile }) + '#monitor/rover/43/hazards'}>Open separate simulated hazard drill</a></p>}
       </section>
     </aside>
   </div>
